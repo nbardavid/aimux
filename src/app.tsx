@@ -10,6 +10,12 @@ import { RootView } from "./ui/root";
 
 const IDLE_TIMEOUT_MS = 2_000;
 const STARTUP_GRACE_MS = 5_000;
+const MAIN_AREA_HORIZONTAL_CHROME = 4;
+const MAIN_AREA_VERTICAL_PADDING = 2;
+const STATUS_BAR_HEIGHT = 4;
+const TERMINAL_PANE_VERTICAL_CHROME = 4;
+const MIN_TERMINAL_ROWS = 1;
+const MIN_TERMINAL_COLS = 20;
 
 function createTabId(): string {
   return `tab-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -142,8 +148,10 @@ export function App() {
 
   const terminalSize = useMemo(() => {
     const sidebarWidth = state.sidebar.visible ? state.sidebar.width + 3 : 0;
-    const cols = Math.max(20, Math.floor(dimensions.width - sidebarWidth - 4));
-    const rows = Math.max(8, Math.floor(dimensions.height - 6));
+    const reservedRows =
+      MAIN_AREA_VERTICAL_PADDING + STATUS_BAR_HEIGHT + TERMINAL_PANE_VERTICAL_CHROME;
+    const cols = Math.max(MIN_TERMINAL_COLS, Math.floor(dimensions.width - sidebarWidth - MAIN_AREA_HORIZONTAL_CHROME));
+    const rows = Math.max(MIN_TERMINAL_ROWS, Math.floor(dimensions.height - reservedRows));
     return { cols, rows };
   }, [dimensions.height, dimensions.width, state.sidebar.visible, state.sidebar.width]);
 

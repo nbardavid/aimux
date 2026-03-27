@@ -1,3 +1,4 @@
+import { ASSISTANT_OPTIONS } from "../pty/command-registry";
 import type { AppAction, AppState, TabSession } from "./types";
 
 const MAX_BUFFER_LENGTH = 50_000;
@@ -46,7 +47,7 @@ function closeTabAtIndex(state: AppState, indexToClose: number): AppState {
   };
 }
 
-export function createInitialState(): AppState {
+export function createInitialState(customCommands: Record<string, string> = {}): AppState {
   return {
     tabs: [],
     activeTabId: null,
@@ -60,11 +61,13 @@ export function createInitialState(): AppState {
     modal: {
       type: null,
       selectedIndex: 0,
+      editBuffer: null,
     },
     layout: {
       terminalCols: 80,
       terminalRows: 24,
     },
+    customCommands,
   };
 }
 
@@ -85,6 +88,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         modal: {
           type: "new-tab",
           selectedIndex: 0,
+          editBuffer: null,
         },
       };
     case "close-modal":
@@ -94,6 +98,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         modal: {
           type: null,
           selectedIndex: 0,
+          editBuffer: null,
         },
       };
     case "move-modal-selection": {
@@ -128,6 +133,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         modal: {
           type: null,
           selectedIndex: 0,
+          editBuffer: null,
         },
       };
     case "close-tab": {
@@ -152,10 +158,15 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       const safeIndex = currentIndex === -1 ? 0 : currentIndex;
       const nextIndex =
         (safeIndex + action.delta + state.tabs.length) % state.tabs.length;
+      const nextTabId = state.tabs[nextIndex]?.id;
+
+      if (!nextTabId || nextTabId === state.activeTabId) {
+        return state;
+      }
 
       return {
         ...state,
-        activeTabId: state.tabs[nextIndex]?.id ?? state.activeTabId,
+        activeTabId: nextTabId,
       };
     }
     case "reorder-active-tab": {
@@ -266,6 +277,59 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           terminalCols: action.cols,
           terminalRows: action.rows,
         },
+      };
+    case "begin-command-edit": {
+      if (state.modal.type !== "new-tab") {
+        return state;
+      }
+      const option = ASSISTANT_OPTIONS[state.modal.selectedIndex];
+      const assistantId = option?.id;
+      const currentCmd =
+        (assistantId && state.customCommands[assistantId]) ?? option?.command ?? "";
+      return {
+        ...state,
+        focusMode: "command-edit",
+        modal: { ...state.modal, editBuffer: currentCmd },
+      };
+    }
+    case "update-command-edit": {
+      if (state.modal.editBuffer === null) {
+        return state;
+      }
+      const buf =
+        action.char === "\b"
+          ? state.modal.editBuffer.slice(0, -1)
+          : state.modal.editBuffer + action.char;
+      return { ...state, modal: { ...state.modal, editBuffer: buf } };
+    }
+    case "commit-command-edit": {
+      if (state.modal.type !== "new-tab" || state.modal.editBuffer === null) {
+        return state;
+      }
+      const option = ASSISTANT_OPTIONS[state.modal.selectedIndex];
+      const assistantId = option?.id;
+      if (!assistantId) {
+        return { ...state, focusMode: "modal", modal: { ...state.modal, editBuffer: null } };
+      }
+      const trimmed = state.modal.editBuffer.trim();
+      const newCustomCommands = { ...state.customCommands };
+      if (trimmed) {
+        newCustomCommands[assistantId] = trimmed;
+      } else {
+        delete newCustomCommands[assistantId];
+      }
+      return {
+        ...state,
+        focusMode: "modal",
+        customCommands: newCustomCommands,
+        modal: { ...state.modal, editBuffer: null },
+      };
+    }
+    case "cancel-command-edit":
+      return {
+        ...state,
+        focusMode: "modal",
+        modal: { ...state.modal, editBuffer: null },
       };
     default:
       return state;

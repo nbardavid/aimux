@@ -35,3 +35,8 @@ export function getAssistantOption(index: number): AssistantOption {
 export function isCommandAvailable(command: string): boolean {
   return Bun.which(command) !== null;
 }
+
+export function parseCommand(commandString: string): { executable: string; args: string[] } {
+  const parts = commandString.trim().split(/\s+/).filter(Boolean);
+  return { executable: parts[0] ?? "", args: parts.slice(1) };
+}

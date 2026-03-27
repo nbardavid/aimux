@@ -2,7 +2,8 @@ import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
 import { useEffect, useMemo, useReducer, useRef } from "react";
 
 import { resolveKeyIntent } from "./input/keymap";
-import { getAssistantOption, isCommandAvailable } from "./pty/command-registry";
+import { loadConfig, saveConfig } from "./config";
+import { ASSISTANT_OPTIONS, getAssistantOption, isCommandAvailable, parseCommand } from "./pty/command-registry";
 import { PtyManager } from "./pty/pty-manager";
 import { appReducer, createInitialState } from "./state/store";
 import type { AssistantId, TabSession } from "./state/types";
@@ -21,7 +22,7 @@ function createTabId(): string {
   return `tab-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function createTabSession(assistant: AssistantId): TabSession {
+function createTabSession(assistant: AssistantId, customCommand?: string): TabSession {
   const index = ["claude", "codex", "opencode"].indexOf(assistant);
   const option = getAssistantOption(index);
 
@@ -32,14 +33,17 @@ function createTabSession(assistant: AssistantId): TabSession {
     status: "starting",
     activity: "idle",
     buffer: "",
-    command: option.command,
+    command: customCommand ?? option.command,
   };
 }
 
 export function App() {
   const renderer = useRenderer();
   const dimensions = useTerminalDimensions();
-  const [state, dispatch] = useReducer(appReducer, undefined, createInitialState);
+  const [state, dispatch] = useReducer(appReducer, undefined, () => {
+    const { customCommands } = loadConfig();
+    return createInitialState(customCommands);
+  });
   const ptyManagerRef = useRef<PtyManager | null>(null);
   const idleTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const startupGraceTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -165,23 +169,27 @@ export function App() {
   }, [ptyManager, terminalSize.cols, terminalSize.rows]);
 
   function launchAssistant(assistant: AssistantId) {
-    const tab = createTabSession(assistant);
+    const customCommand = state.customCommands[assistant];
+    const tab = createTabSession(assistant, customCommand);
     dispatch({ type: "add-tab", tab });
     startStartupGrace(tab.id);
 
-    if (!isCommandAvailable(tab.command)) {
+    const { executable, args } = parseCommand(tab.command);
+
+    if (!isCommandAvailable(executable)) {
       clearStartupGrace(tab.id);
       dispatch({
         type: "set-tab-error",
         tabId: tab.id,
-        message: `[command not found] ${tab.command} is not available in PATH.`,
+        message: `[command not found] ${executable} is not available in PATH.`,
       });
       return;
     }
 
     ptyManager.createSession({
       tabId: tab.id,
-      command: tab.command,
+      command: executable,
+      args,
       cols: state.layout.terminalCols,
       rows: state.layout.terminalRows,
     });
@@ -245,6 +253,30 @@ export function App() {
         if (state.activeTabId) {
           ptyManager.write(state.activeTabId, intent.data);
         }
+        return;
+      case "begin-command-edit":
+        dispatch({ type: "begin-command-edit" });
+        return;
+      case "command-edit-input":
+        dispatch({ type: "update-command-edit", char: intent.char });
+        return;
+      case "commit-command-edit": {
+        dispatch({ type: "commit-command-edit" });
+        const option = ASSISTANT_OPTIONS[state.modal.selectedIndex];
+        if (option && state.modal.editBuffer !== null) {
+          const trimmed = state.modal.editBuffer.trim();
+          const newCustomCommands = { ...state.customCommands };
+          if (trimmed) {
+            newCustomCommands[option.id] = trimmed;
+          } else {
+            delete newCustomCommands[option.id];
+          }
+          saveConfig({ customCommands: newCustomCommands });
+        }
+        return;
+      }
+      case "cancel-command-edit":
+        dispatch({ type: "cancel-command-edit" });
         return;
       default:
         return;

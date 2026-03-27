@@ -4,7 +4,7 @@ export type TabStatus = "starting" | "running" | "exited" | "error";
 
 export type TabActivity = "busy" | "idle";
 
-export type FocusMode = "navigation" | "terminal-input" | "modal";
+export type FocusMode = "navigation" | "terminal-input" | "modal" | "command-edit";
 
 export type ModalType = "new-tab" | null;
 
@@ -48,6 +48,7 @@ export interface SidebarState {
 export interface ModalState {
   type: ModalType;
   selectedIndex: number;
+  editBuffer: string | null;
 }
 
 export interface LayoutState {
@@ -62,6 +63,7 @@ export interface AppState {
   sidebar: SidebarState;
   modal: ModalState;
   layout: LayoutState;
+  customCommands: Record<AssistantId, string>;
 }
 
 export type AppAction =
@@ -82,4 +84,8 @@ export type AppAction =
   | { type: "set-tab-activity"; tabId: string; activity?: TabActivity }
   | { type: "set-tab-status"; tabId: string; status: TabStatus; exitCode?: number }
   | { type: "set-tab-error"; tabId: string; message: string }
-  | { type: "set-terminal-size"; cols: number; rows: number };
+  | { type: "set-terminal-size"; cols: number; rows: number }
+  | { type: "begin-command-edit" }
+  | { type: "update-command-edit"; char: string }
+  | { type: "commit-command-edit" }
+  | { type: "cancel-command-edit" };

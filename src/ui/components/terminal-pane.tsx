@@ -5,7 +5,7 @@ import { theme } from "../theme";
 
 interface TerminalPaneProps {
   tab?: TabSession;
-  focusMode: "navigation" | "terminal-input" | "modal";
+  focusMode: "navigation" | "terminal-input" | "modal" | "command-edit";
 }
 
 function getTitle(tab?: TabSession): string {

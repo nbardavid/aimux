@@ -48,6 +48,49 @@ describe("appReducer", () => {
     expect(next.activeTabId).toBe("2");
   });
 
+  test("wraps from last tab to first tab", () => {
+    const initial = {
+      ...createInitialState(),
+      tabs: [
+        { id: "1", assistant: "claude" as const, title: "Claude", status: "running" as const, buffer: "", command: "claude" },
+        { id: "2", assistant: "codex" as const, title: "Codex", status: "running" as const, buffer: "", command: "codex" },
+        { id: "3", assistant: "opencode" as const, title: "OpenCode", status: "running" as const, buffer: "", command: "opencode" },
+      ],
+      activeTabId: "3",
+    };
+
+    const next = appReducer(initial, { type: "move-active-tab", delta: 1 });
+    expect(next.activeTabId).toBe("1");
+  });
+
+  test("wraps from first tab to last tab", () => {
+    const initial = {
+      ...createInitialState(),
+      tabs: [
+        { id: "1", assistant: "claude" as const, title: "Claude", status: "running" as const, buffer: "", command: "claude" },
+        { id: "2", assistant: "codex" as const, title: "Codex", status: "running" as const, buffer: "", command: "codex" },
+        { id: "3", assistant: "opencode" as const, title: "OpenCode", status: "running" as const, buffer: "", command: "opencode" },
+      ],
+      activeTabId: "1",
+    };
+
+    const next = appReducer(initial, { type: "move-active-tab", delta: -1 });
+    expect(next.activeTabId).toBe("3");
+  });
+
+  test("does not create a new state when wrapping lands on the same tab", () => {
+    const initial = {
+      ...createInitialState(),
+      tabs: [
+        { id: "1", assistant: "claude" as const, title: "Claude", status: "running" as const, buffer: "", command: "claude" },
+      ],
+      activeTabId: "1",
+    };
+
+    const next = appReducer(initial, { type: "move-active-tab", delta: 1 });
+    expect(next).toBe(initial);
+  });
+
   test("closes the active tab and picks the next tab at same index", () => {
     const initial = {
       ...createInitialState(),

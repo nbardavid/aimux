@@ -2,6 +2,7 @@ import type { TabSession } from "../../state/types";
 import { theme } from "../theme";
 
 interface TabItemProps {
+  id?: string;
   tab: TabSession;
   active: boolean;
   focused: boolean;
@@ -32,13 +33,14 @@ function getActivityLabel(tab: TabSession): string {
   return tab.status;
 }
 
-export function TabItem({ tab, active, focused }: TabItemProps) {
+export function TabItem({ id, tab, active, focused }: TabItemProps) {
   const label = tab.assistant.toUpperCase();
   const activityLabel = getActivityLabel(tab);
   const activityColor = tab.activity === "busy" ? theme.accent : getStatusColor(tab.status);
 
   return (
     <box
+      id={id}
       paddingLeft={1}
       paddingRight={1}
       paddingTop={1}

@@ -1,4 +1,8 @@
+import type { ScrollBoxRenderable } from "@opentui/core";
+import { useEffect, useRef } from "react";
+
 import type { AppState } from "../../state/types";
+import { getSidebarScrollTarget } from "./sidebar-scroll";
 import { theme } from "../theme";
 import { TabItem } from "./tab-item";
 
@@ -7,6 +11,50 @@ interface SidebarProps {
 }
 
 export function Sidebar({ state }: SidebarProps) {
+  const scrollRef = useRef<ScrollBoxRenderable | null>(null);
+  const previousActiveIndexRef = useRef(-1);
+  const previousVisibilityRef = useRef(state.sidebar.visible);
+  const activeIndex = state.tabs.findIndex((tab) => tab.id === state.activeTabId);
+
+  useEffect(() => {
+    if (!state.sidebar.visible) {
+      previousVisibilityRef.current = false;
+      previousActiveIndexRef.current = activeIndex;
+      return;
+    }
+
+    const scrollbox = scrollRef.current;
+    if (!scrollbox) {
+      previousVisibilityRef.current = state.sidebar.visible;
+      previousActiveIndexRef.current = activeIndex;
+      return;
+    }
+
+    if (!previousVisibilityRef.current && state.activeTabId) {
+      scrollbox.scrollChildIntoView(`sidebar-tab-${state.activeTabId}`);
+      previousVisibilityRef.current = true;
+      previousActiveIndexRef.current = activeIndex;
+      return;
+    }
+
+    const scrollTarget = getSidebarScrollTarget({
+      previousActiveIndex: previousActiveIndexRef.current,
+      nextActiveIndex: activeIndex,
+      tabCount: state.tabs.length,
+    });
+
+    if (scrollTarget === "top") {
+      scrollbox.scrollTo({ x: 0, y: 0 });
+    } else if (scrollTarget === "bottom") {
+      scrollbox.scrollTo({ x: 0, y: scrollbox.scrollHeight });
+    } else if (scrollTarget === "active-item" && state.activeTabId) {
+      scrollbox.scrollChildIntoView(`sidebar-tab-${state.activeTabId}`);
+    }
+
+    previousVisibilityRef.current = state.sidebar.visible;
+    previousActiveIndexRef.current = activeIndex;
+  }, [activeIndex, state.activeTabId, state.sidebar.visible, state.tabs.length]);
+
   if (!state.sidebar.visible) {
     return null;
   }
@@ -23,7 +71,13 @@ export function Sidebar({ state }: SidebarProps) {
     >
       <text fg={theme.accent}>aimux</text>
       <text fg={theme.textMuted}>Ctrl+n new / Ctrl+w close / Shift+J/K reorder</text>
-      <box flexDirection="column" gap={1} flexGrow={1}>
+      <scrollbox
+        ref={scrollRef}
+        flexGrow={1}
+        scrollY
+        viewportCulling
+        contentOptions={{ flexDirection: "column", gap: 1 }}
+      >
         {state.tabs.length === 0 ? (
           <box paddingTop={1}>
             <text fg={theme.textMuted}>No tabs yet. Press Ctrl+n.</text>
@@ -32,13 +86,14 @@ export function Sidebar({ state }: SidebarProps) {
           state.tabs.map((tab) => (
             <TabItem
               key={tab.id}
+              id={`sidebar-tab-${tab.id}`}
               tab={tab}
               active={tab.id === state.activeTabId}
               focused={state.focusMode === "navigation"}
             />
           ))
         )}
-      </box>
+      </scrollbox>
     </box>
   );
 }

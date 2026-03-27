@@ -15,7 +15,11 @@ export type AppIntent =
   | { type: "leave-terminal-input" }
   | { type: "toggle-sidebar" }
   | { type: "resize-sidebar"; delta: number }
-  | { type: "send-to-pty"; data: string };
+  | { type: "send-to-pty"; data: string }
+  | { type: "begin-command-edit" }
+  | { type: "command-edit-input"; char: string }
+  | { type: "commit-command-edit" }
+  | { type: "cancel-command-edit" };
 
 function ctrlLetter(letter: string): string {
   return String.fromCharCode(letter.toLowerCase().charCodeAt(0) - 96);
@@ -115,6 +119,37 @@ export function resolveKeyIntent(
 
     if (key.name === "return") {
       return { type: "confirm-modal" };
+    }
+
+    if (key.name === "e") {
+      return { type: "begin-command-edit" };
+    }
+
+    return null;
+  }
+
+  if (focusMode === "command-edit") {
+    if (key.name === "escape") {
+      return { type: "cancel-command-edit" };
+    }
+
+    if (key.name === "return") {
+      return { type: "commit-command-edit" };
+    }
+
+    if (key.name === "backspace") {
+      return { type: "command-edit-input", char: "\b" };
+    }
+
+    if (key.name === "space") {
+      return { type: "command-edit-input", char: " " };
+    }
+
+    if (key.name.length === 1) {
+      return {
+        type: "command-edit-input",
+        char: key.shift ? key.name.toUpperCase() : key.name,
+      };
     }
 
     return null;

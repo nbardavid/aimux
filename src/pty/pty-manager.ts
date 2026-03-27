@@ -49,6 +49,7 @@ export class PtyManager extends EventEmitter<PtyManagerEvents> {
   createSession(options: {
     tabId: string;
     command: string;
+    args?: string[];
     cols: number;
     rows: number;
     cwd?: string;
@@ -63,7 +64,7 @@ export class PtyManager extends EventEmitter<PtyManagerEvents> {
         scrollback: 1000,
       });
 
-      const pty = spawn(options.command, [], {
+      const pty = spawn(options.command, options.args ?? [], {
         name: "xterm-256color",
         cols: options.cols,
         rows: options.rows,

@@ -12,6 +12,7 @@ export function StatusBar({ state, activeTab }: StatusBarProps) {
 
   return (
     <box
+      minHeight={4}
       border
       borderColor={theme.border}
       paddingLeft={1}

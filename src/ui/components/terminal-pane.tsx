@@ -1,11 +1,16 @@
+import type { MouseEvent as OtuiMouseEvent } from "@opentui/core";
 import type { ReactNode } from "react";
 
+import type { TerminalContentOrigin } from "../../input/raw-input-handler";
 import type { TabSession, TerminalSpan } from "../../state/types";
 import { theme } from "../theme";
 
 interface TerminalPaneProps {
   tab?: TabSession;
   focusMode: "navigation" | "terminal-input" | "modal" | "command-edit";
+  contentOrigin: TerminalContentOrigin;
+  mouseForwardingEnabled: boolean;
+  onTerminalMouseEvent: (event: OtuiMouseEvent, origin: TerminalContentOrigin) => void;
 }
 
 function getTitle(tab?: TabSession): string {
@@ -50,7 +55,18 @@ function renderViewport(tab: TabSession): ReactNode {
   return <text fg={theme.text}>{tab.buffer.length > 0 ? tab.buffer : "Waiting for session output..."}</text>;
 }
 
-export function TerminalPane({ tab, focusMode }: TerminalPaneProps) {
+export function TerminalPane({ tab, focusMode, contentOrigin, mouseForwardingEnabled, onTerminalMouseEvent }: TerminalPaneProps) {
+  const canForwardMouse = focusMode === "terminal-input" && !!tab && mouseForwardingEnabled;
+  const forwardMouseEvent = (event: OtuiMouseEvent) => {
+    if (!canForwardMouse) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    onTerminalMouseEvent(event, contentOrigin);
+  };
+
   return (
     <box flexDirection="column" flexGrow={1} gap={1}>
       <box
@@ -67,7 +83,14 @@ export function TerminalPane({ tab, focusMode }: TerminalPaneProps) {
             <text fg={theme.textMuted}>Create a tab with Ctrl+n to launch Claude, Codex, or OpenCode.</text>
           </box>
         ) : (
-          <box flexDirection="column" flexGrow={1}>
+          <box
+            flexDirection="column"
+            flexGrow={1}
+            onMouseDown={forwardMouseEvent}
+            onMouseUp={forwardMouseEvent}
+            onMouseDrag={forwardMouseEvent}
+            onMouseScroll={forwardMouseEvent}
+          >
             {renderViewport(tab)}
           </box>
         )}

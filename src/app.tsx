@@ -1,7 +1,9 @@
+import type { MouseEvent as OtuiMouseEvent } from "@opentui/core";
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react";
 import { useEffect, useMemo, useReducer, useRef } from "react";
 
 import { resolveKeyIntent } from "./input/keymap";
+import { encodeMouseEventForPty } from "./input/mouse-forwarding";
 import { createRawInputHandler, type TerminalContentOrigin } from "./input/raw-input-handler";
 import { loadConfig, saveConfig } from "./config";
 import { ASSISTANT_OPTIONS, getAssistantOption, isCommandAvailable, parseCommand } from "./pty/command-registry";
@@ -18,7 +20,6 @@ const STATUS_BAR_HEIGHT = 4;
 const TERMINAL_PANE_VERTICAL_CHROME = 4;
 const MIN_TERMINAL_ROWS = 1;
 const MIN_TERMINAL_COLS = 20;
-const DISABLE_TERMINAL_PASSTHROUGH = "\x1b[?9l\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1004l\x1b[?1006l\x1b[?1007l";
 
 function createTabId(): string {
   return `tab-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -44,41 +45,6 @@ function createTabSession(assistant: AssistantId, customCommand?: string): TabSe
   };
 }
 
-function buildTerminalPassthroughEnableSequence(terminalModes: TerminalModeState): string {
-  let sequence = "";
-
-  switch (terminalModes.mouseTrackingMode) {
-    case "x10":
-      sequence += "\x1b[?9h";
-      break;
-    case "vt200":
-      sequence += "\x1b[?1000h";
-      break;
-    case "drag":
-      sequence += "\x1b[?1002h";
-      break;
-    case "any":
-      sequence += "\x1b[?1003h";
-      break;
-    default:
-      break;
-  }
-
-  if (terminalModes.mouseTrackingMode !== "none") {
-    sequence += "\x1b[?1006h";
-  }
-
-  if (terminalModes.sendFocusMode) {
-    sequence += "\x1b[?1004h";
-  }
-
-  if (terminalModes.alternateScrollMode) {
-    sequence += "\x1b[?1007h";
-  }
-
-  return sequence;
-}
-
 export function App() {
   const renderer = useRenderer();
   const dimensions = useTerminalDimensions();
@@ -99,11 +65,7 @@ export function App() {
     () => state.tabs.find((tab) => tab.id === state.activeTabId),
     [state.activeTabId, state.tabs],
   );
-  const activeMouseTrackingMode = activeTab?.terminalModes.mouseTrackingMode ?? "none";
-  const activeSendFocusMode = activeTab?.terminalModes.sendFocusMode ?? false;
-  const activeAlternateScrollMode = activeTab?.terminalModes.alternateScrollMode ?? false;
-  const activeMousePassthroughEnabled =
-    activeMouseTrackingMode !== "none" || activeAlternateScrollMode;
+  const activeMouseForwardingEnabled = activeTab?.terminalModes.mouseTrackingMode !== "none";
 
   const focusModeRef = useRef(state.focusMode);
   focusModeRef.current = state.focusMode;
@@ -120,12 +82,7 @@ export function App() {
       getFocusMode: () => focusModeRef.current,
       getActiveTabId: () => activeTabIdRef.current,
       getContentOrigin: () => contentOriginRef.current,
-      getMousePassthroughEnabled: () => {
-        const terminalModes = activeTabRef.current?.terminalModes;
-        return !!terminalModes && (
-          terminalModes.mouseTrackingMode !== "none" || terminalModes.alternateScrollMode
-        );
-      },
+      getMousePassthroughEnabled: () => activeTabRef.current !== undefined,
       writeToPty: (tabId, data) => ptyManager.write(tabId, data),
       leaveTerminalInput: () =>
         dispatch({ type: "set-focus-mode", focusMode: "navigation" }),
@@ -136,34 +93,21 @@ export function App() {
   }, [renderer, ptyManager]);
 
   useEffect(() => {
-    const shouldPassthroughTerminalInput =
-      state.focusMode === "terminal-input"
-      && !!activeTab
-      && (activeMousePassthroughEnabled || activeSendFocusMode);
+    renderer.useMouse = true;
+  }, [renderer]);
 
-    if (shouldPassthroughTerminalInput) {
-      renderer.useMouse = false;
-      process.stdout.write(
-        `${DISABLE_TERMINAL_PASSTHROUGH}${buildTerminalPassthroughEnableSequence({
-          mouseTrackingMode: activeMouseTrackingMode,
-          sendFocusMode: activeSendFocusMode,
-          alternateScrollMode: activeAlternateScrollMode,
-        })}`,
-      );
+  const handleTerminalMouseEvent = (event: OtuiMouseEvent, origin: TerminalContentOrigin) => {
+    if (state.focusMode !== "terminal-input" || !state.activeTabId || !activeMouseForwardingEnabled) {
       return;
     }
 
-    process.stdout.write(DISABLE_TERMINAL_PASSTHROUGH);
-    renderer.useMouse = true;
-  }, [
-    activeAlternateScrollMode,
-    activeMousePassthroughEnabled,
-    activeMouseTrackingMode,
-    activeSendFocusMode,
-    activeTab?.id,
-    renderer,
-    state.focusMode,
-  ]);
+    const sequence = encodeMouseEventForPty(event, origin);
+    if (!sequence) {
+      return;
+    }
+
+    ptyManager.write(state.activeTabId, sequence);
+  };
 
   function clearIdleTimer(tabId: string) {
     const timeout = idleTimeoutsRef.current.get(tabId);
@@ -404,5 +348,12 @@ export function App() {
     }
   });
 
-  return <RootView state={state} />;
+  return (
+    <RootView
+      state={state}
+      contentOrigin={contentOriginRef.current}
+      mouseForwardingEnabled={activeMouseForwardingEnabled}
+      onTerminalMouseEvent={handleTerminalMouseEvent}
+    />
+  );
 }

@@ -4,12 +4,6 @@ const CTRL_Z_RAW = "\x1a";
 const CTRL_Z_KITTY = "\x1b[122;5u";
 const KITTY_CTRL_RE = /^\x1b\[(\d+);(\d+)u$/;
 
-/** Matches SGR mouse sequences: \x1b[<button;x;yM or \x1b[<button;x;ym */
-const SGR_MOUSE_RE = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])$/;
-const BASIC_MOUSE_PREFIX = "\x1b[M";
-
-type MouseTrackingMode = "none" | "x10" | "vt200" | "drag" | "any";
-
 function normalizeControlSequence(sequence: string): string {
   const match = KITTY_CTRL_RE.exec(sequence);
   if (!match) {
@@ -69,72 +63,6 @@ export interface TerminalContentOrigin {
   rows: number;
 }
 
-function adjustMouseCoordinates(screenX: number, screenY: number, origin: TerminalContentOrigin): {
-  ptyX: number;
-  ptyY: number;
-} | null {
-  const ptyX = screenX - origin.x;
-  const ptyY = screenY - origin.y;
-
-  if (ptyX < 1 || ptyY < 1 || ptyX > origin.cols || ptyY > origin.rows) {
-    return null;
-  }
-
-  return { ptyX, ptyY };
-}
-
-function adjustSgrMouseSequence(sequence: string, origin: TerminalContentOrigin): string | null {
-  const match = SGR_MOUSE_RE.exec(sequence);
-  if (!match) {
-    return null;
-  }
-
-  const button = match[1];
-  const screenX = Number(match[2]); // 1-based
-  const screenY = Number(match[3]); // 1-based
-  const suffix = match[4]; // M (press) or m (release)
-
-  const adjustedCoordinates = adjustMouseCoordinates(screenX, screenY, origin);
-  if (!adjustedCoordinates) {
-    return null;
-  }
-
-  return `\x1b[<${button};${adjustedCoordinates.ptyX};${adjustedCoordinates.ptyY}${suffix}`;
-}
-
-function isBasicMouseSequence(sequence: string): boolean {
-  return sequence.startsWith(BASIC_MOUSE_PREFIX) && sequence.length === 6;
-}
-
-function adjustBasicMouseSequence(sequence: string, origin: TerminalContentOrigin): string | null {
-  if (!isBasicMouseSequence(sequence)) {
-    return null;
-  }
-
-  const rawButtonCode = sequence.charCodeAt(3) - 32;
-  const screenX = sequence.charCodeAt(4) - 32;
-  const screenY = sequence.charCodeAt(5) - 32;
-  const adjustedCoordinates = adjustMouseCoordinates(screenX, screenY, origin);
-  if (!adjustedCoordinates) {
-    return null;
-  }
-
-  const isScroll = (rawButtonCode & 64) !== 0;
-  const isMotion = (rawButtonCode & 32) !== 0;
-  const isRelease = !isScroll && !isMotion && (rawButtonCode & 3) === 3;
-  const suffix = isRelease ? "m" : "M";
-
-  return `\x1b[<${rawButtonCode};${adjustedCoordinates.ptyX};${adjustedCoordinates.ptyY}${suffix}`;
-}
-
-function adjustMouseSequence(sequence: string, origin: TerminalContentOrigin): string | null {
-  return adjustSgrMouseSequence(sequence, origin) ?? adjustBasicMouseSequence(sequence, origin);
-}
-
-function isMouseSequence(sequence: string): boolean {
-  return SGR_MOUSE_RE.test(sequence) || isBasicMouseSequence(sequence);
-}
-
 export function createRawInputHandler(deps: {
   getFocusMode: () => FocusMode;
   getActiveTabId: () => string | null;
@@ -151,20 +79,6 @@ export function createRawInputHandler(deps: {
     const activeTabId = deps.getActiveTabId();
     if (!activeTabId) {
       return false;
-    }
-
-    const adjusted = adjustMouseSequence(sequence, deps.getContentOrigin());
-    if (adjusted !== null) {
-      if (!deps.getMousePassthroughEnabled()) {
-        return false;
-      }
-
-      deps.writeToPty(activeTabId, adjusted);
-      return true;
-    }
-
-    if (isMouseSequence(sequence)) {
-      return deps.getMousePassthroughEnabled();
     }
 
     if (sequence === CTRL_Z_RAW || sequence === CTRL_Z_KITTY) {

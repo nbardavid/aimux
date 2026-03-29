@@ -126,6 +126,28 @@ export function App() {
   }, [renderer, state.activeTabId, state.focusMode, activeTab]);
 
   useEffect(() => {
+    const handleSelection = (selection: { isDragging?: boolean; getSelectedText(): string }) => {
+      const selectedText = selection.getSelectedText();
+      logInputDebug("app.selection", {
+        isDragging: selection.isDragging ?? false,
+        textLength: selectedText.length,
+        osc52Supported: renderer.isOsc52Supported(),
+      });
+
+      if (selection.isDragging || selectedText.length === 0) {
+        return;
+      }
+
+      renderer.copyToClipboardOSC52(selectedText);
+    };
+
+    renderer.on("selection", handleSelection);
+    return () => {
+      renderer.off("selection", handleSelection);
+    };
+  }, [renderer]);
+
+  useEffect(() => {
     renderer.useMouse = true;
   }, [renderer]);
 

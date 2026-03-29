@@ -28,4 +28,6 @@ export function logInputDebug(event: string, details?: Record<string, unknown>):
   }
 }
 
+export const logDebug = logInputDebug;
+
 export { INPUT_DEBUG_LOG_PATH };

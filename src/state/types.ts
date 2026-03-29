@@ -84,6 +84,7 @@ export type AppAction =
   | { type: "close-modal" }
   | { type: "move-modal-selection"; delta: number }
   | { type: "add-tab"; tab: TabSession }
+  | { type: "hydrate-workspace"; tabs: TabSession[]; activeTabId: string | null }
   | { type: "close-tab"; tabId: string }
   | { type: "close-active-tab" }
   | { type: "set-active-tab"; tabId: string }

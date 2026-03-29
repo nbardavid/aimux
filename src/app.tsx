@@ -9,7 +9,7 @@ import { buildPtyPastePayload } from "./input/paste";
 import { createRawInputHandler, type TerminalContentOrigin } from "./input/raw-input-handler";
 import { loadConfig, saveConfig } from "./config";
 import { ASSISTANT_OPTIONS, getAssistantOption, isCommandAvailable, parseCommand } from "./pty/command-registry";
-import { PtyManager } from "./pty/pty-manager";
+import type { SessionBackend } from "./session-backend/types";
 import { serializeWorkspace } from "./state/session-persistence";
 import { appReducer, createInitialState } from "./state/store";
 import type { AssistantId, TabSession, TerminalModeState } from "./state/types";
@@ -52,11 +52,11 @@ function createTabSession(assistant: AssistantId, customCommand?: string): TabSe
 }
 
 function startTabSession(
-  ptyManager: PtyManager,
+  backend: SessionBackend,
   dispatch: (action: Parameters<typeof appReducer>[1]) => void,
   clearStartupGrace: (tabId: string) => void,
   startStartupGrace: (tabId: string) => void,
-  tab: Pick<TabSession, "id" | "command">,
+  tab: Pick<TabSession, "id" | "assistant" | "title" | "command">,
   cols: number,
   rows: number,
 ): void {
@@ -74,8 +74,10 @@ function startTabSession(
     return;
   }
 
-  ptyManager.createSession({
+  backend.createSession({
     tabId: tab.id,
+    assistant: tab.assistant,
+    title: tab.title,
     command: executable,
     args,
     cols,
@@ -83,23 +85,16 @@ function startTabSession(
   });
 }
 
-export function App() {
+export function App({ backend }: { backend: SessionBackend }) {
   const renderer = useRenderer();
   const dimensions = useTerminalDimensions();
   const [state, dispatch] = useReducer(appReducer, undefined, () => {
     const { customCommands, workspaceSnapshot } = loadConfig();
     return createInitialState(customCommands, workspaceSnapshot);
   });
-  const ptyManagerRef = useRef<PtyManager | null>(null);
   const idleTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const startupGraceTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const workspaceSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  if (!ptyManagerRef.current) {
-    ptyManagerRef.current = new PtyManager();
-  }
-
-  const ptyManager = ptyManagerRef.current;
   const activeTab = useMemo(
     () => state.tabs.find((tab) => tab.id === state.activeTabId),
     [state.activeTabId, state.tabs],
@@ -127,9 +122,9 @@ export function App() {
       writeToPty: (tabId, data) => {
         const viewport = activeTabRef.current?.viewport;
         if (viewport && viewport.viewportY < viewport.baseY) {
-          ptyManager.scrollViewportToBottom(tabId);
+          backend.scrollViewportToBottom(tabId);
         }
-        ptyManager.write(tabId, data);
+        backend.write(tabId, data);
       },
       leaveTerminalInput: () =>
         dispatch({ type: "set-focus-mode", focusMode: "navigation" }),
@@ -138,7 +133,7 @@ export function App() {
 
     renderer.prependInputHandler(handler);
     return () => renderer.removeInputHandler(handler);
-  }, [renderer, ptyManager]);
+  }, [backend, renderer]);
 
   useEffect(() => {
     const handlePasteEvent = (event: { bytes: Uint8Array; defaultPrevented?: boolean }) => {
@@ -211,7 +206,7 @@ export function App() {
       return;
     }
 
-    ptyManager.write(state.activeTabId, sequence);
+      backend.write(state.activeTabId, sequence);
   };
 
   const handleTerminalScrollEvent = (event: OtuiMouseEvent) => {
@@ -229,9 +224,9 @@ export function App() {
 
     const direction = event.scroll?.direction;
     if (direction === "up") {
-      ptyManager.scrollViewport(state.activeTabId, -3);
+      backend.scrollViewport(state.activeTabId, -3);
     } else if (direction === "down") {
-      ptyManager.scrollViewport(state.activeTabId, 3);
+      backend.scrollViewport(state.activeTabId, 3);
     }
   };
 
@@ -249,15 +244,36 @@ export function App() {
     }
 
     if (activeTab.viewport && activeTab.viewport.viewportY < activeTab.viewport.baseY) {
-      ptyManager.scrollViewportToBottom(state.activeTabId);
+      backend.scrollViewportToBottom(state.activeTabId);
     }
 
     const payload = new TextDecoder().decode(event.bytes);
-    ptyManager.write(
+    backend.write(
       state.activeTabId,
       buildPtyPastePayload(payload, activeTab.terminalModes.bracketedPasteMode),
     );
   };
+
+  useEffect(() => {
+    void backend.attach({
+      cols: state.layout.terminalCols,
+      rows: state.layout.terminalRows,
+      workspaceSnapshot: loadConfig().workspaceSnapshot,
+    }).then((result) => {
+      logInputDebug("app.backend.attachResult", {
+        hasResult: !!result,
+        tabs: result?.tabs.length ?? 0,
+        activeTabId: result?.activeTabId ?? null,
+      });
+      if (result) {
+        dispatch({ type: "hydrate-workspace", tabs: result.tabs, activeTabId: result.activeTabId });
+      }
+    }).catch((error) => {
+      logInputDebug("app.backend.attachError", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }, [backend]);
 
   function clearIdleTimer(tabId: string) {
     const timeout = idleTimeoutsRef.current.get(tabId);
@@ -349,9 +365,9 @@ export function App() {
       dispatch({ type: "set-tab-error", tabId, message });
     };
 
-    ptyManager.on("render", handleRender);
-    ptyManager.on("exit", handleExit);
-    ptyManager.on("error", handleError);
+    backend.on("render", handleRender);
+    backend.on("exit", handleExit);
+    backend.on("error", handleError);
 
     return () => {
       for (const timeout of idleTimeoutsRef.current.values()) {
@@ -365,12 +381,12 @@ export function App() {
       if (workspaceSaveTimeoutRef.current) {
         clearTimeout(workspaceSaveTimeoutRef.current);
       }
-      ptyManager.off("render", handleRender);
-      ptyManager.off("exit", handleExit);
-      ptyManager.off("error", handleError);
-      ptyManager.disposeAll();
+      backend.off("render", handleRender);
+      backend.off("exit", handleExit);
+      backend.off("error", handleError);
+      void backend.destroy(true);
     };
-  }, [ptyManager]);
+  }, [backend]);
 
   const terminalSize = useMemo(() => {
     const sidebarWidth = state.sidebar.visible ? state.sidebar.width + 3 : 0;
@@ -398,15 +414,20 @@ export function App() {
       cols: terminalSize.cols,
       rows: terminalSize.rows,
     });
-    ptyManager.resizeAll(terminalSize.cols, terminalSize.rows);
-  }, [ptyManager, terminalSize.cols, terminalSize.rows]);
+    backend.resizeAll(terminalSize.cols, terminalSize.rows);
+  }, [backend, terminalSize.cols, terminalSize.rows]);
 
   function launchAssistant(assistant: AssistantId) {
     const customCommand = state.customCommands[assistant];
     const tab = createTabSession(assistant, customCommand);
+    logInputDebug("app.launchAssistant", {
+      assistant,
+      tabId: tab.id,
+      command: tab.command,
+    });
     dispatch({ type: "add-tab", tab });
     startTabSession(
-      ptyManager,
+      backend,
       dispatch,
       clearStartupGrace,
       startStartupGrace,
@@ -417,12 +438,17 @@ export function App() {
   }
 
   function restartTab(tab: TabSession): void {
+    logInputDebug("app.restartTab", {
+      tabId: tab.id,
+      command: tab.command,
+      status: tab.status,
+    });
     clearIdleTimer(tab.id);
     clearStartupGrace(tab.id);
-    ptyManager.disposeSession(tab.id);
+    backend.disposeSession(tab.id);
     dispatch({ type: "reset-tab-session", tabId: tab.id });
     startTabSession(
-      ptyManager,
+      backend,
       dispatch,
       clearStartupGrace,
       startStartupGrace,
@@ -447,7 +473,7 @@ export function App() {
           customCommands: state.customCommands,
           workspaceSnapshot: serializeWorkspace(state),
         });
-        ptyManager.disposeAll();
+        void backend.destroy(true);
         renderer.destroy();
         process.exit(0);
         return;
@@ -458,7 +484,7 @@ export function App() {
         if (state.activeTabId) {
           clearIdleTimer(state.activeTabId);
           clearStartupGrace(state.activeTabId);
-          ptyManager.disposeSession(state.activeTabId);
+          backend.disposeSession(state.activeTabId);
           dispatch({ type: "close-tab", tabId: state.activeTabId });
         }
         return;

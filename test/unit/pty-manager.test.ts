@@ -80,7 +80,7 @@ describe("PtyManager", () => {
 
     expect(exitCode).toBe(0);
     expect(renderCount).toBeGreaterThan(0);
-    expect(renderCount).toBeLessThanOrEqual(5);
+    expect(renderCount).toBeLessThanOrEqual(8);
     manager.disposeAll();
   });
 

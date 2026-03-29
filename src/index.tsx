@@ -2,12 +2,20 @@ import { createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 
 import { App } from "./app";
+import { runDaemon } from "./daemon/daemon";
+import { logDebug } from "./debug/input-log";
 import { runDoctor } from "./doctor";
+import { createSessionBackend } from "./session-backend/bootstrap";
 
 const command = process.argv[2];
 
 if (command === "doctor" || command === "--doctor") {
   process.exit(runDoctor());
+}
+
+if (command === "daemon") {
+  logDebug("index.daemonMode");
+  await runDaemon();
 }
 
 if (command === "--help" || command === "-h") {
@@ -23,4 +31,7 @@ const renderer = await createCliRenderer({
   useMouse: true,
 });
 
-createRoot(renderer).render(<App />);
+const backend = await createSessionBackend();
+logDebug("index.backendReady", { backend: backend.constructor.name });
+
+createRoot(renderer).render(<App backend={backend} />);

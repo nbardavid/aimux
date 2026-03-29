@@ -149,6 +149,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           editBuffer: null,
         },
       };
+    case "hydrate-workspace":
+      return {
+        ...state,
+        tabs: action.tabs,
+        activeTabId: action.activeTabId,
+        focusMode: "navigation",
+      };
     case "close-tab": {
       const tabIndex = state.tabs.findIndex((tab) => tab.id === action.tabId);
       return closeTabAtIndex(state, tabIndex);

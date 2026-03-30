@@ -1,7 +1,6 @@
 import type { EventEmitter } from "node:events";
 
-import type { WorkspaceSnapshotV1 } from "../state/session-persistence";
-import type { TabSession, TerminalModeState, TerminalSnapshot } from "../state/types";
+import type { TabSession, TerminalModeState, TerminalSnapshot, WorkspaceSnapshotV1 } from "../state/types";
 
 export type SessionBackendEvents = {
   render: [tabId: string, viewport: TerminalSnapshot, terminalModes: TerminalModeState];
@@ -16,6 +15,7 @@ export interface BackendAttachResult {
 
 export interface SessionBackend extends EventEmitter<SessionBackendEvents> {
   attach(options: {
+    sessionId: string;
     cols: number;
     rows: number;
     workspaceSnapshot?: WorkspaceSnapshotV1;
@@ -33,6 +33,7 @@ export interface SessionBackend extends EventEmitter<SessionBackendEvents> {
   write(tabId: string, input: string): void;
   scrollViewport(tabId: string, deltaLines: number): void;
   scrollViewportToBottom(tabId: string): void;
+  setActiveTab(tabId: string | null): void;
   resizeAll(cols: number, rows: number): void;
   disposeSession(tabId: string): void;
   disposeAll(): void;

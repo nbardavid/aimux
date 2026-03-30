@@ -70,7 +70,8 @@ export function Sidebar({ state }: SidebarProps) {
       gap={1}
     >
       <text fg={theme.accent}>aimux</text>
-      <text fg={theme.textMuted}>Ctrl+n new / Ctrl+r restart / Ctrl+w close / Shift+J/K reorder</text>
+      <text fg={theme.textMuted}>{state.currentSessionId ? `Session: ${state.sessions.find((s) => s.id === state.currentSessionId)?.name ?? "unknown"}` : "No session selected"}</text>
+      <text fg={theme.textMuted}>Ctrl+g sessions / Ctrl+n new tab / Ctrl+r restart / Ctrl+w close</text>
       <scrollbox
         ref={scrollRef}
         flexGrow={1}

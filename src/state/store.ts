@@ -1,22 +1,14 @@
 import { ASSISTANT_OPTIONS } from "../pty/command-registry";
-import { restoreWorkspaceState, type WorkspaceSnapshotV1 } from "./session-persistence";
-import type { AppAction, AppState, TabSession } from "./types";
+import { restoreWorkspaceState } from "./session-persistence";
+import type { AppAction, AppState, SessionRecord, TabSession } from "./types";
 
 const MAX_BUFFER_LENGTH = 50_000;
 
 function clampBuffer(buffer: string): string {
-  if (buffer.length <= MAX_BUFFER_LENGTH) {
-    return buffer;
-  }
-
-  return buffer.slice(buffer.length - MAX_BUFFER_LENGTH);
+  return buffer.length <= MAX_BUFFER_LENGTH ? buffer : buffer.slice(buffer.length - MAX_BUFFER_LENGTH);
 }
 
-function updateTab(
-  tabs: TabSession[],
-  tabId: string,
-  updater: (tab: TabSession) => TabSession,
-): TabSession[] {
+function updateTab(tabs: TabSession[], tabId: string, updater: (tab: TabSession) => TabSession): TabSession[] {
   return tabs.map((tab) => (tab.id === tabId ? updater(tab) : tab));
 }
 
@@ -48,48 +40,43 @@ function closeTabAtIndex(state: AppState, indexToClose: number): AppState {
   };
 }
 
+function emptyModal() {
+  return {
+    type: null,
+    selectedIndex: 0,
+    editBuffer: null,
+    sessionTargetId: null,
+  } as const;
+}
+
 export function createInitialState(
   customCommands: Record<string, string> = {},
-  workspaceSnapshot?: WorkspaceSnapshotV1,
+  sessions: SessionRecord[] = [],
+  showSessionPicker = false,
 ): AppState {
-  const baseState: AppState = {
+  return {
     tabs: [],
     activeTabId: null,
-    focusMode: "navigation",
+    sessions,
+    currentSessionId: null,
+    focusMode: showSessionPicker ? "modal" : "navigation",
     sidebar: {
       visible: true,
       width: 28,
       minWidth: 18,
       maxWidth: 42,
     },
-    modal: {
-      type: null,
-      selectedIndex: 0,
-      editBuffer: null,
-    },
+    modal: showSessionPicker ? { type: "session-picker", selectedIndex: 0, editBuffer: null, sessionTargetId: null } : emptyModal(),
     layout: {
       terminalCols: 80,
       terminalRows: 24,
     },
     customCommands,
   };
-
-  if (!workspaceSnapshot) {
-    return baseState;
-  }
-
-  return {
-    ...baseState,
-    ...restoreWorkspaceState(baseState, workspaceSnapshot),
-  };
 }
 
 export function getActiveTab(state: AppState): TabSession | undefined {
-  if (!state.activeTabId) {
-    return undefined;
-  }
-
-  return state.tabs.find((tab) => tab.id === state.activeTabId);
+  return state.activeTabId ? state.tabs.find((tab) => tab.id === state.activeTabId) : undefined;
 }
 
 export function appReducer(state: AppState, action: AppAction): AppState {
@@ -98,123 +85,134 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return {
         ...state,
         focusMode: "modal",
+        modal: { type: "new-tab", selectedIndex: 0, editBuffer: null, sessionTargetId: null },
+      };
+    case "open-session-picker":
+      return {
+        ...state,
+        focusMode: "modal",
+        modal: { type: "session-picker", selectedIndex: 0, editBuffer: null, sessionTargetId: null },
+      };
+    case "open-session-name-modal":
+      return {
+        ...state,
+        focusMode: "command-edit",
         modal: {
-          type: "new-tab",
+          type: "session-name",
           selectedIndex: 0,
-          editBuffer: null,
+          editBuffer: action.initialName ?? "",
+          sessionTargetId: action.sessionTargetId ?? null,
         },
       };
     case "close-modal":
-      return {
-        ...state,
-        focusMode: "navigation",
-        modal: {
-          type: null,
-          selectedIndex: 0,
-          editBuffer: null,
-        },
-      };
+      return { ...state, focusMode: "navigation", modal: emptyModal() };
     case "move-modal-selection": {
-      if (state.modal.type !== "new-tab") {
+      if (state.modal.type !== "new-tab" && state.modal.type !== "session-picker") {
         return state;
       }
-
-      const optionCount = 3;
-      const nextIndex =
-        (state.modal.selectedIndex + action.delta + optionCount) % optionCount;
-
+      const optionCount = state.modal.type === "new-tab" ? 3 : Math.max(1, state.sessions.length + 1);
       return {
         ...state,
         modal: {
           ...state.modal,
-          selectedIndex: nextIndex,
+          selectedIndex: (state.modal.selectedIndex + action.delta + optionCount) % optionCount,
         },
       };
     }
     case "add-tab":
       return {
         ...state,
-        tabs: [
-          ...state.tabs,
-          {
-            ...action.tab,
-            activity: action.tab.activity ?? "idle",
-          },
-        ],
+        tabs: [...state.tabs, { ...action.tab, activity: action.tab.activity ?? "idle" }],
         activeTabId: action.tab.id,
         focusMode: "navigation",
-        modal: {
-          type: null,
-          selectedIndex: 0,
-          editBuffer: null,
-        },
+        modal: emptyModal(),
       };
     case "hydrate-workspace":
+      return { ...state, tabs: action.tabs, activeTabId: action.activeTabId, focusMode: "navigation" };
+    case "load-session": {
+      const session = state.sessions.find((entry) => entry.id === action.sessionId);
       return {
         ...state,
-        tabs: action.tabs,
-        activeTabId: action.activeTabId,
+        ...restoreWorkspaceState(state, session?.workspaceSnapshot),
+        currentSessionId: action.sessionId,
+        sessions: state.sessions.map((entry) =>
+          entry.id === action.sessionId
+            ? { ...entry, lastOpenedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+            : entry,
+        ),
         focusMode: "navigation",
+        modal: emptyModal(),
       };
-    case "close-tab": {
-      const tabIndex = state.tabs.findIndex((tab) => tab.id === action.tabId);
-      return closeTabAtIndex(state, tabIndex);
     }
-    case "close-active-tab": {
-      const activeIndex = getActiveIndex(state);
-      return closeTabAtIndex(state, activeIndex);
-    }
-    case "set-active-tab":
+    case "set-sessions":
+      return { ...state, sessions: action.sessions };
+    case "create-session-record":
       return {
         ...state,
-        activeTabId: action.tabId,
+        sessions: [...state.sessions, action.session],
+        currentSessionId: action.session.id,
+        focusMode: "navigation",
+        modal: emptyModal(),
       };
+    case "rename-session-record":
+      return {
+        ...state,
+        sessions: state.sessions.map((session) =>
+          session.id === action.sessionId ? { ...session, name: action.name, updatedAt: new Date().toISOString() } : session,
+        ),
+        focusMode: "navigation",
+        modal: emptyModal(),
+      };
+    case "delete-session-record": {
+      const newSessions = state.sessions.filter((session) => session.id !== action.sessionId);
+      const maxIndex = newSessions.length; // index of "Create new session" option
+      const clampedIndex = Math.min(state.modal.selectedIndex, maxIndex);
+      return {
+        ...state,
+        sessions: newSessions,
+        currentSessionId: action.sessionId === state.currentSessionId ? null : state.currentSessionId,
+        tabs: action.sessionId === state.currentSessionId ? [] : state.tabs,
+        activeTabId: action.sessionId === state.currentSessionId ? null : state.activeTabId,
+        focusMode: "modal",
+        modal: { type: "session-picker", selectedIndex: clampedIndex, editBuffer: null, sessionTargetId: null },
+      };
+    }
+    case "modal-delete-selected-session":
+      return state;
+    case "close-tab":
+      return closeTabAtIndex(state, state.tabs.findIndex((tab) => tab.id === action.tabId));
+    case "close-active-tab":
+      return closeTabAtIndex(state, getActiveIndex(state));
+    case "set-active-tab":
+      return { ...state, activeTabId: action.tabId };
     case "move-active-tab": {
       if (state.tabs.length === 0) {
         return state;
       }
-
       const currentIndex = state.tabs.findIndex((tab) => tab.id === state.activeTabId);
       const safeIndex = currentIndex === -1 ? 0 : currentIndex;
-      const nextIndex =
-        (safeIndex + action.delta + state.tabs.length) % state.tabs.length;
+      const nextIndex = (safeIndex + action.delta + state.tabs.length) % state.tabs.length;
       const nextTabId = state.tabs[nextIndex]?.id;
-
-      if (!nextTabId || nextTabId === state.activeTabId) {
-        return state;
-      }
-
-      return {
-        ...state,
-        activeTabId: nextTabId,
-      };
+      return !nextTabId || nextTabId === state.activeTabId ? state : { ...state, activeTabId: nextTabId };
     }
     case "reorder-active-tab": {
       const activeIndex = getActiveIndex(state);
       if (activeIndex === -1) {
         return state;
       }
-
       const nextIndex = activeIndex + action.delta;
       if (nextIndex < 0 || nextIndex >= state.tabs.length) {
         return state;
       }
-
       const tabs = [...state.tabs];
       const current = tabs[activeIndex];
       const target = tabs[nextIndex];
-
       if (!current || !target) {
         return state;
       }
-
       tabs[activeIndex] = target;
       tabs[nextIndex] = current;
-
-      return {
-        ...state,
-        tabs,
-      };
+      return { ...state, tabs };
     }
     case "reset-tab-session":
       return {
@@ -239,32 +237,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         })),
       };
     case "toggle-sidebar":
-      return {
-        ...state,
-        sidebar: {
-          ...state.sidebar,
-          visible: !state.sidebar.visible,
-        },
-      };
+      return { ...state, sidebar: { ...state.sidebar, visible: !state.sidebar.visible } };
     case "resize-sidebar": {
-      const width = Math.min(
-        state.sidebar.maxWidth,
-        Math.max(state.sidebar.minWidth, state.sidebar.width + action.delta),
-      );
-
-      return {
-        ...state,
-        sidebar: {
-          ...state.sidebar,
-          width,
-        },
-      };
+      const width = Math.min(state.sidebar.maxWidth, Math.max(state.sidebar.minWidth, state.sidebar.width + action.delta));
+      return { ...state, sidebar: { ...state.sidebar, width } };
     }
     case "set-focus-mode":
-      return {
-        ...state,
-        focusMode: action.focusMode,
-      };
+      return { ...state, focusMode: action.focusMode };
     case "append-tab-buffer":
       return {
         ...state,
@@ -285,13 +264,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         })),
       };
     case "set-tab-activity":
-      return {
-        ...state,
-        tabs: updateTab(state.tabs, action.tabId, (tab) => ({
-          ...tab,
-          activity: action.activity,
-        })),
-      };
+      return { ...state, tabs: updateTab(state.tabs, action.tabId, (tab) => ({ ...tab, activity: action.activity })) };
     case "set-tab-status":
       return {
         ...state,
@@ -314,39 +287,34 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         })),
       };
     case "set-terminal-size":
-      return {
-        ...state,
-        layout: {
-          terminalCols: action.cols,
-          terminalRows: action.rows,
-        },
-      };
+      return { ...state, layout: { terminalCols: action.cols, terminalRows: action.rows } };
     case "begin-command-edit": {
-      if (state.modal.type !== "new-tab") {
+      if (state.modal.type !== "new-tab" && state.modal.type !== "session-name") {
         return state;
+      }
+      if (state.modal.type === "session-name") {
+        return { ...state, focusMode: "command-edit" };
       }
       const option = ASSISTANT_OPTIONS[state.modal.selectedIndex];
       const assistantId = option?.id;
-      const currentCmd =
-        (assistantId && state.customCommands[assistantId]) ?? option?.command ?? "";
-      return {
-        ...state,
-        focusMode: "command-edit",
-        modal: { ...state.modal, editBuffer: currentCmd },
-      };
+      const currentCmd = (assistantId && state.customCommands[assistantId]) ?? option?.command ?? "";
+      return { ...state, focusMode: "command-edit", modal: { ...state.modal, editBuffer: currentCmd } };
     }
     case "update-command-edit": {
       if (state.modal.editBuffer === null) {
         return state;
       }
-      const buf =
-        action.char === "\b"
-          ? state.modal.editBuffer.slice(0, -1)
-          : state.modal.editBuffer + action.char;
+      const buf = action.char === "\b" ? state.modal.editBuffer.slice(0, -1) : state.modal.editBuffer + action.char;
       return { ...state, modal: { ...state.modal, editBuffer: buf } };
     }
     case "commit-command-edit": {
-      if (state.modal.type !== "new-tab" || state.modal.editBuffer === null) {
+      if (state.modal.editBuffer === null) {
+        return state;
+      }
+      if (state.modal.type === "session-name") {
+        return state;
+      }
+      if (state.modal.type !== "new-tab") {
         return state;
       }
       const option = ASSISTANT_OPTIONS[state.modal.selectedIndex];
@@ -361,19 +329,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       } else {
         delete newCustomCommands[assistantId];
       }
-      return {
-        ...state,
-        focusMode: "modal",
-        customCommands: newCustomCommands,
-        modal: { ...state.modal, editBuffer: null },
-      };
+      return { ...state, focusMode: "modal", customCommands: newCustomCommands, modal: { ...state.modal, editBuffer: null } };
     }
     case "cancel-command-edit":
-      return {
-        ...state,
-        focusMode: "modal",
-        modal: { ...state.modal, editBuffer: null },
-      };
+      return { ...state, focusMode: "modal", modal: { ...state.modal, editBuffer: null } };
     default:
       return state;
   }

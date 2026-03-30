@@ -10,9 +10,10 @@ import { createRawInputHandler, type TerminalContentOrigin } from "./input/raw-i
 import { loadConfig, saveConfig } from "./config";
 import { ASSISTANT_OPTIONS, getAssistantOption, isCommandAvailable, parseCommand } from "./pty/command-registry";
 import type { SessionBackend } from "./session-backend/types";
-import { serializeWorkspace } from "./state/session-persistence";
+import { loadSessionCatalog, saveSessionCatalog } from "./state/session-catalog";
+import { createEmptyWorkspaceSnapshot, serializeWorkspace } from "./state/session-persistence";
 import { appReducer, createInitialState } from "./state/store";
-import type { AssistantId, TabSession, TerminalModeState } from "./state/types";
+import type { AssistantId, SessionRecord, TabSession, TerminalModeState } from "./state/types";
 import { RootView } from "./ui/root";
 
 const IDLE_TIMEOUT_MS = 2_000;
@@ -89,15 +90,20 @@ export function App({ backend }: { backend: SessionBackend }) {
   const renderer = useRenderer();
   const dimensions = useTerminalDimensions();
   const [state, dispatch] = useReducer(appReducer, undefined, () => {
-    const { customCommands, workspaceSnapshot } = loadConfig();
-    return createInitialState(customCommands, workspaceSnapshot);
+    const { customCommands } = loadConfig();
+    return createInitialState(customCommands, loadSessionCatalog(), true);
   });
   const idleTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const startupGraceTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const workspaceSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const attachRequestIdRef = useRef(0);
   const activeTab = useMemo(
     () => state.tabs.find((tab) => tab.id === state.activeTabId),
     [state.activeTabId, state.tabs],
+  );
+  const currentSession = useMemo(
+    () => state.sessions.find((session) => session.id === state.currentSessionId),
+    [state.currentSessionId, state.sessions],
   );
   const activeMouseForwardingEnabled = activeTab?.terminalModes.mouseTrackingMode !== "none";
   const activeLocalScrollbackEnabled = !!activeTab && !activeMouseForwardingEnabled && !activeTab.terminalModes.isAlternateBuffer;
@@ -182,6 +188,12 @@ export function App({ backend }: { backend: SessionBackend }) {
   }, [renderer]);
 
   useEffect(() => {
+    renderer.useConsole = false;
+    renderer.console.hide();
+    renderer.console.show = () => {};
+  }, [renderer]);
+
+  useEffect(() => {
     const shouldEnableBracketedPaste = state.focusMode === "terminal-input" && !!state.activeTabId;
     logInputDebug("app.bracketedPasteMode", {
       enabled: shouldEnableBracketedPaste,
@@ -255,11 +267,33 @@ export function App({ backend }: { backend: SessionBackend }) {
   };
 
   useEffect(() => {
+    if (!state.currentSessionId) {
+      return;
+    }
+
+    backend.setActiveTab(state.activeTabId);
+  }, [backend, state.activeTabId, state.currentSessionId]);
+
+  useEffect(() => {
+    const currentSessionId = state.currentSessionId;
+    if (!currentSessionId) {
+      attachRequestIdRef.current += 1;
+      return;
+    }
+
+    const attachRequestId = attachRequestIdRef.current + 1;
+    attachRequestIdRef.current = attachRequestId;
+    let cancelled = false;
+
     void backend.attach({
+      sessionId: currentSessionId,
       cols: state.layout.terminalCols,
       rows: state.layout.terminalRows,
-      workspaceSnapshot: loadConfig().workspaceSnapshot,
+      workspaceSnapshot: currentSession?.workspaceSnapshot,
     }).then((result) => {
+      if (cancelled || attachRequestIdRef.current !== attachRequestId) {
+        return;
+      }
       logInputDebug("app.backend.attachResult", {
         hasResult: !!result,
         tabs: result?.tabs.length ?? 0,
@@ -267,13 +301,25 @@ export function App({ backend }: { backend: SessionBackend }) {
       });
       if (result) {
         dispatch({ type: "hydrate-workspace", tabs: result.tabs, activeTabId: result.activeTabId });
+      } else if (currentSession?.workspaceSnapshot) {
+        dispatch({ type: "load-session", sessionId: currentSessionId, tabs: [], activeTabId: currentSession.workspaceSnapshot.activeTabId });
       }
     }).catch((error) => {
+      if (cancelled || attachRequestIdRef.current !== attachRequestId) {
+        return;
+      }
       logInputDebug("app.backend.attachError", {
         error: error instanceof Error ? error.message : String(error),
       });
+      if (currentSession?.workspaceSnapshot) {
+        dispatch({ type: "load-session", sessionId: currentSessionId, tabs: [], activeTabId: currentSession.workspaceSnapshot.activeTabId });
+      }
     });
-  }, [backend]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [backend, currentSession?.workspaceSnapshot, state.currentSessionId]);
 
   function clearIdleTimer(tabId: string) {
     const timeout = idleTimeoutsRef.current.get(tabId);
@@ -318,11 +364,16 @@ export function App({ backend }: { backend: SessionBackend }) {
     }
 
     workspaceSaveTimeoutRef.current = setTimeout(() => {
+      const sessionsToSave = state.sessions.map((session) =>
+        session.id === state.currentSessionId
+          ? { ...session, updatedAt: new Date().toISOString(), workspaceSnapshot: serializeWorkspace(state) }
+          : session,
+      );
       saveConfig({
         ...loadConfig(),
         customCommands: state.customCommands,
-        workspaceSnapshot: serializeWorkspace(state),
       });
+      saveSessionCatalog(sessionsToSave);
       workspaceSaveTimeoutRef.current = null;
     }, WORKSPACE_SAVE_DEBOUNCE_MS);
 
@@ -437,6 +488,82 @@ export function App({ backend }: { backend: SessionBackend }) {
     );
   }
 
+  function createSessionFromCurrent(name: string): void {
+    const now = new Date().toISOString();
+    const workspaceSnapshot = state.currentSessionId || state.tabs.length === 0
+      ? createEmptyWorkspaceSnapshot()
+      : serializeWorkspace(state);
+    const session: SessionRecord = {
+      id: `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      createdAt: now,
+      updatedAt: now,
+      lastOpenedAt: now,
+      workspaceSnapshot,
+    };
+    const sessions = [...state.sessions, session];
+    logInputDebug("app.session.create", {
+      sessionId: session.id,
+      name,
+      fromCurrentWorkspace: !state.currentSessionId && state.tabs.length > 0,
+      tabCount: workspaceSnapshot.tabs.length,
+    });
+    saveSessionCatalog(sessions);
+    dispatch({ type: "create-session-record", session });
+    dispatch({ type: "load-session", sessionId: session.id, tabs: [], activeTabId: session.workspaceSnapshot?.activeTabId ?? null });
+  }
+
+  function renameSession(sessionId: string, name: string): void {
+    logInputDebug("app.session.rename", { sessionId, name });
+    const sessions = state.sessions.map((session) =>
+      session.id === sessionId ? { ...session, name, updatedAt: new Date().toISOString() } : session,
+    );
+    saveSessionCatalog(sessions);
+    dispatch({ type: "rename-session-record", sessionId, name });
+  }
+
+  function switchToSession(session: SessionRecord): void {
+    logInputDebug("app.session.switch.start", {
+      fromSessionId: state.currentSessionId,
+      toSessionId: session.id,
+      toName: session.name,
+      currentTabCount: state.tabs.length,
+      restoredTabCount: session.workspaceSnapshot?.tabs.length ?? 0,
+    });
+    const currentSnapshot = state.currentSessionId ? serializeWorkspace(state) : undefined;
+    const sessions = state.sessions.map((entry) => {
+      if (entry.id === state.currentSessionId && currentSnapshot) {
+        return { ...entry, updatedAt: new Date().toISOString(), workspaceSnapshot: currentSnapshot };
+      }
+      if (entry.id === session.id) {
+        return { ...entry, lastOpenedAt: new Date().toISOString() };
+      }
+      return entry;
+    });
+    saveSessionCatalog(sessions);
+    void backend.destroy(true);
+    dispatch({ type: "set-sessions", sessions });
+    dispatch({ type: "load-session", sessionId: session.id, tabs: [], activeTabId: session.workspaceSnapshot?.activeTabId ?? null });
+    logInputDebug("app.session.switch.dispatched", {
+      toSessionId: session.id,
+      activeTabId: session.workspaceSnapshot?.activeTabId ?? null,
+    });
+  }
+
+  function deleteSession(sessionId: string): void {
+    const remaining = state.sessions.filter((session) => session.id !== sessionId);
+    logInputDebug("app.session.delete", {
+      sessionId,
+      wasCurrent: sessionId === state.currentSessionId,
+      remainingCount: remaining.length,
+    });
+    saveSessionCatalog(remaining);
+    if (sessionId === state.currentSessionId) {
+      void backend.destroy(true);
+    }
+    dispatch({ type: "delete-session-record", sessionId });
+  }
+
   function restartTab(tab: TabSession): void {
     logInputDebug("app.restartTab", {
       tabId: tab.id,
@@ -471,14 +598,23 @@ export function App({ backend }: { backend: SessionBackend }) {
         saveConfig({
           ...loadConfig(),
           customCommands: state.customCommands,
-          workspaceSnapshot: serializeWorkspace(state),
         });
+        saveSessionCatalog(
+          state.sessions.map((session) =>
+            session.id === state.currentSessionId
+              ? { ...session, updatedAt: new Date().toISOString(), workspaceSnapshot: serializeWorkspace(state) }
+              : session,
+          ),
+        );
         void backend.destroy(true);
         renderer.destroy();
         process.exit(0);
         return;
       case "open-new-tab-modal":
         dispatch({ type: "open-new-tab-modal" });
+        return;
+      case "open-session-picker":
+        dispatch({ type: "open-session-picker" });
         return;
       case "close-tab":
         if (state.activeTabId) {
@@ -489,15 +625,63 @@ export function App({ backend }: { backend: SessionBackend }) {
         }
         return;
       case "close-modal":
+        if (state.modal.type === "session-picker" && !state.currentSessionId) {
+          return;
+        }
         dispatch({ type: "close-modal" });
         return;
       case "confirm-modal": {
-        const option = getAssistantOption(state.modal.selectedIndex);
-        launchAssistant(option.id);
+        if (state.modal.type === "new-tab") {
+          const option = getAssistantOption(state.modal.selectedIndex);
+          launchAssistant(option.id);
+          return;
+        }
+
+        if (state.modal.type === "session-picker") {
+          logInputDebug("app.sessionPicker.confirm", {
+            selectedIndex: state.modal.selectedIndex,
+            selectedSessionId: state.sessions[state.modal.selectedIndex]?.id ?? null,
+            creatingNew: state.modal.selectedIndex === state.sessions.length,
+          });
+          const selectedSession = state.sessions[state.modal.selectedIndex];
+          if (selectedSession) {
+            switchToSession(selectedSession);
+          } else {
+            dispatch({ type: "open-session-name-modal", initialName: "" });
+          }
+        }
         return;
       }
       case "move-modal-selection":
         dispatch({ type: "move-modal-selection", delta: intent.delta });
+        return;
+      case "open-session-name-modal":
+        if (state.modal.type === "session-picker") {
+          const selectedSession = state.sessions[state.modal.selectedIndex];
+          logInputDebug("app.sessionPicker.openNameModal", {
+            selectedIndex: state.modal.selectedIndex,
+            selectedSessionId: selectedSession?.id ?? null,
+          });
+          dispatch({
+            type: "open-session-name-modal",
+            sessionTargetId: selectedSession?.id ?? null,
+            initialName: selectedSession?.name ?? "",
+          });
+        } else if (!state.currentSessionId) {
+          dispatch({ type: "open-session-name-modal", initialName: "" });
+        }
+        return;
+      case "delete-selected-session":
+        if (state.modal.type === "session-picker") {
+          const selectedSession = state.sessions[state.modal.selectedIndex];
+          logInputDebug("app.sessionPicker.deleteSelected", {
+            selectedIndex: state.modal.selectedIndex,
+            selectedSessionId: selectedSession?.id ?? null,
+          });
+          if (selectedSession) {
+            deleteSession(selectedSession.id);
+          }
+        }
         return;
       case "move-tab":
         dispatch({ type: "move-active-tab", delta: intent.delta });
@@ -531,6 +715,22 @@ export function App({ backend }: { backend: SessionBackend }) {
         dispatch({ type: "update-command-edit", char: intent.char });
         return;
       case "commit-command-edit": {
+        if (state.modal.type === "session-name" && state.modal.editBuffer !== null) {
+          const trimmed = state.modal.editBuffer.trim();
+          logInputDebug("app.sessionName.commit", {
+            sessionTargetId: state.modal.sessionTargetId ?? null,
+            value: trimmed,
+          });
+          if (trimmed) {
+            if (state.modal.sessionTargetId) {
+              renameSession(state.modal.sessionTargetId, trimmed);
+            } else {
+              createSessionFromCurrent(trimmed);
+            }
+          }
+          dispatch({ type: "close-modal" });
+          return;
+        }
         dispatch({ type: "commit-command-edit" });
         const option = ASSISTANT_OPTIONS[state.modal.selectedIndex];
         if (option && state.modal.editBuffer !== null) {
@@ -544,7 +744,6 @@ export function App({ backend }: { backend: SessionBackend }) {
           saveConfig({
             ...loadConfig(),
             customCommands: newCustomCommands,
-            workspaceSnapshot: serializeWorkspace({ ...state, customCommands: newCustomCommands }),
           });
         }
         return;

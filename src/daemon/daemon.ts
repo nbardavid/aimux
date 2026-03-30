@@ -2,8 +2,8 @@ import { createServer, type Socket } from "node:net";
 
 import { logDebug } from "../debug/input-log";
 import { getDaemonSocketPath, removeDaemonSocketIfExists } from "./runtime-paths";
-import { SessionRegistry } from "./session-registry";
-import { encodeMessage, type ClientRequest, type ServerEvent, type ServerResponse } from "../ipc/protocol";
+import { SessionManager } from "./session-manager";
+import { encodeMessage, MessageDecoder, type ClientRequest, type ServerEvent, type ServerResponse } from "../ipc/protocol";
 
 function send(socket: Socket, message: ServerResponse | ServerEvent): void {
   socket.write(encodeMessage(message));
@@ -15,76 +15,106 @@ export async function runDaemon(): Promise<void> {
   logDebug("daemon.removeStaleSocket", { socketPath });
   removeDaemonSocketIfExists();
 
-  const registry = new SessionRegistry();
+  const sessionManager = new SessionManager();
   const sockets = new Set<Socket>();
+  const attachedSessions = new Map<Socket, string>();
 
-  registry.on("render", (tabId, viewport, terminalModes) => {
+  sessionManager.on("render", (sessionId, tabId, viewport, terminalModes) => {
     const event: ServerEvent = { type: "tabRender", payload: { tabId, viewport, terminalModes } };
     for (const socket of sockets) {
-      send(socket, event);
+      if (attachedSessions.get(socket) === sessionId) {
+        send(socket, event);
+      }
     }
   });
-  registry.on("exit", (tabId, exitCode) => {
+  sessionManager.on("exit", (sessionId, tabId, exitCode) => {
     const event: ServerEvent = { type: "tabExit", payload: { tabId, exitCode } };
     for (const socket of sockets) {
-      send(socket, event);
+      if (attachedSessions.get(socket) === sessionId) {
+        send(socket, event);
+      }
     }
   });
-  registry.on("error", (tabId, message) => {
+  sessionManager.on("error", (sessionId, tabId, message) => {
     const event: ServerEvent = { type: "tabError", payload: { tabId, message } };
     for (const socket of sockets) {
-      send(socket, event);
+      if (attachedSessions.get(socket) === sessionId) {
+        send(socket, event);
+      }
     }
   });
 
   const server = createServer((socket) => {
     logDebug("daemon.client.connected");
     sockets.add(socket);
-    let buffer = "";
+    const decoder = new MessageDecoder<ClientRequest>();
 
     socket.on("data", (chunk) => {
-      buffer += chunk.toString("utf8");
-      let newlineIndex = buffer.indexOf("\n");
-      while (newlineIndex !== -1) {
-        const line = buffer.slice(0, newlineIndex).trim();
-        buffer = buffer.slice(newlineIndex + 1);
-
-        if (line.length > 0) {
+      try {
+        for (const message of decoder.push(chunk)) {
           try {
-            const message = JSON.parse(line) as ClientRequest;
             logDebug("daemon.request", { type: message.type, id: message.id });
             switch (message.type) {
               case "attach": {
-                const attachResult = registry.attachFromSnapshot(message.payload.workspaceSnapshot);
+                attachedSessions.set(socket, message.payload.sessionId);
+                sessionManager.resize(message.payload.sessionId, message.payload.cols, message.payload.rows);
+                const attachResult = sessionManager.attachSession(message.payload.sessionId, message.payload.workspaceSnapshot);
                 send(socket, { id: message.id, type: "attachResult", payload: attachResult });
                 break;
               }
               case "createTab":
-                registry.createSession(message.payload);
+                if (!attachedSessions.get(socket)) {
+                  throw new Error("No session attached");
+                }
+                sessionManager.createTab(attachedSessions.get(socket)!, message.payload);
                 send(socket, { id: message.id, type: "ok", payload: {} });
                 break;
               case "write":
-                registry.write(message.payload.tabId, message.payload.data);
+                if (!attachedSessions.get(socket)) {
+                  throw new Error("No session attached");
+                }
+                sessionManager.write(attachedSessions.get(socket)!, message.payload.tabId, message.payload.data);
                 send(socket, { id: message.id, type: "ok", payload: {} });
                 break;
               case "resizeClient":
-                registry.resizeAll(message.payload.cols, message.payload.rows);
+                if (!attachedSessions.get(socket)) {
+                  throw new Error("No session attached");
+                }
+                sessionManager.resize(attachedSessions.get(socket)!, message.payload.cols, message.payload.rows);
                 send(socket, { id: message.id, type: "ok", payload: {} });
                 break;
               case "scroll":
-                registry.scrollViewport(message.payload.tabId, message.payload.deltaLines);
+                if (!attachedSessions.get(socket)) {
+                  throw new Error("No session attached");
+                }
+                sessionManager.scroll(attachedSessions.get(socket)!, message.payload.tabId, message.payload.deltaLines);
                 send(socket, { id: message.id, type: "ok", payload: {} });
                 break;
               case "scrollToBottom":
-                registry.scrollViewportToBottom(message.payload.tabId);
+                if (!attachedSessions.get(socket)) {
+                  throw new Error("No session attached");
+                }
+                sessionManager.scrollToBottom(attachedSessions.get(socket)!, message.payload.tabId);
+                send(socket, { id: message.id, type: "ok", payload: {} });
+                break;
+              case "setActiveTab":
+                if (!attachedSessions.get(socket)) {
+                  throw new Error("No session attached");
+                }
+                sessionManager.setActiveTab(attachedSessions.get(socket)!, message.payload.tabId);
                 send(socket, { id: message.id, type: "ok", payload: {} });
                 break;
               case "closeTab":
-                registry.closeTab(message.payload.tabId);
+                if (!attachedSessions.get(socket)) {
+                  throw new Error("No session attached");
+                }
+                sessionManager.closeTab(attachedSessions.get(socket)!, message.payload.tabId);
                 send(socket, { id: message.id, type: "ok", payload: {} });
                 break;
               case "disposeAll":
-                registry.disposeAll();
+                if (attachedSessions.get(socket)) {
+                  sessionManager.disposeSession(attachedSessions.get(socket)!);
+                }
                 send(socket, { id: message.id, type: "ok", payload: {} });
                 break;
               case "ping":
@@ -92,23 +122,28 @@ export async function runDaemon(): Promise<void> {
                 break;
             }
           } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            logDebug("daemon.request.error", { error: message });
-            send(socket, { id: crypto.randomUUID(), type: "error", payload: { message } });
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logDebug("daemon.request.error", { error: errorMessage, requestId: message.id });
+            send(socket, { id: message.id, type: "error", payload: { message: errorMessage } });
           }
         }
-
-        newlineIndex = buffer.indexOf("\n");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logDebug("daemon.request.error", { error: message });
+        decoder.reset();
+        send(socket, { id: crypto.randomUUID(), type: "error", payload: { message } });
       }
     });
 
     socket.on("close", () => {
       logDebug("daemon.client.close");
       sockets.delete(socket);
+      attachedSessions.delete(socket);
     });
     socket.on("error", () => {
       logDebug("daemon.client.error");
       sockets.delete(socket);
+      attachedSessions.delete(socket);
     });
   });
 
@@ -120,14 +155,14 @@ export async function runDaemon(): Promise<void> {
 
   process.on("SIGTERM", () => {
     logDebug("daemon.sigterm");
-    registry.disposeAll();
+    sessionManager.disposeAll();
     server.close();
     process.exit(0);
   });
 
   process.on("SIGINT", () => {
     logDebug("daemon.sigint");
-    registry.disposeAll();
+    sessionManager.disposeAll();
     server.close();
     process.exit(0);
   });

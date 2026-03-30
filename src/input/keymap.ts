@@ -5,6 +5,9 @@ import type { FocusMode } from "../state/types";
 export type AppIntent =
   | { type: "quit" }
   | { type: "open-new-tab-modal" }
+  | { type: "open-session-picker" }
+  | { type: "open-session-name-modal" }
+  | { type: "delete-selected-session" }
   | { type: "close-tab" }
   | { type: "close-modal" }
   | { type: "confirm-modal" }
@@ -50,6 +53,18 @@ export function resolveKeyIntent(
       return { type: "confirm-modal" };
     }
 
+    if (key.name === "n") {
+      return { type: "open-session-name-modal" };
+    }
+
+    if (key.name === "r") {
+      return { type: "open-session-name-modal" };
+    }
+
+    if (key.name === "d") {
+      return { type: "delete-selected-session" };
+    }
+
     if (key.name === "e") {
       return { type: "begin-command-edit" };
     }
@@ -87,6 +102,10 @@ export function resolveKeyIntent(
   if (focusMode === "navigation") {
     if (key.ctrl && key.name === "n") {
       return { type: "open-new-tab-modal" };
+    }
+
+    if (key.ctrl && key.name === "g") {
+      return { type: "open-session-picker" };
     }
 
     if (key.ctrl && key.name === "w") {

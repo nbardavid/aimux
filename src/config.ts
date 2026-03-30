@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import type { WorkspaceSnapshotV1 } from "./state/session-persistence";
+import type { WorkspaceSnapshotV1 } from "./state/types";
 
 export const CONFIG_PATH = join(process.env.HOME ?? "~", ".config", "aimux.json");
 

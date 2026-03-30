@@ -3,8 +3,7 @@ import { EventEmitter } from "node:events";
 import { logDebug } from "../debug/input-log";
 import { PtyManager } from "../pty/pty-manager";
 import { restoreTabsFromWorkspace } from "../state/session-persistence";
-import type { WorkspaceSnapshotV1 } from "../state/session-persistence";
-import type { TabSession, TerminalModeState, TerminalSnapshot } from "../state/types";
+import type { TabSession, TerminalModeState, TerminalSnapshot, WorkspaceSnapshotV1 } from "../state/types";
 
 type SessionRegistryEvents = {
   render: [tabId: string, viewport: TerminalSnapshot, terminalModes: TerminalModeState];
@@ -145,6 +144,17 @@ export class SessionRegistry extends EventEmitter<SessionRegistryEvents> {
 
   scrollViewportToBottom(tabId: string): void {
     this.ptyManager.scrollViewportToBottom(tabId);
+  }
+
+  setActiveTab(tabId: string | null): void {
+    if (tabId === null) {
+      this.activeTabId = null;
+      return;
+    }
+
+    if (this.tabs.has(tabId)) {
+      this.activeTabId = tabId;
+    }
   }
 
   closeTab(tabId: string): void {

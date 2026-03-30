@@ -1,20 +1,43 @@
 import { EventEmitter } from "node:events";
 
-import { PtyManager } from "../pty/pty-manager";
+import { logDebug } from "../debug/input-log";
+import { SessionManager } from "../daemon/session-manager";
+import type { WorkspaceSnapshotV1 } from "../state/types";
 import type { SessionBackend, SessionBackendEvents } from "./types";
 
 export class LocalSessionBackend extends EventEmitter<SessionBackendEvents> implements SessionBackend {
-  private readonly ptyManager = new PtyManager();
+  private readonly sessionManager = new SessionManager();
+  private currentSessionId: string | null = null;
 
   constructor() {
     super();
-    this.ptyManager.on("render", (...args) => this.emit("render", ...args));
-    this.ptyManager.on("exit", (...args) => this.emit("exit", ...args));
-    this.ptyManager.on("error", (...args) => this.emit("error", ...args));
+    this.sessionManager.on("render", (sessionId, tabId, viewport, terminalModes) => {
+      if (sessionId === this.currentSessionId) {
+        this.emit("render", tabId, viewport, terminalModes);
+      }
+    });
+    this.sessionManager.on("exit", (sessionId, tabId, exitCode) => {
+      if (sessionId === this.currentSessionId) {
+        this.emit("exit", tabId, exitCode);
+      }
+    });
+    this.sessionManager.on("error", (sessionId, tabId, message) => {
+      if (sessionId === this.currentSessionId) {
+        this.emit("error", tabId, message);
+      }
+    });
   }
 
-  async attach(): Promise<null> {
-    return null;
+  async attach(options: { sessionId: string; cols: number; rows: number; workspaceSnapshot?: WorkspaceSnapshotV1 }) {
+    logDebug("backend.local.attach", {
+      sessionId: options.sessionId,
+      cols: options.cols,
+      rows: options.rows,
+      snapshotTabs: options.workspaceSnapshot?.tabs.length ?? 0,
+    });
+    this.currentSessionId = options.sessionId;
+    this.sessionManager.resize(options.sessionId, options.cols, options.rows);
+    return this.sessionManager.attachSession(options.sessionId, options.workspaceSnapshot);
   }
 
   createSession(options: {
@@ -27,34 +50,79 @@ export class LocalSessionBackend extends EventEmitter<SessionBackendEvents> impl
     rows: number;
     cwd?: string;
   }): void {
-    this.ptyManager.createSession(options);
+    if (!this.currentSessionId) {
+      logDebug("backend.local.skipCreateWithoutSession", { tabId: options.tabId });
+      return;
+    }
+    logDebug("backend.local.createSession", {
+      sessionId: this.currentSessionId,
+      tabId: options.tabId,
+      title: options.title,
+    });
+    this.sessionManager.createTab(this.currentSessionId, options);
   }
 
   write(tabId: string, input: string): void {
-    this.ptyManager.write(tabId, input);
+    if (!this.currentSessionId) {
+      logDebug("backend.local.skipWriteWithoutSession", { tabId, inputLength: input.length });
+      return;
+    }
+    logDebug("backend.local.write", { sessionId: this.currentSessionId, tabId, inputLength: input.length });
+    this.sessionManager.write(this.currentSessionId, tabId, input);
   }
 
   scrollViewport(tabId: string, deltaLines: number): void {
-    this.ptyManager.scrollViewport(tabId, deltaLines);
+    if (!this.currentSessionId) {
+      return;
+    }
+    this.sessionManager.scroll(this.currentSessionId, tabId, deltaLines);
   }
 
   scrollViewportToBottom(tabId: string): void {
-    this.ptyManager.scrollViewportToBottom(tabId);
+    if (!this.currentSessionId) {
+      return;
+    }
+    this.sessionManager.scrollToBottom(this.currentSessionId, tabId);
+  }
+
+  setActiveTab(tabId: string | null): void {
+    if (!this.currentSessionId) {
+      return;
+    }
+    logDebug("backend.local.setActiveTab", { sessionId: this.currentSessionId, tabId });
+    this.sessionManager.setActiveTab(this.currentSessionId, tabId);
   }
 
   resizeAll(cols: number, rows: number): void {
-    this.ptyManager.resizeAll(cols, rows);
+    if (!this.currentSessionId) {
+      return;
+    }
+    this.sessionManager.resize(this.currentSessionId, cols, rows);
   }
 
   disposeSession(tabId: string): void {
-    this.ptyManager.disposeSession(tabId);
+    if (!this.currentSessionId) {
+      return;
+    }
+    logDebug("backend.local.disposeSession", { sessionId: this.currentSessionId, tabId });
+    this.sessionManager.closeTab(this.currentSessionId, tabId);
   }
 
   disposeAll(): void {
-    this.ptyManager.disposeAll();
+    if (!this.currentSessionId) {
+      return;
+    }
+    logDebug("backend.local.disposeAll", { sessionId: this.currentSessionId });
+    this.sessionManager.disposeSession(this.currentSessionId);
   }
 
-  destroy(): void {
-    this.disposeAll();
+  destroy(keepSessions = true): void {
+    logDebug("backend.local.destroy", { keepSessions, sessionId: this.currentSessionId });
+    if (!keepSessions) {
+      if (this.currentSessionId) {
+        this.sessionManager.disposeSession(this.currentSessionId);
+      }
+    }
+    this.currentSessionId = null;
   }
 }

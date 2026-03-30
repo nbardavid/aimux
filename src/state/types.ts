@@ -6,7 +6,7 @@ export type TabActivity = "busy" | "idle";
 
 export type FocusMode = "navigation" | "terminal-input" | "modal" | "command-edit";
 
-export type ModalType = "new-tab" | null;
+export type ModalType = "new-tab" | "session-picker" | "session-name" | null;
 
 export interface TerminalSpan {
   text: string;
@@ -37,6 +37,39 @@ export interface TerminalModeState {
   bracketedPasteMode: boolean;
 }
 
+export interface PersistedTabSnapshot {
+  id: string;
+  assistant: AssistantId;
+  title: string;
+  command: string;
+  status: Exclude<TabStatus, "disconnected">;
+  buffer: string;
+  viewport?: TerminalSnapshot;
+  terminalModes: TerminalModeState;
+  errorMessage?: string;
+  exitCode?: number;
+}
+
+export interface WorkspaceSnapshotV1 {
+  version: 1;
+  savedAt: string;
+  activeTabId: string | null;
+  sidebar: {
+    visible: boolean;
+    width: number;
+  };
+  tabs: PersistedTabSnapshot[];
+}
+
+export interface SessionRecord {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  lastOpenedAt: string;
+  workspaceSnapshot?: WorkspaceSnapshotV1;
+}
+
 export interface TabSession {
   id: string;
   assistant: AssistantId;
@@ -62,6 +95,7 @@ export interface ModalState {
   type: ModalType;
   selectedIndex: number;
   editBuffer: string | null;
+  sessionTargetId?: string | null;
 }
 
 export interface LayoutState {
@@ -72,6 +106,8 @@ export interface LayoutState {
 export interface AppState {
   tabs: TabSession[];
   activeTabId: string | null;
+  sessions: SessionRecord[];
+  currentSessionId: string | null;
   focusMode: FocusMode;
   sidebar: SidebarState;
   modal: ModalState;
@@ -81,10 +117,18 @@ export interface AppState {
 
 export type AppAction =
   | { type: "open-new-tab-modal" }
+  | { type: "open-session-picker" }
+  | { type: "open-session-name-modal"; sessionTargetId?: string | null; initialName?: string }
   | { type: "close-modal" }
   | { type: "move-modal-selection"; delta: number }
+  | { type: "modal-delete-selected-session" }
   | { type: "add-tab"; tab: TabSession }
   | { type: "hydrate-workspace"; tabs: TabSession[]; activeTabId: string | null }
+  | { type: "load-session"; sessionId: string; tabs: TabSession[]; activeTabId: string | null; sidebar?: Pick<SidebarState, "visible" | "width"> }
+  | { type: "set-sessions"; sessions: SessionRecord[] }
+  | { type: "create-session-record"; session: SessionRecord }
+  | { type: "rename-session-record"; sessionId: string; name: string }
+  | { type: "delete-session-record"; sessionId: string }
   | { type: "close-tab"; tabId: string }
   | { type: "close-active-tab" }
   | { type: "set-active-tab"; tabId: string }

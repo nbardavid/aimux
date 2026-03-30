@@ -27,6 +27,7 @@ describe("getStatusBarModel", () => {
     const model = getStatusBarModel(state);
 
     expect(model.left).toContain("nav");
+    expect(model.right).toContain("Ctrl+g sessions");
     expect(model.right).toContain("Ctrl+n new");
   });
 
@@ -43,7 +44,7 @@ describe("getStatusBarModel", () => {
     const model = getStatusBarModel(state, createTab("Claude session with a very long descriptive title"));
 
     expect(model.left).toContain("...");
-    expect(model.left.length).toBeLessThan(80);
+    expect(model.left.length).toBeLessThan(100);
   });
 
   test("shows focused terminal hints for active tab", () => {
@@ -66,6 +67,24 @@ describe("getStatusBarModel", () => {
 
     expect(model.left).toContain("modal");
     expect(model.right).toContain("Enter confirm");
+  });
+
+  test("shows current session name when active", () => {
+    const state = {
+      ...createInitialState({}, [
+        {
+          id: "session-1",
+          name: "Main Session",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+          lastOpenedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ]),
+      currentSessionId: "session-1",
+    };
+
+    const model = getStatusBarModel(state, createTab("Claude"));
+    expect(model.left).toContain("Main Session");
   });
 
   test("shows restored tab restart hint", () => {

@@ -3,15 +3,42 @@ import { Socket, connect } from "node:net";
 
 import { logDebug } from "../debug/input-log";
 import { getDaemonSocketPath } from "../daemon/runtime-paths";
-import { encodeMessage, type AttachResult, type ClientRequest, type ServerEvent, type ServerResponse } from "../ipc/protocol";
-import type { WorkspaceSnapshotV1 } from "../state/session-persistence";
+import { encodeMessage, MessageDecoder, type AttachResult, type ClientRequest, type ServerEvent, type ServerResponse } from "../ipc/protocol";
+import type { WorkspaceSnapshotV1 } from "../state/types";
 import type { SessionBackend, SessionBackendEvents } from "./types";
 
 export class RemoteSessionBackend extends EventEmitter<SessionBackendEvents> implements SessionBackend {
   private socket: Socket | null = null;
-  private readonly pending = new Map<string, (message: ServerResponse) => void>();
-  private buffer = "";
+  private readonly pending = new Map<string, { resolve: (message: ServerResponse) => void; reject: (error: Error) => void }>();
+  private decoder = new MessageDecoder<ServerResponse | ServerEvent>();
   private attached = false;
+  private currentSessionId: string | null = null;
+
+  private rejectPendingRequests(error: Error): void {
+    for (const [id, pending] of this.pending.entries()) {
+      this.pending.delete(id);
+      pending.reject(error);
+    }
+  }
+
+  private resetConnection(reason: string): void {
+    const socket = this.socket;
+    this.socket = null;
+    this.attached = false;
+    this.currentSessionId = null;
+    this.decoder.reset();
+    this.rejectPendingRequests(new Error(reason));
+
+    if (!socket) {
+      return;
+    }
+
+    socket.removeAllListeners();
+    if (!socket.destroyed) {
+      socket.end();
+      socket.destroy();
+    }
+  }
 
   private getConnectedSocket(): Socket {
     if (!this.socket || this.socket.destroyed) {
@@ -31,7 +58,7 @@ export class RemoteSessionBackend extends EventEmitter<SessionBackendEvents> imp
     const socket = this.getConnectedSocket();
     logDebug("backend.remote.send", { type: request.type, id: request.id });
     return new Promise((resolve, reject) => {
-      this.pending.set(request.id, resolve);
+      this.pending.set(request.id, { resolve, reject });
       socket.write(encodeMessage(request), (error) => {
         if (error) {
           this.pending.delete(request.id);
@@ -61,17 +88,21 @@ export class RemoteSessionBackend extends EventEmitter<SessionBackendEvents> imp
     }
   }
 
-  async attach(options: { cols: number; rows: number; workspaceSnapshot?: WorkspaceSnapshotV1 }): Promise<AttachResult> {
+  async attach(options: { sessionId: string; cols: number; rows: number; workspaceSnapshot?: WorkspaceSnapshotV1 }): Promise<AttachResult> {
     const socketPath = getDaemonSocketPath();
     logDebug("backend.remote.attach.start", {
       socketPath,
+      sessionId: options.sessionId,
       cols: options.cols,
       rows: options.rows,
       snapshotTabs: options.workspaceSnapshot?.tabs.length ?? 0,
     });
+    this.resetConnection("Connection replaced during attach");
+
     const socket = connect(socketPath);
     this.socket = socket;
     this.attached = false;
+    this.currentSessionId = options.sessionId;
 
     await new Promise<void>((resolve, reject) => {
       socket.once("connect", resolve);
@@ -80,35 +111,42 @@ export class RemoteSessionBackend extends EventEmitter<SessionBackendEvents> imp
     logDebug("backend.remote.attach.connected", { socketPath });
 
     socket.on("error", (error) => {
-      this.attached = false;
+      if (this.socket !== socket) {
+        return;
+      }
       logDebug("backend.remote.socketError", { error: error.message });
+      this.resetConnection(`Remote backend socket error: ${error.message}`);
     });
     socket.on("close", () => {
-      this.attached = false;
+      if (this.socket !== socket) {
+        return;
+      }
       logDebug("backend.remote.socketClose");
+      this.resetConnection("Remote backend socket closed");
     });
 
     socket.on("data", (chunk) => {
+      if (this.socket !== socket) {
+        return;
+      }
       logDebug("backend.remote.data", { byteLength: chunk.length });
-      this.buffer += chunk.toString("utf8");
-      let newlineIndex = this.buffer.indexOf("\n");
-      while (newlineIndex !== -1) {
-        const line = this.buffer.slice(0, newlineIndex).trim();
-        this.buffer = this.buffer.slice(newlineIndex + 1);
-        if (line.length > 0) {
-          const message = JSON.parse(line) as ServerResponse | ServerEvent;
+      try {
+        for (const message of this.decoder.push(chunk)) {
           if ("id" in message) {
             logDebug("backend.remote.response", { type: message.type, id: message.id });
-            const resolver = this.pending.get(message.id);
-            if (resolver) {
+            const pending = this.pending.get(message.id);
+            if (pending) {
               this.pending.delete(message.id);
-              resolver(message);
+              pending.resolve(message);
             }
           } else {
             this.handleServerEvent(message);
           }
         }
-        newlineIndex = this.buffer.indexOf("\n");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logDebug("backend.remote.socketError", { error: message });
+        this.resetConnection(`Remote backend parse error: ${message}`);
       }
     });
 
@@ -120,14 +158,14 @@ export class RemoteSessionBackend extends EventEmitter<SessionBackendEvents> imp
 
     if (response.type !== "attachResult") {
       logDebug("backend.remote.attach.unexpected", { type: response.type });
-      this.socket?.destroy();
-      this.socket = null;
+      this.resetConnection(`Unexpected attach response: ${response.type}`);
       throw new Error(response.type === "error" ? response.payload.message : "Unexpected attach response");
     }
 
     this.attached = true;
 
     logDebug("backend.remote.attach.success", {
+      sessionId: options.sessionId,
       tabs: response.payload.tabs.length,
       activeTabId: response.payload.activeTabId,
     });
@@ -152,6 +190,11 @@ export class RemoteSessionBackend extends EventEmitter<SessionBackendEvents> imp
 
     this.ensureAttached();
 
+    logDebug("backend.remote.createSession", {
+      sessionId: this.currentSessionId,
+      tabId: options.tabId,
+      title: options.title,
+    });
     void this.send({
       id: crypto.randomUUID(),
       type: "createTab",
@@ -165,6 +208,7 @@ export class RemoteSessionBackend extends EventEmitter<SessionBackendEvents> imp
       return;
     }
     this.ensureAttached();
+    logDebug("backend.remote.write", { sessionId: this.currentSessionId, tabId, inputLength: input.length });
     void this.send({ id: crypto.randomUUID(), type: "write", payload: { tabId, data: input } });
   }
 
@@ -173,6 +217,7 @@ export class RemoteSessionBackend extends EventEmitter<SessionBackendEvents> imp
       return;
     }
     this.ensureAttached();
+    logDebug("backend.remote.scroll", { sessionId: this.currentSessionId, tabId, deltaLines });
     void this.send({ id: crypto.randomUUID(), type: "scroll", payload: { tabId, deltaLines } });
   }
 
@@ -181,7 +226,17 @@ export class RemoteSessionBackend extends EventEmitter<SessionBackendEvents> imp
       return;
     }
     this.ensureAttached();
+    logDebug("backend.remote.scrollToBottom", { sessionId: this.currentSessionId, tabId });
     void this.send({ id: crypto.randomUUID(), type: "scrollToBottom", payload: { tabId } });
+  }
+
+  setActiveTab(tabId: string | null): void {
+    if (!this.attached) {
+      return;
+    }
+    this.ensureAttached();
+    logDebug("backend.remote.setActiveTab", { sessionId: this.currentSessionId, tabId });
+    void this.send({ id: crypto.randomUUID(), type: "setActiveTab", payload: { tabId } });
   }
 
   resizeAll(cols: number, rows: number): void {
@@ -190,6 +245,7 @@ export class RemoteSessionBackend extends EventEmitter<SessionBackendEvents> imp
       return;
     }
     this.ensureAttached();
+    logDebug("backend.remote.resize", { sessionId: this.currentSessionId, cols, rows });
     void this.send({ id: crypto.randomUUID(), type: "resizeClient", payload: { cols, rows } });
   }
 
@@ -198,6 +254,7 @@ export class RemoteSessionBackend extends EventEmitter<SessionBackendEvents> imp
       return;
     }
     this.ensureAttached();
+    logDebug("backend.remote.disposeSession", { sessionId: this.currentSessionId, tabId });
     void this.send({ id: crypto.randomUUID(), type: "closeTab", payload: { tabId } });
   }
 
@@ -206,6 +263,7 @@ export class RemoteSessionBackend extends EventEmitter<SessionBackendEvents> imp
       return;
     }
     this.ensureAttached();
+    logDebug("backend.remote.disposeAll", { sessionId: this.currentSessionId });
     void this.send({ id: crypto.randomUUID(), type: "disposeAll", payload: {} });
   }
 
@@ -214,10 +272,6 @@ export class RemoteSessionBackend extends EventEmitter<SessionBackendEvents> imp
     if (!keepSessions) {
       this.disposeAll();
     }
-
-    this.socket?.end();
-    this.socket?.destroy();
-    this.socket = null;
-    this.attached = false;
+    this.resetConnection("Remote backend destroyed");
   }
 }

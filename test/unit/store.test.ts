@@ -23,6 +23,82 @@ function createTab(overrides: Partial<ReturnType<typeof createInitialState>["tab
 }
 
 describe("appReducer", () => {
+  test("opens session picker from navigation", () => {
+    const initial = createInitialState();
+    const next = appReducer(initial, { type: "open-session-picker" });
+
+    expect(next.modal.type).toBe("session-picker");
+    expect(next.focusMode).toBe("modal");
+  });
+
+  test("loads selected session and marks it current", () => {
+    const initial = {
+      ...createInitialState({}, [
+        {
+          id: "session-1",
+          name: "Main",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+          lastOpenedAt: "2024-01-01T00:00:00.000Z",
+          workspaceSnapshot: {
+            version: 1,
+            savedAt: "2024-01-01T00:00:00.000Z",
+            activeTabId: "tab-1",
+            sidebar: { visible: false, width: 22 },
+            tabs: [
+              {
+                id: "tab-1",
+                assistant: "claude",
+                title: "Claude",
+                command: "claude",
+                status: "running",
+                buffer: "hello",
+                terminalModes: {
+                  mouseTrackingMode: "none",
+                  sendFocusMode: false,
+                  alternateScrollMode: false,
+                  isAlternateBuffer: false,
+                  bracketedPasteMode: false,
+                },
+              },
+            ],
+          },
+        },
+      ]),
+      focusMode: "modal" as const,
+      modal: { type: "session-picker" as const, selectedIndex: 0, editBuffer: null, sessionTargetId: null },
+    };
+
+    const next = appReducer(initial, { type: "load-session", sessionId: "session-1", tabs: [], activeTabId: "tab-1" });
+    expect(next.currentSessionId).toBe("session-1");
+    expect(next.activeTabId).toBe("tab-1");
+    expect(next.tabs[0]?.status).toBe("disconnected");
+    expect(next.focusMode).toBe("navigation");
+  });
+
+  test("deleting active session falls back to picker when none remain", () => {
+    const initial = {
+      ...createInitialState({}, [
+        {
+          id: "session-1",
+          name: "Main",
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+          lastOpenedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ]),
+      currentSessionId: "session-1",
+      tabs: [createTab({ id: "tab-1", assistant: "claude", title: "Claude", status: "running", command: "claude" })],
+      activeTabId: "tab-1",
+    };
+
+    const next = appReducer(initial, { type: "delete-session-record", sessionId: "session-1" });
+    expect(next.sessions).toHaveLength(0);
+    expect(next.currentSessionId).toBeNull();
+    expect(next.tabs).toHaveLength(0);
+    expect(next.modal.type).toBe("session-picker");
+  });
+
   test("opens and closes the new tab modal", () => {
     const initial = createInitialState();
     const opened = appReducer(initial, { type: "open-new-tab-modal" });

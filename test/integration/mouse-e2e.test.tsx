@@ -182,6 +182,8 @@ function MouseHarness({
       state={{
         tabs: [tab],
         activeTabId: TEST_TAB_ID,
+        sessions: [],
+        currentSessionId: null,
         focusMode: "terminal-input",
         sidebar: {
           visible: true,
@@ -193,6 +195,7 @@ function MouseHarness({
           type: null,
           selectedIndex: 0,
           editBuffer: null,
+          sessionTargetId: null,
         },
         layout: {
           terminalCols: terminalSize.cols,

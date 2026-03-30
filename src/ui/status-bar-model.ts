@@ -25,23 +25,26 @@ function getActiveTabLabel(tab?: TabSession): string {
 
 function getNavigationHint(activeTab?: TabSession): string {
   if (!activeTab) {
-    return "Ctrl+n new | Ctrl+b toggle | Ctrl+h/l resize";
+    return "Ctrl+g sessions | Ctrl+n new | Ctrl+b toggle | Ctrl+h/l resize";
   }
 
   if (activeTab.status === "disconnected") {
     return "Ctrl+r restart restored tab | Ctrl+w close | i focus";
   }
 
-  return "j/k move | Shift+J/K reorder | Ctrl+r restart | Ctrl+w close | i focus";
+  return "Ctrl+g sessions | j/k move | Shift+J/K reorder | Ctrl+r restart | Ctrl+w close | i focus";
 }
 
 export function getStatusBarModel(state: AppState, activeTab?: TabSession): StatusBarModel {
   const sidebar = state.sidebar.visible ? `${state.sidebar.width} cols` : "hidden";
+  const sessionLabel = state.currentSessionId
+    ? state.sessions.find((session) => session.id === state.currentSessionId)?.name ?? "unknown"
+    : "no session";
 
   switch (state.focusMode) {
     case "terminal-input":
       return {
-        left: `input -> ${getActiveTabLabel(activeTab)} | sb: ${sidebar}`,
+        left: `input -> ${getActiveTabLabel(activeTab)} | session: ${sessionLabel} | sb: ${sidebar}`,
         right: activeTab
           ? activeTab.status === "disconnected"
             ? "Ctrl+z unfocus | Ctrl+r restart restored tab"
@@ -50,13 +53,13 @@ export function getStatusBarModel(state: AppState, activeTab?: TabSession): Stat
       };
     case "modal":
       return {
-        left: `modal: new tab | sb: ${sidebar}`,
-        right: "j/k move | Enter confirm | Esc cancel",
+        left: `modal | session: ${sessionLabel} | sb: ${sidebar}`,
+        right: "j/k move | Enter confirm | n/r/d actions | Esc cancel",
       };
     case "navigation":
     default:
       return {
-        left: `nav | active: ${getActiveTabLabel(activeTab)} | sb: ${sidebar}`,
+        left: `nav | session: ${sessionLabel} | active: ${getActiveTabLabel(activeTab)} | sb: ${sidebar}`,
         right: getNavigationHint(activeTab),
       };
   }

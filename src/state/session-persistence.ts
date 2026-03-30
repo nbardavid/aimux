@@ -1,38 +1,19 @@
-import type {
-  AppState,
-  AssistantId,
-  FocusMode,
-  TabSession,
-  TabStatus,
-  TerminalModeState,
-  TerminalSnapshot,
-} from "./types";
+import type { AppState, FocusMode, TabSession, TabStatus, WorkspaceSnapshotV1 } from "./types";
 
-export interface PersistedTabSnapshot {
-  id: string;
-  assistant: AssistantId;
-  title: string;
-  command: string;
-  status: Exclude<TabStatus, "disconnected">;
-  buffer: string;
-  viewport?: TerminalSnapshot;
-  terminalModes: TerminalModeState;
-  errorMessage?: string;
-  exitCode?: number;
-}
-
-export interface WorkspaceSnapshotV1 {
-  version: 1;
-  savedAt: string;
-  activeTabId: string | null;
-  sidebar: {
-    visible: boolean;
-    width: number;
+export function createEmptyWorkspaceSnapshot(): WorkspaceSnapshotV1 {
+  return {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    activeTabId: null,
+    sidebar: {
+      visible: true,
+      width: 28,
+    },
+    tabs: [],
   };
-  tabs: PersistedTabSnapshot[];
 }
 
-function getDisconnectedStatus(status: PersistedTabSnapshot["status"]): TabStatus {
+function getDisconnectedStatus(status: WorkspaceSnapshotV1["tabs"][number]["status"]): TabStatus {
   if (status === "running" || status === "starting") {
     return "disconnected";
   }

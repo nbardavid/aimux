@@ -17,6 +17,10 @@ describe("resolveKeyIntent", () => {
       type: "restart-tab",
     });
 
+    expect(resolveKeyIntent({ name: "g", ctrl: true, meta: false, shift: false, sequence: "\u0007" }, "navigation")).toEqual({
+      type: "open-session-picker",
+    });
+
     expect(resolveKeyIntent({ name: "j", ctrl: false, meta: false, shift: true, sequence: "J" }, "navigation")).toEqual({
       type: "reorder-tab",
       delta: 1,

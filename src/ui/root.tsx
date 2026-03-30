@@ -3,6 +3,8 @@ import type { AppState } from "../state/types";
 import type { TerminalContentOrigin } from "../input/raw-input-handler";
 import type { MouseEvent } from "@opentui/core";
 import { NewTabModal } from "./components/new-tab-modal";
+import { SessionNameModal } from "./components/session-name-modal";
+import { SessionPickerModal } from "./components/session-picker-modal";
 import { Sidebar } from "./components/sidebar";
 import { StatusBar } from "./components/status-bar";
 import { TerminalPane } from "./components/terminal-pane";
@@ -47,6 +49,15 @@ export function RootView({
           selectedIndex={state.modal.selectedIndex}
           customCommands={state.customCommands}
           editBuffer={state.modal.editBuffer}
+        />
+      ) : null}
+      {state.modal.type === "session-picker" ? (
+        <SessionPickerModal sessions={state.sessions} selectedIndex={state.modal.selectedIndex} currentSessionId={state.currentSessionId} currentTabCount={state.tabs.length} />
+      ) : null}
+      {state.modal.type === "session-name" ? (
+        <SessionNameModal
+          title={state.modal.sessionTargetId ? "Rename session" : "Create session"}
+          value={state.modal.editBuffer ?? ""}
         />
       ) : null}
     </box>

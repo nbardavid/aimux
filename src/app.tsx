@@ -38,6 +38,12 @@ import { type ThemeId, THEME_IDS } from "./ui/themes";
 
 registerAllModes();
 
+function copyToSystemClipboard(text: string): void {
+  const proc = Bun.spawn(["pbcopy"], { stdin: "pipe" });
+  proc.stdin.write(text);
+  proc.stdin.end();
+}
+
 const IDLE_TIMEOUT_MS = 2_000;
 const STARTUP_GRACE_MS = 5_000;
 const MAIN_AREA_HORIZONTAL_CHROME = 4;
@@ -226,6 +232,7 @@ export function App({ backend }: { backend: SessionBackend }) {
       }
 
       renderer.copyToClipboardOSC52(selectedText);
+      copyToSystemClipboard(selectedText);
     };
 
     renderer.prependInputHandler(handler);
@@ -316,19 +323,21 @@ export function App({ backend }: { backend: SessionBackend }) {
     }
     const baseX = lineBox.x;
 
+    const lineText = getLineText(line);
+    let selectedText: string;
     let startCol: number;
     let endCol: number;
 
     if (clickCount === 2) {
-      const lineText = getLineText(line);
       const word = getWordAtColumn(lineText, col);
       if (word.text.length === 0) {
         return;
       }
+      selectedText = word.text;
       startCol = word.startCol;
       endCol = word.endCol;
     } else {
-      const lineText = getLineText(line);
+      selectedText = lineText;
       startCol = 0;
       endCol = lineText.length;
     }
@@ -339,6 +348,7 @@ export function App({ backend }: { backend: SessionBackend }) {
     renderer.updateSelection(event.target, baseX + endCol, event.y, {
       finishDragging: true,
     });
+    copyToSystemClipboard(selectedText);
   };
 
   useEffect(() => {

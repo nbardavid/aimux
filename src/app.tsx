@@ -97,6 +97,8 @@ export function App({ backend }: { backend: SessionBackend }) {
   const startupGraceTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const workspaceSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const attachRequestIdRef = useRef(0);
+  const resizingRef = useRef(false);
+  const resizingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeTab = useMemo(
     () => state.tabs.find((tab) => tab.id === state.activeTabId),
     [state.activeTabId, state.tabs],
@@ -395,7 +397,7 @@ export function App({ backend }: { backend: SessionBackend }) {
       }
 
       dispatch({ type: "replace-tab-viewport", tabId, viewport, terminalModes });
-      if (isStartupGraceActive(tabId)) {
+      if (isStartupGraceActive(tabId) || resizingRef.current) {
         return;
       }
 
@@ -465,7 +467,15 @@ export function App({ backend }: { backend: SessionBackend }) {
       cols: terminalSize.cols,
       rows: terminalSize.rows,
     });
+    resizingRef.current = true;
+    if (resizingTimerRef.current) {
+      clearTimeout(resizingTimerRef.current);
+    }
     backend.resizeAll(terminalSize.cols, terminalSize.rows);
+    resizingTimerRef.current = setTimeout(() => {
+      resizingRef.current = false;
+      resizingTimerRef.current = null;
+    }, 500);
   }, [backend, terminalSize.cols, terminalSize.rows]);
 
   function launchAssistant(assistant: AssistantId) {

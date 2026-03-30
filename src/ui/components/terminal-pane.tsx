@@ -13,6 +13,7 @@ interface TerminalPaneProps {
   localScrollbackEnabled: boolean;
   onTerminalMouseEvent: (event: OtuiMouseEvent, origin: TerminalContentOrigin) => void;
   onTerminalScrollEvent: (event: OtuiMouseEvent) => void;
+  onTerminalClick?: (event: OtuiMouseEvent, origin: TerminalContentOrigin) => void;
 }
 
 function getTitle(tab?: TabSession): string {
@@ -73,11 +74,21 @@ export function TerminalPane({
   localScrollbackEnabled,
   onTerminalMouseEvent,
   onTerminalScrollEvent,
+  onTerminalClick,
 }: TerminalPaneProps) {
   const canForwardMouse = focusMode === "terminal-input" && !!tab && mouseForwardingEnabled;
   const canUseLocalScrollback = focusMode === "terminal-input" && !!tab && localScrollbackEnabled;
   const forwardMouseEvent = (event: OtuiMouseEvent) => {
     if (!canForwardMouse) {
+      if (
+        focusMode === "terminal-input" &&
+        tab &&
+        event.type === "down" &&
+        event.button === 0 &&
+        onTerminalClick
+      ) {
+        onTerminalClick(event, contentOrigin);
+      }
       return;
     }
 

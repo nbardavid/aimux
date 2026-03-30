@@ -4,6 +4,8 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import { INPUT_DEBUG_LOG_PATH, logInputDebug } from "./debug/input-log";
 import { encodeMouseEventForPty } from "./input/mouse-forwarding";
+import { MultiClickDetector } from "./input/multi-click-detector";
+import { getLineText, getWordAtColumn } from "./input/terminal-text-extraction";
 import { deriveModeId } from "./input/modes/bridge";
 import { registerAllModes } from "./input/modes/handlers";
 import { getHandler, transitionTo } from "./input/modes/registry";
@@ -151,6 +153,7 @@ export function App({ backend }: { backend: SessionBackend }) {
   activeTabRef.current = activeTab;
 
   const contentOriginRef = useRef<TerminalContentOrigin>({ x: 0, y: 0, cols: 0, rows: 0 });
+  const multiClickRef = useRef(new MultiClickDetector());
 
   useEffect(() => {
     renderer.useMouse = true;
@@ -286,6 +289,56 @@ export function App({ backend }: { backend: SessionBackend }) {
     } else if (direction === "down") {
       backend.scrollViewport(state.activeTabId, 3);
     }
+  };
+
+  const handleTerminalClick = (event: OtuiMouseEvent, origin: TerminalContentOrigin) => {
+    if (state.focusMode !== "terminal-input" || !state.activeTabId || !event.target) {
+      return;
+    }
+
+    const col = event.x - origin.x;
+    const row = event.y - origin.y;
+    const clickCount = multiClickRef.current.track(col, row);
+
+    if (clickCount < 2) {
+      return;
+    }
+
+    const tab = state.tabs.find((t) => t.id === state.activeTabId);
+    if (!tab?.viewport?.lines[row]) {
+      return;
+    }
+
+    const line = tab.viewport.lines[row];
+    const lineBox = event.target.parent;
+    if (!lineBox) {
+      return;
+    }
+    const baseX = lineBox.x;
+
+    let startCol: number;
+    let endCol: number;
+
+    if (clickCount === 2) {
+      const lineText = getLineText(line);
+      const word = getWordAtColumn(lineText, col);
+      if (word.text.length === 0) {
+        return;
+      }
+      startCol = word.startCol;
+      endCol = word.endCol;
+    } else {
+      const lineText = getLineText(line);
+      startCol = 0;
+      endCol = lineText.length;
+    }
+
+    event.preventDefault();
+    renderer.clearSelection();
+    renderer.startSelection(event.target, baseX + startCol, event.y);
+    renderer.updateSelection(event.target, baseX + endCol, event.y, {
+      finishDragging: true,
+    });
   };
 
   useEffect(() => {
@@ -965,6 +1018,7 @@ export function App({ backend }: { backend: SessionBackend }) {
       localScrollbackEnabled={activeLocalScrollbackEnabled}
       onTerminalMouseEvent={handleTerminalMouseEvent}
       onTerminalScrollEvent={handleTerminalScrollEvent}
+      onTerminalClick={handleTerminalClick}
     />
   );
 }

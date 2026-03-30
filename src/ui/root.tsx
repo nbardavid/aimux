@@ -24,6 +24,7 @@ interface RootViewProps {
   localScrollbackEnabled: boolean;
   onTerminalMouseEvent: (event: MouseEvent, origin: TerminalContentOrigin) => void;
   onTerminalScrollEvent: (event: MouseEvent) => void;
+  onTerminalClick?: (event: MouseEvent, origin: TerminalContentOrigin) => void;
 }
 
 export function RootView({
@@ -34,6 +35,7 @@ export function RootView({
   localScrollbackEnabled,
   onTerminalMouseEvent,
   onTerminalScrollEvent,
+  onTerminalClick,
 }: RootViewProps) {
   const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId);
 
@@ -49,6 +51,7 @@ export function RootView({
           localScrollbackEnabled={localScrollbackEnabled}
           onTerminalMouseEvent={onTerminalMouseEvent}
           onTerminalScrollEvent={onTerminalScrollEvent}
+          onTerminalClick={onTerminalClick}
         />
       </box>
       <StatusBar state={state} activeTab={activeTab} />

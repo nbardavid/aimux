@@ -28,7 +28,13 @@ export type AppIntent =
   | { type: "switch-create-session-field" }
   | { type: "select-directory" }
   | { type: "begin-session-filter" }
-  | { type: "rename-active-tab" };
+  | { type: "rename-active-tab" }
+  | { type: "open-snippet-picker" }
+  | { type: "create-snippet" }
+  | { type: "edit-snippet" }
+  | { type: "delete-snippet" }
+  | { type: "begin-snippet-filter" }
+  | { type: "open-theme-picker" };
 
 export function resolveKeyIntent(
   key: Pick<KeyEvent, "name" | "ctrl" | "meta" | "shift" | "sequence"> & {
@@ -140,6 +146,14 @@ export function resolveKeyIntent(
 
     if (key.ctrl && key.name === "r") {
       return { type: "restart-tab" };
+    }
+
+    if (key.ctrl && key.name === "s") {
+      return { type: "open-snippet-picker" };
+    }
+
+    if (key.ctrl && key.name === "t") {
+      return { type: "open-theme-picker" };
     }
 
     if (key.ctrl && key.name === "h") {

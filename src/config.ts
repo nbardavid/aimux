@@ -2,12 +2,14 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import type { WorkspaceSnapshotV1 } from "./state/types";
+import type { ThemeId } from "./ui/themes";
 
 export const CONFIG_PATH = join(process.env.HOME ?? "~", ".config", "aimux.json");
 
 export interface AimuxConfig {
   version: 2;
   customCommands: Record<string, string>;
+  themeId?: ThemeId;
   workspaceSnapshot?: WorkspaceSnapshotV1;
 }
 
@@ -29,11 +31,13 @@ export function loadConfig(): AimuxConfig {
       const parsed = JSON.parse(raw) as {
         version?: number;
         customCommands?: Record<string, string>;
+        themeId?: string;
         workspaceSnapshot?: unknown;
       };
       return {
         version: 2,
         customCommands: parsed.customCommands ?? {},
+        themeId: (parsed.themeId as ThemeId) ?? undefined,
         workspaceSnapshot: isWorkspaceSnapshotV1(parsed.workspaceSnapshot)
           ? parsed.workspaceSnapshot
           : undefined,

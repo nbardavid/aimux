@@ -4,6 +4,10 @@ import type { TerminalContentOrigin } from "../input/raw-input-handler";
 import type { MouseEvent } from "@opentui/core";
 import { CreateSessionModal } from "./components/create-session-modal";
 import { HelpModal } from "./components/help-modal";
+import { SnippetEditorModal } from "./components/snippet-editor-modal";
+import { SnippetPickerModal } from "./components/snippet-picker-modal";
+import { ThemePickerModal } from "./components/theme-picker-modal";
+import type { ThemeId } from "./themes";
 import { NewTabModal } from "./components/new-tab-modal";
 import { SessionNameModal } from "./components/session-name-modal";
 import { SessionPickerModal } from "./components/session-picker-modal";
@@ -14,6 +18,7 @@ import { theme } from "./theme";
 
 interface RootViewProps {
   state: AppState;
+  themeId: ThemeId;
   contentOrigin: TerminalContentOrigin;
   mouseForwardingEnabled: boolean;
   localScrollbackEnabled: boolean;
@@ -23,6 +28,7 @@ interface RootViewProps {
 
 export function RootView({
   state,
+  themeId,
   contentOrigin,
   mouseForwardingEnabled,
   localScrollbackEnabled,
@@ -88,6 +94,32 @@ export function RootView({
           selectedIndex={state.modal.selectedIndex}
           pendingProjectPath={state.modal.pendingProjectPath ?? null}
         />
+      ) : null}
+      {state.modal.type === "snippet-picker" ? (
+        <SnippetPickerModal
+          snippets={state.snippets}
+          selectedIndex={state.modal.selectedIndex}
+          filter={state.modal.editBuffer}
+        />
+      ) : null}
+      {state.modal.type === "snippet-editor" ? (
+        <SnippetEditorModal
+          activeField={state.modal.activeField ?? "directory"}
+          snippetName={
+            state.modal.activeField === "directory"
+              ? (state.modal.editBuffer ?? "")
+              : (state.modal.secondaryBuffer ?? "")
+          }
+          snippetContent={
+            state.modal.activeField === "name"
+              ? (state.modal.editBuffer ?? "")
+              : (state.modal.secondaryBuffer ?? "")
+          }
+          isEditing={state.modal.sessionTargetId !== null}
+        />
+      ) : null}
+      {state.modal.type === "theme-picker" ? (
+        <ThemePickerModal selectedIndex={state.modal.selectedIndex} currentThemeId={themeId} />
       ) : null}
       {state.modal.type === "help" ? <HelpModal /> : null}
     </box>

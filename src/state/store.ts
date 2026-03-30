@@ -1,8 +1,11 @@
 import { basename } from "node:path";
 
 import { ASSISTANT_OPTIONS } from "../pty/command-registry";
+import { THEME_IDS } from "../ui/themes";
+
+const THEME_COUNT = THEME_IDS.length;
 import { restoreWorkspaceState } from "./session-persistence";
-import type { AppAction, AppState, SessionRecord, TabSession } from "./types";
+import type { AppAction, AppState, SessionRecord, SnippetRecord, TabSession } from "./types";
 
 const MAX_BUFFER_LENGTH = 50_000;
 
@@ -58,6 +61,14 @@ function filterSessions(sessions: SessionRecord[], filter: string | null): Sessi
   );
 }
 
+function filterSnippets(snippets: SnippetRecord[], filter: string | null): SnippetRecord[] {
+  if (!filter) return snippets;
+  const lower = filter.toLowerCase();
+  return snippets.filter(
+    (s) => s.name.toLowerCase().includes(lower) || s.content.toLowerCase().includes(lower),
+  );
+}
+
 function emptyModal() {
   return {
     type: null,
@@ -70,6 +81,7 @@ function emptyModal() {
 export function createInitialState(
   customCommands: Record<string, string> = {},
   sessions: SessionRecord[] = [],
+  snippets: SnippetRecord[] = [],
   showSessionPicker = false,
 ): AppState {
   return {
@@ -77,6 +89,7 @@ export function createInitialState(
     activeTabId: null,
     sessions,
     currentSessionId: null,
+    snippets,
     focusMode: showSessionPicker ? "modal" : "navigation",
     sidebar: {
       visible: true,
@@ -159,12 +172,73 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           selectedIndex: 0,
         },
       };
+    case "open-snippet-picker":
+      return {
+        ...state,
+        focusMode: "modal",
+        modal: {
+          type: "snippet-picker",
+          selectedIndex: 0,
+          editBuffer: null,
+          sessionTargetId: null,
+        },
+      };
+    case "open-snippet-editor": {
+      const snippet = action.snippetId
+        ? state.snippets.find((s) => s.id === action.snippetId)
+        : undefined;
+      return {
+        ...state,
+        focusMode: "command-edit",
+        modal: {
+          type: "snippet-editor",
+          selectedIndex: 0,
+          editBuffer: snippet?.name ?? "",
+          sessionTargetId: snippet?.id ?? null,
+          activeField: "directory",
+          secondaryBuffer: snippet?.content ?? "",
+        },
+      };
+    }
+    case "set-snippets":
+      return { ...state, snippets: action.snippets };
+    case "delete-snippet": {
+      const newSnippets = state.snippets.filter((s) => s.id !== action.snippetId);
+      const filteredNew = filterSnippets(newSnippets, state.modal.editBuffer);
+      const maxIndex = Math.max(0, filteredNew.length - 1);
+      return {
+        ...state,
+        snippets: newSnippets,
+        modal: {
+          ...state.modal,
+          selectedIndex: Math.min(state.modal.selectedIndex, maxIndex),
+        },
+      };
+    }
+    case "open-theme-picker":
+      return {
+        ...state,
+        focusMode: "modal",
+        modal: { type: "theme-picker", selectedIndex: 0, editBuffer: null, sessionTargetId: null },
+      };
+    case "begin-snippet-filter": {
+      if (state.modal.type !== "snippet-picker") {
+        return state;
+      }
+      return {
+        ...state,
+        focusMode: "command-edit",
+        modal: { ...state.modal, editBuffer: state.modal.editBuffer ?? "" },
+      };
+    }
     case "close-modal":
       return { ...state, focusMode: "navigation", modal: emptyModal() };
     case "move-modal-selection": {
       if (
         state.modal.type !== "new-tab" &&
         state.modal.type !== "session-picker" &&
+        state.modal.type !== "snippet-picker" &&
+        state.modal.type !== "theme-picker" &&
         state.modal.type !== "create-session"
       ) {
         return state;
@@ -177,6 +251,11 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         optionCount = ASSISTANT_OPTIONS.length;
       } else if (state.modal.type === "create-session") {
         optionCount = state.modal.directoryResults?.length ?? 0;
+      } else if (state.modal.type === "snippet-picker") {
+        const filtered = filterSnippets(state.snippets, state.modal.editBuffer);
+        optionCount = filtered.length;
+      } else if (state.modal.type === "theme-picker") {
+        optionCount = THEME_COUNT;
       } else {
         const filtered = filterSessions(state.sessions, state.modal.editBuffer);
         optionCount = Math.max(1, filtered.length + 1);
@@ -425,7 +504,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         action.char === "\b"
           ? state.modal.editBuffer.slice(0, -1)
           : state.modal.editBuffer + action.char;
-      const resetIndex = state.modal.type === "session-picker" ? 0 : state.modal.selectedIndex;
+      const resetIndex =
+        state.modal.type === "session-picker" || state.modal.type === "snippet-picker"
+          ? 0
+          : state.modal.selectedIndex;
       return { ...state, modal: { ...state.modal, editBuffer: buf, selectedIndex: resetIndex } };
     }
     case "commit-command-edit": {
@@ -435,13 +517,16 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       if (state.modal.type === "create-session") {
         return state;
       }
+      if (state.modal.type === "snippet-editor") {
+        return state;
+      }
       if (state.modal.type === "rename-tab") {
         return state;
       }
       if (state.modal.type === "session-name") {
         return state;
       }
-      if (state.modal.type === "session-picker") {
+      if (state.modal.type === "session-picker" || state.modal.type === "snippet-picker") {
         return {
           ...state,
           focusMode: "modal",
@@ -471,10 +556,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     }
     case "cancel-command-edit": {
-      if (state.modal.type === "create-session") {
+      if (state.modal.type === "create-session" || state.modal.type === "snippet-editor") {
         return { ...state, focusMode: "navigation", modal: emptyModal() };
       }
-      if (state.modal.type === "session-picker") {
+      if (state.modal.type === "session-picker" || state.modal.type === "snippet-picker") {
         return {
           ...state,
           focusMode: "modal",
@@ -484,7 +569,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, focusMode: "modal", modal: { ...state.modal, editBuffer: null } };
     }
     case "switch-create-session-field": {
-      if (state.modal.type !== "create-session") {
+      if (state.modal.type !== "create-session" && state.modal.type !== "snippet-editor") {
         return state;
       }
       const nextField = state.modal.activeField === "directory" ? "name" : "directory";

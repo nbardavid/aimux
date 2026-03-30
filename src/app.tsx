@@ -1,6 +1,6 @@
 import type { MouseEvent as OtuiMouseEvent } from "@opentui/core";
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react";
-import { useEffect, useMemo, useReducer, useRef } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import { INPUT_DEBUG_LOG_PATH, logInputDebug } from "./debug/input-log";
 import { resolveKeyIntent } from "./input/keymap";
@@ -17,10 +17,19 @@ import {
 import type { SessionBackend } from "./session-backend/types";
 import { loadSessionCatalog, saveSessionCatalog } from "./state/session-catalog";
 import { createEmptyWorkspaceSnapshot, serializeWorkspace } from "./state/session-persistence";
+import { loadSnippetCatalog, saveSnippetCatalog } from "./state/snippet-catalog";
 import { appReducer, createInitialState } from "./state/store";
-import type { AssistantId, SessionRecord, TabSession, TerminalModeState } from "./state/types";
+import type {
+  AssistantId,
+  SessionRecord,
+  SnippetRecord,
+  TabSession,
+  TerminalModeState,
+} from "./state/types";
 import { searchDirectories } from "./ui/directory-search";
 import { RootView } from "./ui/root";
+import { applyTheme } from "./ui/theme";
+import { type ThemeId, THEME_IDS } from "./ui/themes";
 
 const IDLE_TIMEOUT_MS = 2_000;
 const STARTUP_GRACE_MS = 5_000;
@@ -97,9 +106,16 @@ function startTabSession(
 export function App({ backend }: { backend: SessionBackend }) {
   const renderer = useRenderer();
   const dimensions = useTerminalDimensions();
+  const [themeId, setThemeId] = useState<ThemeId>(() => {
+    const config = loadConfig();
+    if (config.themeId) {
+      applyTheme(config.themeId);
+    }
+    return config.themeId ?? "aimux";
+  });
   const [state, dispatch] = useReducer(appReducer, undefined, () => {
     const { customCommands } = loadConfig();
-    return createInitialState(customCommands, loadSessionCatalog(), true);
+    return createInitialState(customCommands, loadSessionCatalog(), loadSnippetCatalog(), true);
   });
   const idleTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const startupGraceTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -564,6 +580,15 @@ export function App({ backend }: { backend: SessionBackend }) {
     );
   }
 
+  function getFilteredSnippets(): SnippetRecord[] {
+    const filter = state.modal.type === "snippet-picker" ? state.modal.editBuffer : null;
+    if (!filter) return state.snippets;
+    const lower = filter.toLowerCase();
+    return state.snippets.filter(
+      (s) => s.name.toLowerCase().includes(lower) || s.content.toLowerCase().includes(lower),
+    );
+  }
+
   function launchAssistant(assistant: AssistantId) {
     const customCommand = state.customCommands[assistant];
     const tab = createTabSession(assistant, customCommand);
@@ -757,12 +782,40 @@ export function App({ backend }: { backend: SessionBackend }) {
         if (state.modal.type === "session-picker" && !state.currentSessionId) {
           return;
         }
+        if (state.modal.type === "theme-picker") {
+          applyTheme(themeId);
+        }
         dispatch({ type: "close-modal" });
         return;
       case "confirm-modal": {
         if (state.modal.type === "new-tab") {
           const option = getAssistantOption(state.modal.selectedIndex);
           launchAssistant(option.id);
+          return;
+        }
+
+        if (state.modal.type === "theme-picker") {
+          const selectedId = THEME_IDS[state.modal.selectedIndex];
+          if (selectedId) {
+            applyTheme(selectedId);
+            setThemeId(selectedId);
+            saveConfig({ ...loadConfig(), themeId: selectedId });
+          }
+          dispatch({ type: "close-modal" });
+          return;
+        }
+
+        if (state.modal.type === "snippet-picker") {
+          const filtered = getFilteredSnippets();
+          const snippet = filtered[state.modal.selectedIndex];
+          if (snippet && state.activeTabId && activeTab) {
+            const payload = buildPtyPastePayload(
+              snippet.content,
+              activeTab.terminalModes.bracketedPasteMode,
+            );
+            backend.write(state.activeTabId, payload);
+          }
+          dispatch({ type: "close-modal" });
           return;
         }
 
@@ -783,12 +836,31 @@ export function App({ backend }: { backend: SessionBackend }) {
         return;
       }
       case "move-modal-selection":
+        if (state.modal.type === "theme-picker") {
+          const count = THEME_IDS.length;
+          const nextIndex = (state.modal.selectedIndex + intent.delta + count) % count;
+          const previewId = THEME_IDS[nextIndex];
+          if (previewId) {
+            applyTheme(previewId);
+          }
+        }
         dispatch({ type: "move-modal-selection", delta: intent.delta });
         return;
       case "create-new-session":
+        if (state.modal.type === "snippet-picker") {
+          dispatch({ type: "open-snippet-editor" });
+          return;
+        }
         dispatch({ type: "open-create-session-modal" });
         return;
       case "rename-selected-session":
+        if (state.modal.type === "snippet-picker") {
+          const snippet = getFilteredSnippets()[state.modal.selectedIndex];
+          if (snippet) {
+            dispatch({ type: "open-snippet-editor", snippetId: snippet.id });
+          }
+          return;
+        }
         if (state.modal.type === "session-picker") {
           const selectedSession = getFilteredSessions()[state.modal.selectedIndex];
           if (selectedSession) {
@@ -805,6 +877,15 @@ export function App({ backend }: { backend: SessionBackend }) {
         }
         return;
       case "delete-selected-session":
+        if (state.modal.type === "snippet-picker") {
+          const snippet = getFilteredSnippets()[state.modal.selectedIndex];
+          if (snippet) {
+            const updated = state.snippets.filter((s) => s.id !== snippet.id);
+            saveSnippetCatalog(updated);
+            dispatch({ type: "delete-snippet", snippetId: snippet.id });
+          }
+          return;
+        }
         if (state.modal.type === "session-picker") {
           const selectedSession = getFilteredSessions()[state.modal.selectedIndex];
           logInputDebug("app.sessionPicker.deleteSelected", {
@@ -842,6 +923,13 @@ export function App({ backend }: { backend: SessionBackend }) {
         dispatch({ type: "resize-sidebar", delta: intent.delta });
         return;
       case "begin-command-edit":
+        if (state.modal.type === "snippet-picker") {
+          const snippet = getFilteredSnippets()[state.modal.selectedIndex];
+          if (snippet) {
+            dispatch({ type: "open-snippet-editor", snippetId: snippet.id });
+          }
+          return;
+        }
         dispatch({ type: "begin-command-edit" });
         return;
       case "command-edit-input":
@@ -858,6 +946,36 @@ export function App({ backend }: { backend: SessionBackend }) {
           const sessionName = trimmed || (projectPath ? projectPath.split("/").pop()! : "");
           if (sessionName) {
             createSessionFromCurrent(sessionName, projectPath);
+          }
+          dispatch({ type: "close-modal" });
+          return;
+        }
+        if (state.modal.type === "snippet-editor" && state.modal.editBuffer !== null) {
+          const name =
+            state.modal.activeField === "directory"
+              ? (state.modal.editBuffer ?? "").trim()
+              : (state.modal.secondaryBuffer ?? "").trim();
+          const content =
+            state.modal.activeField === "name"
+              ? (state.modal.editBuffer ?? "").trim()
+              : (state.modal.secondaryBuffer ?? "").trim();
+          if (name && content) {
+            const snippetId = state.modal.sessionTargetId;
+            let updated: SnippetRecord[];
+            if (snippetId) {
+              updated = state.snippets.map((s) =>
+                s.id === snippetId ? { ...s, name, content } : s,
+              );
+            } else {
+              const newSnippet: SnippetRecord = {
+                id: `snip-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                name,
+                content,
+              };
+              updated = [...state.snippets, newSnippet];
+            }
+            saveSnippetCatalog(updated);
+            dispatch({ type: "set-snippets", snippets: updated });
           }
           dispatch({ type: "close-modal" });
           return;
@@ -912,10 +1030,21 @@ export function App({ backend }: { backend: SessionBackend }) {
         dispatch({ type: "select-directory" });
         return;
       case "begin-session-filter":
+        if (state.modal.type === "snippet-picker") {
+          dispatch({ type: "begin-snippet-filter" });
+          return;
+        }
         dispatch({ type: "begin-session-filter" });
         return;
       case "rename-active-tab":
         dispatch({ type: "open-rename-tab-modal" });
+        return;
+      case "open-snippet-picker":
+        dispatch({ type: "open-snippet-picker" });
+        return;
+      case "open-theme-picker":
+        applyTheme(THEME_IDS[0] ?? "aimux");
+        dispatch({ type: "open-theme-picker" });
         return;
       default:
         return;
@@ -925,6 +1054,7 @@ export function App({ backend }: { backend: SessionBackend }) {
   return (
     <RootView
       state={state}
+      themeId={themeId}
       contentOrigin={contentOriginRef.current}
       mouseForwardingEnabled={activeMouseForwardingEnabled}
       localScrollbackEnabled={activeLocalScrollbackEnabled}

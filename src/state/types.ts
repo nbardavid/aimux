@@ -12,6 +12,9 @@ export type ModalType =
   | "session-name"
   | "create-session"
   | "rename-tab"
+  | "snippet-picker"
+  | "snippet-editor"
+  | "theme-picker"
   | "help"
   | null;
 
@@ -115,11 +118,18 @@ export interface LayoutState {
   terminalRows: number;
 }
 
+export interface SnippetRecord {
+  id: string;
+  name: string;
+  content: string;
+}
+
 export interface AppState {
   tabs: TabSession[];
   activeTabId: string | null;
   sessions: SessionRecord[];
   currentSessionId: string | null;
+  snippets: SnippetRecord[];
   focusMode: FocusMode;
   sidebar: SidebarState;
   modal: ModalState;
@@ -171,4 +181,10 @@ export type AppAction =
   | { type: "select-directory" }
   | { type: "begin-session-filter" }
   | { type: "open-rename-tab-modal" }
-  | { type: "rename-tab"; tabId: string; title: string };
+  | { type: "rename-tab"; tabId: string; title: string }
+  | { type: "open-snippet-picker" }
+  | { type: "open-snippet-editor"; snippetId?: string }
+  | { type: "set-snippets"; snippets: SnippetRecord[] }
+  | { type: "delete-snippet"; snippetId: string }
+  | { type: "begin-snippet-filter" }
+  | { type: "open-theme-picker" };

@@ -1,9 +1,7 @@
 import type { Terminal } from "@xterm/headless";
 
 import type { TerminalLine, TerminalSnapshot, TerminalSpan } from "../state/types";
-
-const DEFAULT_TERMINAL_FG = "#edf4ff";
-const DEFAULT_TERMINAL_BG = "#11151b";
+import { theme } from "../ui/theme";
 
 const ANSI_PALETTE = [
   "#000000",
@@ -102,15 +100,15 @@ function buildLine(
     let bg = getColorHex(current.getBgColor(), bgMode);
 
     if (current.isInverse()) {
-      const resolvedFg = fg ?? DEFAULT_TERMINAL_FG;
-      const resolvedBg = bg ?? DEFAULT_TERMINAL_BG;
+      const resolvedFg = fg ?? theme.text;
+      const resolvedBg = bg ?? theme.background;
       [fg, bg] = [resolvedBg, resolvedFg];
     }
 
     const isCursorCell = cursorVisible && cursorColumn === column;
     if (isCursorCell) {
-      const resolvedFg = fg ?? DEFAULT_TERMINAL_FG;
-      const resolvedBg = bg ?? DEFAULT_TERMINAL_BG;
+      const resolvedFg = fg ?? theme.text;
+      const resolvedBg = bg ?? theme.background;
       [fg, bg] = [resolvedBg, resolvedFg];
     }
 

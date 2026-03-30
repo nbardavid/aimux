@@ -183,11 +183,13 @@ function MouseHarness({
 
   return (
     <RootView
+      themeId="aimux"
       state={{
         tabs: [tab],
         activeTabId: TEST_TAB_ID,
         sessions: [],
         currentSessionId: null,
+        snippets: [],
         focusMode: "terminal-input",
         sidebar: {
           visible: true,

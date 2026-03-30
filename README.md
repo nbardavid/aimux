@@ -73,24 +73,24 @@ All keystrokes pass through to the AI CLI. Press `Ctrl+Z` to return to navigatio
 
 ### Session Picker
 
-| Key          | Action            |
-| ------------ | ----------------- |
-| `j` / `k`    | Navigate sessions |
-| `Enter`      | Resume session    |
-| `n`          | New session       |
-| `r`          | Rename session    |
-| `d`          | Delete session    |
-| `/`          | Filter sessions   |
-| `Esc`        | Cancel            |
+| Key       | Action            |
+| --------- | ----------------- |
+| `j` / `k` | Navigate sessions |
+| `Enter`   | Resume session    |
+| `n`       | New session       |
+| `r`       | Rename session    |
+| `d`       | Delete session    |
+| `/`       | Filter sessions   |
+| `Esc`     | Cancel            |
 
 ### Create Session Modal
 
-| Key          | Action                          |
-| ------------ | ------------------------------- |
-| `Tab`        | Switch between directory / name |
-| `Ctrl+N/P`   | Navigate search results         |
-| `Enter`      | Select directory / confirm      |
-| `Esc`        | Cancel                          |
+| Key        | Action                          |
+| ---------- | ------------------------------- |
+| `Tab`      | Switch between directory / name |
+| `Ctrl+N/P` | Navigate search results         |
+| `Enter`    | Select directory / confirm      |
+| `Esc`      | Cancel                          |
 
 ## Architecture
 

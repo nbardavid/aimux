@@ -1,16 +1,9 @@
-export const theme = {
-  background: "#11151b",
-  panel: "#16202b",
-  panelMuted: "#1c2734",
-  panelHighlight: "#1f3344",
-  border: "#2d3f52",
-  borderActive: "#7cd1b8",
-  text: "#edf4ff",
-  textMuted: "#6b829a",
-  accent: "#7cd1b8",
-  accentAlt: "#c4a7e7",
-  warning: "#f6c177",
-  danger: "#f38ba8",
-  success: "#8bd5ca",
-  dim: "#243242",
-};
+import { type ThemeColors, type ThemeId, THEMES } from "./themes";
+
+export const theme: ThemeColors = { ...THEMES.aimux.colors };
+
+export function applyTheme(id: ThemeId): void {
+  const entry = THEMES[id];
+  if (!entry) return;
+  Object.assign(theme, entry.colors);
+}

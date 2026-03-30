@@ -4,7 +4,7 @@ import { appReducer, createInitialState } from "../../src/state/store";
 
 describe("initial state", () => {
   test("can start in startup picker mode", () => {
-    const state = createInitialState({}, [], true);
+    const state = createInitialState({}, [], [], true);
     expect(state.focusMode).toBe("modal");
     expect(state.modal.type).toBe("session-picker");
   });

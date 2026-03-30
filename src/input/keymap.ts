@@ -7,7 +7,8 @@ export type AppIntent =
   | { type: "open-new-tab-modal" }
   | { type: "open-help-modal" }
   | { type: "open-session-picker" }
-  | { type: "open-session-name-modal" }
+  | { type: "create-new-session" }
+  | { type: "rename-selected-session" }
   | { type: "delete-selected-session" }
   | { type: "close-tab" }
   | { type: "close-modal" }
@@ -55,11 +56,11 @@ export function resolveKeyIntent(
     }
 
     if (key.name === "n") {
-      return { type: "open-session-name-modal" };
+      return { type: "create-new-session" };
     }
 
     if (key.name === "r") {
-      return { type: "open-session-name-modal" };
+      return { type: "rename-selected-session" };
     }
 
     if (key.name === "d") {

@@ -2,6 +2,7 @@
 node_modules
 .opencode
 demo.*
+!assets/demo.*
 
 # output
 out

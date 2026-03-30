@@ -5,13 +5,18 @@ A terminal multiplexer for AI CLIs. Manage multiple AI assistant sessions (Claud
 ![Built with Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1)
 ![TypeScript](https://img.shields.io/badge/lang-TypeScript-3178c6)
 
+![aimux demo](assets/demo.gif)
+
 ## Features
 
 - **Multi-tab sessions** -- Run Claude, Codex, and OpenCode in parallel with instant tab switching
 - **Full terminal emulation** -- Powered by xterm.js with mouse tracking, alternate buffer, and scrollback
 - **Vim-style navigation** -- `j`/`k` to switch tabs, `i` to enter input mode, familiar keybindings throughout
-- **Session persistence** -- Workspace state saved to `~/.config/aimux.json` and restored on restart
+- **Session management** -- Create, rename, delete, and switch between named sessions with `Ctrl+G`
+- **Session persistence** -- Workspace state saved to `~/.config/aimux/` and restored on restart
 - **Daemon mode** -- Background daemon keeps sessions alive across terminal restarts
+- **Live activity indicators** -- Animated spinner for busy tabs, colored indicators for idle/focused states
+- **Built-in help** -- Press `?` to see all keybindings at a glance
 - **Rich TUI** -- Sidebar with assistant info, status bar, and modal dialogs built with OpenTUI + React
 
 ## Install
@@ -31,34 +36,44 @@ bun run dev
 
 # Diagnose setup issues
 bun run start -- doctor
+
+# Restart the background daemon
+bun run restart-daemon
 ```
 
 ## Keyboard Shortcuts
+
+Press `?` in navigation mode to see the full keybinding reference.
 
 ### Navigation Mode
 
 | Key | Action |
 |---|---|
-| `Ctrl+N` | New tab |
-| `Ctrl+W` | Close tab |
-| `Ctrl+R` | Restart tab |
 | `j` / `k` | Next / previous tab |
 | `Shift+J` / `Shift+K` | Reorder tabs |
 | `i` | Enter terminal input mode |
+| `Ctrl+N` | New tab |
+| `Ctrl+W` | Close tab |
+| `Ctrl+R` | Restart tab |
+| `Ctrl+G` | Session picker |
 | `Ctrl+B` | Toggle sidebar |
+| `Ctrl+H` / `Ctrl+L` | Resize sidebar |
+| `?` | Show help |
 | `Ctrl+C` | Quit |
 
 ### Input Mode
 
-All keystrokes pass through to the AI CLI. Press `Escape` to return to navigation mode.
+All keystrokes pass through to the AI CLI. Press `Ctrl+Z` to return to navigation mode.
 
-### New Tab Modal
+### Session Picker
 
 | Key | Action |
 |---|---|
-| `j` / `k` | Select assistant |
-| `Enter` | Confirm |
-| `e` | Edit custom command |
+| `j` / `k` | Navigate sessions |
+| `Enter` | Resume session |
+| `n` | New session |
+| `r` | Rename session |
+| `d` | Delete session |
 | `Esc` | Cancel |
 
 ## Architecture
@@ -92,6 +107,9 @@ bun test
 
 # Type check
 bun run check
+
+# Record demo GIF (requires vhs)
+bun run demo
 ```
 
 ## License

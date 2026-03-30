@@ -668,20 +668,23 @@ export function App({ backend }: { backend: SessionBackend }) {
       case "move-modal-selection":
         dispatch({ type: "move-modal-selection", delta: intent.delta });
         return;
-      case "open-session-name-modal":
+      case "create-new-session":
+        dispatch({ type: "open-session-name-modal", initialName: "" });
+        return;
+      case "rename-selected-session":
         if (state.modal.type === "session-picker") {
           const selectedSession = state.sessions[state.modal.selectedIndex];
-          logInputDebug("app.sessionPicker.openNameModal", {
-            selectedIndex: state.modal.selectedIndex,
-            selectedSessionId: selectedSession?.id ?? null,
-          });
-          dispatch({
-            type: "open-session-name-modal",
-            sessionTargetId: selectedSession?.id ?? null,
-            initialName: selectedSession?.name ?? "",
-          });
-        } else if (!state.currentSessionId) {
-          dispatch({ type: "open-session-name-modal", initialName: "" });
+          if (selectedSession) {
+            logInputDebug("app.sessionPicker.openRenameModal", {
+              selectedIndex: state.modal.selectedIndex,
+              selectedSessionId: selectedSession.id,
+            });
+            dispatch({
+              type: "open-session-name-modal",
+              sessionTargetId: selectedSession.id,
+              initialName: selectedSession.name,
+            });
+          }
         }
         return;
       case "delete-selected-session":

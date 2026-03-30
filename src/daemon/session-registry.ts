@@ -83,7 +83,10 @@ export class SessionRegistry extends EventEmitter<SessionRegistryEvents> {
       for (const tab of restoredTabs) {
         this.tabs.set(tab.id, tab);
       }
-      this.activeTabId = snapshot.activeTabId ?? restoredTabs[0]?.id ?? null;
+      this.activeTabId =
+        snapshot.activeTabId && restoredTabs.some((tab) => tab.id === snapshot.activeTabId)
+          ? snapshot.activeTabId
+          : (restoredTabs[0]?.id ?? null);
     }
 
     return { tabs: this.listTabs(), activeTabId: this.activeTabId };

@@ -149,13 +149,18 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         focusMode: "navigation",
         modal: emptyModal(),
       };
-    case "hydrate-workspace":
+    case "hydrate-workspace": {
+      const hydratedActiveTabId =
+        action.activeTabId && action.tabs.some((tab) => tab.id === action.activeTabId)
+          ? action.activeTabId
+          : (action.tabs[0]?.id ?? null);
       return {
         ...state,
         tabs: action.tabs,
-        activeTabId: action.activeTabId,
+        activeTabId: hydratedActiveTabId,
         focusMode: "navigation",
       };
+    }
     case "load-session": {
       const snapshot =
         action.workspaceSnapshot ??

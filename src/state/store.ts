@@ -166,8 +166,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         sessions: state.sessions.map((session) =>
           session.id === action.sessionId ? { ...session, name: action.name, updatedAt: new Date().toISOString() } : session,
         ),
-        focusMode: "navigation",
-        modal: emptyModal(),
+        focusMode: "modal",
+        modal: { type: "session-picker", selectedIndex: state.modal.selectedIndex, editBuffer: null, sessionTargetId: null },
       };
     case "delete-session-record": {
       const newSessions = state.sessions.filter((session) => session.id !== action.sessionId);

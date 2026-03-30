@@ -727,9 +727,9 @@ export function App({ backend }: { backend: SessionBackend }) {
           if (trimmed) {
             if (state.modal.sessionTargetId) {
               renameSession(state.modal.sessionTargetId, trimmed);
-            } else {
-              createSessionFromCurrent(trimmed);
+              return;
             }
+            createSessionFromCurrent(trimmed);
           }
           dispatch({ type: "close-modal" });
           return;

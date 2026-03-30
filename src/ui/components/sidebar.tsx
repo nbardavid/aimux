@@ -1,7 +1,8 @@
 import type { ScrollBoxRenderable } from "@opentui/core";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { AppState } from "../../state/types";
+import { getCurrentBranch } from "../git-branch";
 import { getSidebarScrollTarget } from "./sidebar-scroll";
 import { theme } from "../theme";
 import { TabItem } from "./tab-item";
@@ -15,6 +16,24 @@ export function Sidebar({ state }: SidebarProps) {
   const previousActiveIndexRef = useRef(-1);
   const previousVisibilityRef = useRef(state.sidebar.visible);
   const activeIndex = state.tabs.findIndex((tab) => tab.id === state.activeTabId);
+  const [branch, setBranch] = useState<string | null>(null);
+
+  const currentSession = state.currentSessionId
+    ? state.sessions.find((s) => s.id === state.currentSessionId)
+    : undefined;
+  const projectPath = currentSession?.projectPath;
+
+  useEffect(() => {
+    if (!projectPath) {
+      setBranch(null);
+      return;
+    }
+    getCurrentBranch(projectPath).then(setBranch);
+    const interval = setInterval(() => {
+      getCurrentBranch(projectPath).then(setBranch);
+    }, 5_000);
+    return () => clearInterval(interval);
+  }, [projectPath]);
 
   useEffect(() => {
     if (!state.sidebar.visible) {
@@ -71,16 +90,21 @@ export function Sidebar({ state }: SidebarProps) {
     >
       <text fg={theme.accent}>aimux</text>
       <text fg={theme.textMuted}>
-        {state.currentSessionId
-          ? `Session: ${state.sessions.find((s) => s.id === state.currentSessionId)?.name ?? "unknown"}`
-          : "No session selected"}
+        {currentSession ? currentSession.name : "No session selected"}
       </text>
+      {branch ? (
+        <box flexDirection="row">
+          <text fg={theme.accent}>{"\u{e702}"} </text>
+          <text fg={theme.textMuted}>{branch}</text>
+        </box>
+      ) : null}
       <scrollbox
+        paddingTop={1}
         ref={scrollRef}
         flexGrow={1}
         scrollY
         viewportCulling
-        contentOptions={{ flexDirection: "column", gap: 1 }}
+        contentOptions={{ flexDirection: "column", gap: 0 }}
       >
         {state.tabs.length === 0 ? (
           <box paddingTop={1}>

@@ -1,3 +1,5 @@
+import { homedir } from "node:os";
+
 import type { AppState, TabSession } from "../state/types";
 
 export interface StatusBarModel {
@@ -13,6 +15,11 @@ function truncateLabel(label: string): string {
   }
 
   return `${label.slice(0, MAX_TAB_LABEL_LENGTH - 3)}...`;
+}
+
+function abbreviatePath(path: string): string {
+  const home = homedir();
+  return path.startsWith(home) ? `~${path.slice(home.length)}` : path;
 }
 
 function getActiveTabLabel(tab?: TabSession): string {
@@ -37,14 +44,21 @@ function getNavigationHint(activeTab?: TabSession): string {
 
 export function getStatusBarModel(state: AppState, activeTab?: TabSession): StatusBarModel {
   const sidebar = state.sidebar.visible ? `${state.sidebar.width} cols` : "hidden";
-  const sessionLabel = state.currentSessionId
-    ? (state.sessions.find((session) => session.id === state.currentSessionId)?.name ?? "unknown")
-    : "no session";
+  const currentSession = state.currentSessionId
+    ? state.sessions.find((session) => session.id === state.currentSessionId)
+    : undefined;
+  const sessionName = currentSession?.name ?? "no session";
+  const sessionLabel = currentSession?.projectPath
+    ? `${sessionName} (${abbreviatePath(currentSession.projectPath)})`
+    : sessionName;
+
+  // \u{f0b1} = nf-fa-briefcase (session icon)
+  const sessionIcon = "\u{f0b1}";
 
   switch (state.focusMode) {
     case "terminal-input":
       return {
-        left: `input -> ${getActiveTabLabel(activeTab)} | session: ${sessionLabel} | sb: ${sidebar}`,
+        left: `input -> ${getActiveTabLabel(activeTab)} | ${sessionIcon} ${sessionLabel} | sb: ${sidebar}`,
         right: activeTab
           ? activeTab.status === "disconnected"
             ? "Ctrl+z unfocus | Ctrl+r restart restored tab"
@@ -53,13 +67,13 @@ export function getStatusBarModel(state: AppState, activeTab?: TabSession): Stat
       };
     case "modal":
       return {
-        left: `modal | session: ${sessionLabel} | sb: ${sidebar}`,
+        left: `modal | ${sessionIcon} ${sessionLabel} | sb: ${sidebar}`,
         right: "j/k move | Enter confirm | n/r/d actions | Esc cancel",
       };
     case "navigation":
     default:
       return {
-        left: `nav | session: ${sessionLabel} | active: ${getActiveTabLabel(activeTab)} | sb: ${sidebar}`,
+        left: `nav | ${sessionIcon} ${sessionLabel} | active: ${getActiveTabLabel(activeTab)} | sb: ${sidebar}`,
         right: getNavigationHint(activeTab),
       };
   }

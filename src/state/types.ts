@@ -6,7 +6,14 @@ export type TabActivity = "busy" | "idle";
 
 export type FocusMode = "navigation" | "terminal-input" | "modal" | "command-edit";
 
-export type ModalType = "new-tab" | "session-picker" | "session-name" | "help" | null;
+export type ModalType =
+  | "new-tab"
+  | "session-picker"
+  | "session-name"
+  | "create-session"
+  | "rename-tab"
+  | "help"
+  | null;
 
 export interface TerminalSpan {
   text: string;
@@ -64,6 +71,7 @@ export interface WorkspaceSnapshotV1 {
 export interface SessionRecord {
   id: string;
   name: string;
+  projectPath?: string;
   createdAt: string;
   updatedAt: string;
   lastOpenedAt: string;
@@ -96,6 +104,10 @@ export interface ModalState {
   selectedIndex: number;
   editBuffer: string | null;
   sessionTargetId: string | null;
+  directoryResults?: { path: string; isWorktree: boolean }[];
+  pendingProjectPath?: string | null;
+  activeField?: "directory" | "name";
+  secondaryBuffer?: string;
 }
 
 export interface LayoutState {
@@ -152,4 +164,11 @@ export type AppAction =
   | { type: "begin-command-edit" }
   | { type: "update-command-edit"; char: string }
   | { type: "commit-command-edit" }
-  | { type: "cancel-command-edit" };
+  | { type: "cancel-command-edit" }
+  | { type: "open-create-session-modal" }
+  | { type: "set-directory-results"; results: { path: string; isWorktree: boolean }[] }
+  | { type: "switch-create-session-field" }
+  | { type: "select-directory" }
+  | { type: "begin-session-filter" }
+  | { type: "open-rename-tab-modal" }
+  | { type: "rename-tab"; tabId: string; title: string };

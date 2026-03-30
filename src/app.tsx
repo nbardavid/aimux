@@ -19,6 +19,7 @@ import { loadSessionCatalog, saveSessionCatalog } from "./state/session-catalog"
 import { createEmptyWorkspaceSnapshot, serializeWorkspace } from "./state/session-persistence";
 import { appReducer, createInitialState } from "./state/store";
 import type { AssistantId, SessionRecord, TabSession, TerminalModeState } from "./state/types";
+import { searchDirectories } from "./ui/directory-search";
 import { RootView } from "./ui/root";
 
 const IDLE_TIMEOUT_MS = 2_000;
@@ -65,6 +66,7 @@ function startTabSession(
   tab: Pick<TabSession, "id" | "assistant" | "title" | "command">,
   cols: number,
   rows: number,
+  cwd?: string,
 ): void {
   startStartupGrace(tab.id);
 
@@ -88,6 +90,7 @@ function startTabSession(
     args,
     cols,
     rows,
+    cwd,
   });
 }
 
@@ -525,6 +528,42 @@ export function App({ backend }: { backend: SessionBackend }) {
     }, 500);
   }, [backend, terminalSize.cols, terminalSize.rows]);
 
+  const directoryQuery =
+    state.modal.type === "create-session"
+      ? state.modal.activeField === "directory"
+        ? (state.modal.editBuffer ?? "")
+        : (state.modal.secondaryBuffer ?? "")
+      : "";
+
+  useEffect(() => {
+    if (state.modal.type !== "create-session") return;
+    if (!directoryQuery.trim()) {
+      dispatch({ type: "set-directory-results", results: [] });
+      return;
+    }
+    const timer = setTimeout(async () => {
+      const results = await searchDirectories(directoryQuery);
+      dispatch({ type: "set-directory-results", results });
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [state.modal.type, directoryQuery]);
+
+  function getCurrentSessionProjectPath(): string | undefined {
+    if (!state.currentSessionId) return undefined;
+    return state.sessions.find((s) => s.id === state.currentSessionId)?.projectPath;
+  }
+
+  function getFilteredSessions(): SessionRecord[] {
+    const filter = state.modal.type === "session-picker" ? state.modal.editBuffer : null;
+    if (!filter) return state.sessions;
+    const lower = filter.toLowerCase();
+    return state.sessions.filter(
+      (s) =>
+        s.name.toLowerCase().includes(lower) ||
+        (s.projectPath && s.projectPath.toLowerCase().includes(lower)),
+    );
+  }
+
   function launchAssistant(assistant: AssistantId) {
     const customCommand = state.customCommands[assistant];
     const tab = createTabSession(assistant, customCommand);
@@ -542,10 +581,11 @@ export function App({ backend }: { backend: SessionBackend }) {
       tab,
       state.layout.terminalCols,
       state.layout.terminalRows,
+      getCurrentSessionProjectPath(),
     );
   }
 
-  function createSessionFromCurrent(name: string): void {
+  function createSessionFromCurrent(name: string, projectPath?: string): void {
     const now = new Date().toISOString();
     const workspaceSnapshot =
       state.currentSessionId || state.tabs.length === 0
@@ -554,6 +594,7 @@ export function App({ backend }: { backend: SessionBackend }) {
     const session: SessionRecord = {
       id: `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       name,
+      projectPath,
       createdAt: now,
       updatedAt: now,
       lastOpenedAt: now,
@@ -662,6 +703,7 @@ export function App({ backend }: { backend: SessionBackend }) {
       tab,
       state.layout.terminalCols,
       state.layout.terminalRows,
+      getCurrentSessionProjectPath(),
     );
   }
 
@@ -725,16 +767,17 @@ export function App({ backend }: { backend: SessionBackend }) {
         }
 
         if (state.modal.type === "session-picker") {
+          const filtered = getFilteredSessions();
           logInputDebug("app.sessionPicker.confirm", {
             selectedIndex: state.modal.selectedIndex,
-            selectedSessionId: state.sessions[state.modal.selectedIndex]?.id ?? null,
-            creatingNew: state.modal.selectedIndex === state.sessions.length,
+            selectedSessionId: filtered[state.modal.selectedIndex]?.id ?? null,
+            creatingNew: state.modal.selectedIndex === filtered.length,
           });
-          const selectedSession = state.sessions[state.modal.selectedIndex];
+          const selectedSession = filtered[state.modal.selectedIndex];
           if (selectedSession) {
             switchToSession(selectedSession);
           } else {
-            dispatch({ type: "open-session-name-modal", initialName: "" });
+            dispatch({ type: "open-create-session-modal" });
           }
         }
         return;
@@ -743,11 +786,11 @@ export function App({ backend }: { backend: SessionBackend }) {
         dispatch({ type: "move-modal-selection", delta: intent.delta });
         return;
       case "create-new-session":
-        dispatch({ type: "open-session-name-modal", initialName: "" });
+        dispatch({ type: "open-create-session-modal" });
         return;
       case "rename-selected-session":
         if (state.modal.type === "session-picker") {
-          const selectedSession = state.sessions[state.modal.selectedIndex];
+          const selectedSession = getFilteredSessions()[state.modal.selectedIndex];
           if (selectedSession) {
             logInputDebug("app.sessionPicker.openRenameModal", {
               selectedIndex: state.modal.selectedIndex,
@@ -763,7 +806,7 @@ export function App({ backend }: { backend: SessionBackend }) {
         return;
       case "delete-selected-session":
         if (state.modal.type === "session-picker") {
-          const selectedSession = state.sessions[state.modal.selectedIndex];
+          const selectedSession = getFilteredSessions()[state.modal.selectedIndex];
           logInputDebug("app.sessionPicker.deleteSelected", {
             selectedIndex: state.modal.selectedIndex,
             selectedSessionId: selectedSession?.id ?? null,
@@ -805,6 +848,28 @@ export function App({ backend }: { backend: SessionBackend }) {
         dispatch({ type: "update-command-edit", char: intent.char });
         return;
       case "commit-command-edit": {
+        if (state.modal.type === "create-session" && state.modal.editBuffer !== null) {
+          if (state.modal.activeField === "directory") {
+            dispatch({ type: "select-directory" });
+            return;
+          }
+          const trimmed = state.modal.editBuffer.trim();
+          const projectPath = state.modal.pendingProjectPath ?? undefined;
+          const sessionName = trimmed || (projectPath ? projectPath.split("/").pop()! : "");
+          if (sessionName) {
+            createSessionFromCurrent(sessionName, projectPath);
+          }
+          dispatch({ type: "close-modal" });
+          return;
+        }
+        if (state.modal.type === "rename-tab" && state.modal.editBuffer !== null) {
+          const trimmed = state.modal.editBuffer.trim();
+          if (trimmed && state.modal.sessionTargetId) {
+            dispatch({ type: "rename-tab", tabId: state.modal.sessionTargetId, title: trimmed });
+          }
+          dispatch({ type: "close-modal" });
+          return;
+        }
         if (state.modal.type === "session-name" && state.modal.editBuffer !== null) {
           const trimmed = state.modal.editBuffer.trim();
           logInputDebug("app.sessionName.commit", {
@@ -816,7 +881,6 @@ export function App({ backend }: { backend: SessionBackend }) {
               renameSession(state.modal.sessionTargetId, trimmed);
               return;
             }
-            createSessionFromCurrent(trimmed);
           }
           dispatch({ type: "close-modal" });
           return;
@@ -840,6 +904,18 @@ export function App({ backend }: { backend: SessionBackend }) {
       }
       case "cancel-command-edit":
         dispatch({ type: "cancel-command-edit" });
+        return;
+      case "switch-create-session-field":
+        dispatch({ type: "switch-create-session-field" });
+        return;
+      case "select-directory":
+        dispatch({ type: "select-directory" });
+        return;
+      case "begin-session-filter":
+        dispatch({ type: "begin-session-filter" });
+        return;
+      case "rename-active-tab":
+        dispatch({ type: "open-rename-tab-modal" });
         return;
       default:
         return;

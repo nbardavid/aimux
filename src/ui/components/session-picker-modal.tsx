@@ -1,11 +1,29 @@
+import { homedir } from "node:os";
+
 import type { SessionRecord } from "../../state/types";
 import { theme } from "../theme";
+
+function abbreviatePath(path: string): string {
+  const home = homedir();
+  return path.startsWith(home) ? `~${path.slice(home.length)}` : path;
+}
 
 interface SessionPickerModalProps {
   sessions: SessionRecord[];
   selectedIndex: number;
   currentSessionId: string | null;
   currentTabCount: number;
+  filter: string | null;
+}
+
+function filterSessions(sessions: SessionRecord[], filter: string | null): SessionRecord[] {
+  if (!filter) return sessions;
+  const lower = filter.toLowerCase();
+  return sessions.filter(
+    (s) =>
+      s.name.toLowerCase().includes(lower) ||
+      (s.projectPath && s.projectPath.toLowerCase().includes(lower)),
+  );
 }
 
 function formatSessionLine(
@@ -25,7 +43,10 @@ export function SessionPickerModal({
   selectedIndex,
   currentSessionId,
   currentTabCount,
+  filter,
 }: SessionPickerModalProps) {
+  const filtered = filterSessions(sessions, filter);
+
   return (
     <box
       position="absolute"
@@ -47,16 +68,35 @@ export function SessionPickerModal({
       >
         <text fg={theme.accent}>Sessions</text>
         <text fg={theme.textMuted}>
-          Use j/k, Enter resume, n new, r rename, d delete, Esc cancel.
+          j/k move, Enter resume, n new, r rename, d delete, / filter, Esc cancel.
         </text>
-        {sessions.length === 0 ? (
+        {filter !== null ? (
+          <box
+            border
+            borderColor={theme.borderActive}
+            backgroundColor={theme.panelMuted}
+            padding={1}
+          >
+            <text fg={theme.text}>/{filter}_</text>
+          </box>
+        ) : null}
+        {filtered.length === 0 && sessions.length > 0 ? (
+          <box padding={1}>
+            <text fg={theme.textMuted}>
+              {filter
+                ? "No matching sessions."
+                : "No sessions yet. Press Enter or n to create your first session."}
+            </text>
+          </box>
+        ) : null}
+        {filtered.length === 0 && sessions.length === 0 ? (
           <box padding={1}>
             <text fg={theme.textMuted}>
               No sessions yet. Press Enter or n to create your first session.
             </text>
           </box>
         ) : null}
-        {sessions.map((session, index) => {
+        {filtered.map((session, index) => {
           const active = index === selectedIndex;
           return (
             <box
@@ -70,20 +110,20 @@ export function SessionPickerModal({
               <text fg={active ? theme.text : theme.textMuted}>
                 {active ? ">" : " "} {formatSessionLine(session, currentSessionId, currentTabCount)}
               </text>
-              <text fg={theme.textMuted}>
-                opened {new Date(session.lastOpenedAt).toLocaleString()}
-              </text>
+              {session.projectPath ? (
+                <text fg={theme.textMuted}> {abbreviatePath(session.projectPath)}</text>
+              ) : null}
             </box>
           );
         })}
         <box
           border
-          borderColor={selectedIndex === sessions.length ? theme.borderActive : theme.border}
-          backgroundColor={selectedIndex === sessions.length ? theme.panelMuted : theme.background}
+          borderColor={selectedIndex === filtered.length ? theme.borderActive : theme.border}
+          backgroundColor={selectedIndex === filtered.length ? theme.panelMuted : theme.background}
           padding={1}
         >
-          <text fg={selectedIndex === sessions.length ? theme.text : theme.textMuted}>
-            {selectedIndex === sessions.length ? ">" : " "} Create new session
+          <text fg={selectedIndex === filtered.length ? theme.text : theme.textMuted}>
+            {selectedIndex === filtered.length ? ">" : " "} Create new session
           </text>
         </box>
       </box>

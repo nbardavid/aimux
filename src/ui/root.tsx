@@ -2,6 +2,7 @@ import type { AppState } from "../state/types";
 
 import type { TerminalContentOrigin } from "../input/raw-input-handler";
 import type { MouseEvent } from "@opentui/core";
+import { CreateSessionModal } from "./components/create-session-modal";
 import { HelpModal } from "./components/help-modal";
 import { NewTabModal } from "./components/new-tab-modal";
 import { SessionNameModal } from "./components/session-name-modal";
@@ -58,12 +59,34 @@ export function RootView({
           selectedIndex={state.modal.selectedIndex}
           currentSessionId={state.currentSessionId}
           currentTabCount={state.tabs.length}
+          filter={state.modal.editBuffer}
         />
       ) : null}
       {state.modal.type === "session-name" ? (
         <SessionNameModal
           title={state.modal.sessionTargetId ? "Rename session" : "Create session"}
           value={state.modal.editBuffer ?? ""}
+        />
+      ) : null}
+      {state.modal.type === "rename-tab" ? (
+        <SessionNameModal title="Rename tab" value={state.modal.editBuffer ?? ""} />
+      ) : null}
+      {state.modal.type === "create-session" ? (
+        <CreateSessionModal
+          activeField={state.modal.activeField ?? "directory"}
+          directoryQuery={
+            state.modal.activeField === "directory"
+              ? (state.modal.editBuffer ?? "")
+              : (state.modal.secondaryBuffer ?? "")
+          }
+          sessionName={
+            state.modal.activeField === "name"
+              ? (state.modal.editBuffer ?? "")
+              : (state.modal.secondaryBuffer ?? "")
+          }
+          results={state.modal.directoryResults ?? []}
+          selectedIndex={state.modal.selectedIndex}
+          pendingProjectPath={state.modal.pendingProjectPath ?? null}
         />
       ) : null}
       {state.modal.type === "help" ? <HelpModal /> : null}

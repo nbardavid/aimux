@@ -1,3 +1,5 @@
+import { basename } from "node:path";
+
 import { ASSISTANT_OPTIONS } from "../pty/command-registry";
 import { restoreWorkspaceState } from "./session-persistence";
 import type { AppAction, AppState, SessionRecord, TabSession } from "./types";
@@ -44,6 +46,16 @@ function closeTabAtIndex(state: AppState, indexToClose: number): AppState {
     activeTabId: nextActiveTab?.id ?? null,
     focusMode: tabs.length === 0 ? "navigation" : state.focusMode,
   };
+}
+
+function filterSessions(sessions: SessionRecord[], filter: string | null): SessionRecord[] {
+  if (!filter) return sessions;
+  const lower = filter.toLowerCase();
+  return sessions.filter(
+    (s) =>
+      s.name.toLowerCase().includes(lower) ||
+      (s.projectPath && s.projectPath.toLowerCase().includes(lower)),
+  );
 }
 
 function emptyModal() {
@@ -123,16 +135,55 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           sessionTargetId: action.sessionTargetId ?? null,
         },
       };
+    case "open-create-session-modal":
+      return {
+        ...state,
+        focusMode: "command-edit",
+        modal: {
+          type: "create-session",
+          selectedIndex: 0,
+          editBuffer: "",
+          sessionTargetId: null,
+          directoryResults: [],
+          pendingProjectPath: null,
+          activeField: "directory",
+          secondaryBuffer: "",
+        },
+      };
+    case "set-directory-results":
+      return {
+        ...state,
+        modal: {
+          ...state.modal,
+          directoryResults: action.results,
+          selectedIndex: 0,
+        },
+      };
     case "close-modal":
       return { ...state, focusMode: "navigation", modal: emptyModal() };
     case "move-modal-selection": {
-      if (state.modal.type !== "new-tab" && state.modal.type !== "session-picker") {
+      if (
+        state.modal.type !== "new-tab" &&
+        state.modal.type !== "session-picker" &&
+        state.modal.type !== "create-session"
+      ) {
         return state;
       }
-      const optionCount =
-        state.modal.type === "new-tab"
-          ? ASSISTANT_OPTIONS.length
-          : Math.max(1, state.sessions.length + 1);
+      if (state.modal.type === "create-session" && state.modal.activeField !== "directory") {
+        return state;
+      }
+      let optionCount: number;
+      if (state.modal.type === "new-tab") {
+        optionCount = ASSISTANT_OPTIONS.length;
+      } else if (state.modal.type === "create-session") {
+        optionCount = state.modal.directoryResults?.length ?? 0;
+      } else {
+        const filtered = filterSessions(state.sessions, state.modal.editBuffer);
+        optionCount = Math.max(1, filtered.length + 1);
+      }
+      if (optionCount === 0) {
+        return state;
+      }
       return {
         ...state,
         modal: {
@@ -210,7 +261,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     case "delete-session-record": {
       const newSessions = state.sessions.filter((session) => session.id !== action.sessionId);
-      const maxIndex = newSessions.length; // index of "Create new session" option
+      const filteredNew = filterSessions(newSessions, state.modal.editBuffer);
+      const maxIndex = filteredNew.length; // index of "Create new session" option
       const clampedIndex = Math.min(state.modal.selectedIndex, maxIndex);
       return {
         ...state,
@@ -373,14 +425,28 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         action.char === "\b"
           ? state.modal.editBuffer.slice(0, -1)
           : state.modal.editBuffer + action.char;
-      return { ...state, modal: { ...state.modal, editBuffer: buf } };
+      const resetIndex = state.modal.type === "session-picker" ? 0 : state.modal.selectedIndex;
+      return { ...state, modal: { ...state.modal, editBuffer: buf, selectedIndex: resetIndex } };
     }
     case "commit-command-edit": {
       if (state.modal.editBuffer === null) {
         return state;
       }
+      if (state.modal.type === "create-session") {
+        return state;
+      }
+      if (state.modal.type === "rename-tab") {
+        return state;
+      }
       if (state.modal.type === "session-name") {
         return state;
+      }
+      if (state.modal.type === "session-picker") {
+        return {
+          ...state,
+          focusMode: "modal",
+          modal: { ...state.modal, selectedIndex: 0 },
+        };
       }
       if (state.modal.type !== "new-tab") {
         return state;
@@ -404,8 +470,95 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         modal: { ...state.modal, editBuffer: null },
       };
     }
-    case "cancel-command-edit":
+    case "cancel-command-edit": {
+      if (state.modal.type === "create-session") {
+        return { ...state, focusMode: "navigation", modal: emptyModal() };
+      }
+      if (state.modal.type === "session-picker") {
+        return {
+          ...state,
+          focusMode: "modal",
+          modal: { ...state.modal, editBuffer: null, selectedIndex: 0 },
+        };
+      }
       return { ...state, focusMode: "modal", modal: { ...state.modal, editBuffer: null } };
+    }
+    case "switch-create-session-field": {
+      if (state.modal.type !== "create-session") {
+        return state;
+      }
+      const nextField = state.modal.activeField === "directory" ? "name" : "directory";
+      return {
+        ...state,
+        modal: {
+          ...state.modal,
+          activeField: nextField,
+          editBuffer: state.modal.secondaryBuffer ?? "",
+          secondaryBuffer: state.modal.editBuffer ?? "",
+        },
+      };
+    }
+    case "select-directory": {
+      if (state.modal.type !== "create-session") {
+        return state;
+      }
+      const results = state.modal.directoryResults ?? [];
+      const selected = results[state.modal.selectedIndex];
+      if (!selected) {
+        return state;
+      }
+      const nameBuffer =
+        state.modal.activeField === "directory"
+          ? (state.modal.secondaryBuffer ?? "")
+          : (state.modal.editBuffer ?? "");
+      const autoName = nameBuffer || basename(selected.path);
+      return {
+        ...state,
+        modal: {
+          ...state.modal,
+          pendingProjectPath: selected.path,
+          activeField: "name",
+          editBuffer: autoName,
+          secondaryBuffer:
+            state.modal.activeField === "directory"
+              ? (state.modal.editBuffer ?? "")
+              : (state.modal.secondaryBuffer ?? ""),
+        },
+      };
+    }
+    case "begin-session-filter": {
+      if (state.modal.type !== "session-picker") {
+        return state;
+      }
+      return {
+        ...state,
+        focusMode: "command-edit",
+        modal: { ...state.modal, editBuffer: state.modal.editBuffer ?? "" },
+      };
+    }
+    case "open-rename-tab-modal": {
+      const activeTab = state.activeTabId
+        ? state.tabs.find((tab) => tab.id === state.activeTabId)
+        : undefined;
+      if (!activeTab) {
+        return state;
+      }
+      return {
+        ...state,
+        focusMode: "command-edit",
+        modal: {
+          type: "rename-tab",
+          selectedIndex: 0,
+          editBuffer: activeTab.title,
+          sessionTargetId: activeTab.id,
+        },
+      };
+    }
+    case "rename-tab":
+      return {
+        ...state,
+        tabs: updateTab(state.tabs, action.tabId, (tab) => ({ ...tab, title: action.title })),
+      };
     default:
       return state;
   }

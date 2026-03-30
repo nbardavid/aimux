@@ -87,6 +87,16 @@ export class SessionRegistry extends EventEmitter<SessionRegistryEvents> {
         snapshot.activeTabId && restoredTabs.some((tab) => tab.id === snapshot.activeTabId)
           ? snapshot.activeTabId
           : (restoredTabs[0]?.id ?? null);
+    } else if (this.tabs.size > 0 && snapshot) {
+      for (const persisted of snapshot.tabs) {
+        const existing = this.tabs.get(persisted.id);
+        if (existing) {
+          existing.title = persisted.title;
+        }
+      }
+      if (snapshot.activeTabId && this.tabs.has(snapshot.activeTabId)) {
+        this.activeTabId = snapshot.activeTabId;
+      }
     }
 
     return { tabs: this.listTabs(), activeTabId: this.activeTabId };

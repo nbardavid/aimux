@@ -24,7 +24,11 @@ export type AppIntent =
   | { type: "begin-command-edit" }
   | { type: "command-edit-input"; char: string }
   | { type: "commit-command-edit" }
-  | { type: "cancel-command-edit" };
+  | { type: "cancel-command-edit" }
+  | { type: "switch-create-session-field" }
+  | { type: "select-directory" }
+  | { type: "begin-session-filter" }
+  | { type: "rename-active-tab" };
 
 export function resolveKeyIntent(
   key: Pick<KeyEvent, "name" | "ctrl" | "meta" | "shift" | "sequence"> & {
@@ -71,6 +75,10 @@ export function resolveKeyIntent(
       return { type: "begin-command-edit" };
     }
 
+    if (key.sequence === "/") {
+      return { type: "begin-session-filter" };
+    }
+
     return null;
   }
 
@@ -79,8 +87,20 @@ export function resolveKeyIntent(
       return { type: "cancel-command-edit" };
     }
 
+    if (key.name === "tab") {
+      return { type: "switch-create-session-field" };
+    }
+
     if (key.name === "return") {
       return { type: "commit-command-edit" };
+    }
+
+    if (key.ctrl && key.name === "n") {
+      return { type: "move-modal-selection", delta: 1 };
+    }
+
+    if (key.ctrl && key.name === "p") {
+      return { type: "move-modal-selection", delta: -1 };
     }
 
     if (key.name === "backspace") {
@@ -144,6 +164,10 @@ export function resolveKeyIntent(
 
     if (key.name === "k") {
       return { type: "move-tab", delta: -1 };
+    }
+
+    if (key.name === "r") {
+      return { type: "rename-active-tab" };
     }
 
     if (key.name === "i") {

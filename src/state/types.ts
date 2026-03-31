@@ -1,4 +1,4 @@
-export type AssistantId = 'claude' | 'codex' | 'opencode'
+export type AssistantId = 'claude' | 'codex' | 'opencode' | 'terminal'
 
 export type TabStatus = 'starting' | 'running' | 'disconnected' | 'exited' | 'error'
 
@@ -156,9 +156,11 @@ export interface ModalSnippetEditor extends ModalBase {
   secondaryBuffer: string
 }
 
+export type DirectoryResultType = 'git-repo' | 'worktree' | 'workspace'
+
 export interface DirectoryResult {
   path: string
-  isWorktree: boolean
+  type: DirectoryResultType
 }
 
 export type ModalState =

@@ -1,11 +1,8 @@
 import { homedir } from 'node:os'
 
-import { theme } from '../theme'
+import type { DirectoryResult } from '../../state/types'
 
-interface DirectoryResult {
-  path: string
-  isWorktree: boolean
-}
+import { theme } from '../theme'
 
 interface CreateSessionModalProps {
   activeField: 'directory' | 'name'
@@ -54,7 +51,7 @@ export function CreateSessionModal({
         <text fg={theme.accentAlt}>Create session</text>
         <text fg={theme.textMuted}>Tab switch field. Ctrl+n/p nav. Esc cancel.</text>
 
-        <text fg={dirActive ? theme.text : theme.textMuted}>Search git repos:</text>
+        <text fg={dirActive ? theme.text : theme.textMuted}>Search projects:</text>
         <box
           border
           borderColor={dirActive ? theme.borderActive : theme.border}
@@ -73,8 +70,18 @@ export function CreateSessionModal({
         {dirActive
           ? results.map((result, index) => {
               const active = index === selectedIndex
-              const icon = result.isWorktree ? '\u{e728}' : '\u{e702}'
-              const iconColor = result.isWorktree ? theme.warning : theme.accent
+              const icon =
+                result.type === 'worktree'
+                  ? '\u{e728}'
+                  : result.type === 'workspace'
+                    ? '\u{f07c}'
+                    : '\u{e702}'
+              const iconColor =
+                result.type === 'worktree'
+                  ? theme.warning
+                  : result.type === 'workspace'
+                    ? theme.accentAlt
+                    : theme.accent
               return (
                 <box key={result.path} flexDirection="row">
                   <text fg={active ? theme.text : theme.textMuted}>{active ? '>' : ' '} </text>

@@ -5,6 +5,7 @@ import type { SessionBackend } from './types'
 
 import { getDaemonSocketPath, removeDaemonSocketIfExists } from '../daemon/runtime-paths'
 import { logDebug } from '../debug/input-log'
+import { spawnDetachedDaemon } from '../platform/daemon-control'
 import { LocalSessionBackend } from './local-session-backend'
 import { RemoteSessionBackend } from './remote-session-backend'
 
@@ -13,24 +14,13 @@ async function spawnDaemon(): Promise<void> {
     socketPath: getDaemonSocketPath(),
     execPath: process.execPath,
   })
-  Bun.spawn([process.execPath, 'run', 'src/index.tsx', 'daemon'], {
-    stdout: 'ignore',
-    stderr: 'ignore',
-    stdin: 'ignore',
-    detached: true,
-  }).unref()
-
-  const deadline = Date.now() + 2_000
-  const socketPath = getDaemonSocketPath()
-  while (Date.now() < deadline) {
-    if (existsSync(socketPath)) {
-      logDebug('backend.spawnDaemon.ready', { socketPath })
-      return
-    }
-    await Bun.sleep(50)
+  const ok = await spawnDetachedDaemon()
+  if (ok) {
+    logDebug('backend.spawnDaemon.ready', { socketPath: getDaemonSocketPath() })
+    return
   }
 
-  logDebug('backend.spawnDaemon.timeout', { socketPath })
+  logDebug('backend.spawnDaemon.timeout', { socketPath: getDaemonSocketPath() })
 }
 
 async function canConnectToDaemon(socketPath: string): Promise<boolean> {

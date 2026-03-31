@@ -5,14 +5,11 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 
 import type { KeyResult, ModeContext, ModeId, SideEffect } from './input/modes/types'
 import type { SessionBackend } from './session-backend/types'
-import type {
-  AssistantId,
-  SessionRecord,
-  SnippetRecord,
-  TabSession,
-  TerminalModeState,
-} from './state/types'
+import type { AssistantId, SessionRecord, SnippetRecord, TabSession } from './state/types'
 
+import { useBackendRuntime } from './app-runtime/use-backend-runtime'
+import { useDirectorySearch } from './app-runtime/use-directory-search'
+import { useWorkspaceAutosave } from './app-runtime/use-workspace-autosave'
 import { loadConfig, saveConfig } from './config'
 import { INPUT_DEBUG_LOG_PATH, logInputDebug } from './debug/input-log'
 import { deriveModeId } from './input/modes/bridge'
@@ -30,19 +27,18 @@ import {
   isCommandAvailable,
   parseCommand,
 } from './pty/command-registry'
+import { filterSessions, filterSnippets } from './state/selectors'
 import { loadSessionCatalog, saveSessionCatalog } from './state/session-catalog'
 import { createEmptyWorkspaceSnapshot, serializeWorkspace } from './state/session-persistence'
 import { loadSnippetCatalog, saveSnippetCatalog } from './state/snippet-catalog'
-import { appReducer, createInitialState, filterSessions, filterSnippets } from './state/store'
+import { appReducer, createInitialState } from './state/store'
 import { buildSessionsWithCurrentSnapshot, saveCurrentWorkspace } from './state/workspace-save'
-import { searchDirectories } from './ui/directory-search'
 import { RootView } from './ui/root'
 import { applyTheme } from './ui/theme'
 import { type ThemeId, THEME_IDS } from './ui/themes'
 
 registerAllModes()
 
-const IDLE_TIMEOUT_MS = 2_000
 const STARTUP_GRACE_MS = 5_000
 const MAIN_AREA_HORIZONTAL_CHROME = 4
 const MAIN_AREA_VERTICAL_PADDING = 2
@@ -128,10 +124,6 @@ export function App({ backend }: { backend: SessionBackend }) {
     const { customCommands } = loadConfig()
     return createInitialState(customCommands, loadSessionCatalog(), loadSnippetCatalog(), true)
   })
-  const idleTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
-  const startupGraceTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
-  const workspaceSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const attachRequestIdRef = useRef(0)
   const resizingRef = useRef(false)
   const resizingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const layoutRef = useRef(state.layout)
@@ -158,6 +150,20 @@ export function App({ backend }: { backend: SessionBackend }) {
 
   const contentOriginRef = useRef<TerminalContentOrigin>({ x: 0, y: 0, cols: 0, rows: 0 })
   const multiClickRef = useRef(new MultiClickDetector())
+  const currentSessionWorkspaceSnapshot = currentSession?.workspaceSnapshot
+
+  const { clearIdleTimer, clearStartupGrace, startStartupGrace } = useBackendRuntime({
+    backend,
+    dispatch,
+    activeTabId: state.activeTabId,
+    currentSessionId: state.currentSessionId,
+    currentSessionWorkspaceSnapshot,
+    layoutRef,
+    resizingRef,
+  })
+
+  useWorkspaceAutosave(state, WORKSPACE_SAVE_DEBOUNCE_MS)
+  useDirectorySearch(state.modal, dispatch)
 
   useEffect(() => {
     renderer.useMouse = true
@@ -349,190 +355,6 @@ export function App({ backend }: { backend: SessionBackend }) {
     copyToSystemClipboard(selectedText)
   }
 
-  useEffect(() => {
-    if (!state.currentSessionId) {
-      return
-    }
-
-    backend.setActiveTab(state.activeTabId)
-  }, [backend, state.activeTabId, state.currentSessionId])
-
-  useEffect(() => {
-    const currentSessionId = state.currentSessionId
-    if (!currentSessionId) {
-      attachRequestIdRef.current += 1
-      return
-    }
-
-    const attachRequestId = attachRequestIdRef.current + 1
-    attachRequestIdRef.current = attachRequestId
-    let cancelled = false
-
-    void backend
-      .attach({
-        sessionId: currentSessionId,
-        cols: layoutRef.current.terminalCols,
-        rows: layoutRef.current.terminalRows,
-        workspaceSnapshot: currentSession?.workspaceSnapshot,
-      })
-      .then((result) => {
-        if (cancelled || attachRequestIdRef.current !== attachRequestId) {
-          return
-        }
-        logInputDebug('app.backend.attachResult', {
-          hasResult: !!result,
-          tabs: result?.tabs.length ?? 0,
-          activeTabId: result?.activeTabId ?? null,
-        })
-        if (result) {
-          dispatch({
-            type: 'hydrate-workspace',
-            tabs: result.tabs,
-            activeTabId: result.activeTabId,
-          })
-        } else if (currentSession?.workspaceSnapshot) {
-          dispatch({
-            type: 'load-session',
-            sessionId: currentSessionId,
-            workspaceSnapshot: currentSession.workspaceSnapshot,
-          })
-        }
-      })
-      .catch((error) => {
-        if (cancelled || attachRequestIdRef.current !== attachRequestId) {
-          return
-        }
-        logInputDebug('app.backend.attachError', {
-          error: error instanceof Error ? error.message : String(error),
-        })
-        if (currentSession?.workspaceSnapshot) {
-          dispatch({
-            type: 'load-session',
-            sessionId: currentSessionId,
-            workspaceSnapshot: currentSession.workspaceSnapshot,
-          })
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [backend, currentSession?.workspaceSnapshot, state.currentSessionId])
-
-  function clearIdleTimer(tabId: string) {
-    const timeout = idleTimeoutsRef.current.get(tabId)
-    if (timeout) {
-      clearTimeout(timeout)
-      idleTimeoutsRef.current.delete(tabId)
-    }
-  }
-
-  function clearStartupGrace(tabId: string) {
-    const timeout = startupGraceTimeoutsRef.current.get(tabId)
-    if (timeout) {
-      clearTimeout(timeout)
-      startupGraceTimeoutsRef.current.delete(tabId)
-    }
-  }
-
-  function isStartupGraceActive(tabId: string): boolean {
-    return startupGraceTimeoutsRef.current.has(tabId)
-  }
-
-  function startStartupGrace(tabId: string) {
-    clearStartupGrace(tabId)
-    const timeout = setTimeout(() => {
-      startupGraceTimeoutsRef.current.delete(tabId)
-    }, STARTUP_GRACE_MS)
-    startupGraceTimeoutsRef.current.set(tabId, timeout)
-  }
-
-  function scheduleIdle(tabId: string) {
-    clearIdleTimer(tabId)
-    const timeout = setTimeout(() => {
-      dispatch({ type: 'set-tab-activity', tabId, activity: 'idle' })
-      idleTimeoutsRef.current.delete(tabId)
-    }, IDLE_TIMEOUT_MS)
-    idleTimeoutsRef.current.set(tabId, timeout)
-  }
-
-  useEffect(() => {
-    if (workspaceSaveTimeoutRef.current) {
-      clearTimeout(workspaceSaveTimeoutRef.current)
-    }
-
-    workspaceSaveTimeoutRef.current = setTimeout(() => {
-      saveCurrentWorkspace(state)
-      workspaceSaveTimeoutRef.current = null
-    }, WORKSPACE_SAVE_DEBOUNCE_MS)
-
-    return () => {
-      if (workspaceSaveTimeoutRef.current) {
-        clearTimeout(workspaceSaveTimeoutRef.current)
-        workspaceSaveTimeoutRef.current = null
-        saveCurrentWorkspace(state)
-      }
-    }
-  }, [state])
-
-  useEffect(() => {
-    const idleTimeouts = idleTimeoutsRef.current
-    const startupGraceTimeouts = startupGraceTimeoutsRef.current
-
-    const handleRender = (
-      tabId: string,
-      viewport: TabSession['viewport'],
-      terminalModes: TerminalModeState
-    ) => {
-      if (!viewport) {
-        return
-      }
-
-      dispatch({ type: 'replace-tab-viewport', tabId, viewport, terminalModes })
-      if (isStartupGraceActive(tabId) || resizingRef.current) {
-        return
-      }
-
-      dispatch({ type: 'set-tab-activity', tabId, activity: 'busy' })
-      scheduleIdle(tabId)
-    }
-
-    const handleExit = (tabId: string, exitCode: number) => {
-      clearIdleTimer(tabId)
-      clearStartupGrace(tabId)
-      dispatch({ type: 'set-tab-status', tabId, status: 'exited', exitCode })
-      dispatch({ type: 'set-tab-activity', tabId, activity: undefined })
-    }
-
-    const handleError = (tabId: string, message: string) => {
-      clearIdleTimer(tabId)
-      clearStartupGrace(tabId)
-      dispatch({ type: 'set-tab-error', tabId, message })
-    }
-
-    backend.on('render', handleRender)
-    backend.on('exit', handleExit)
-    backend.on('error', handleError)
-
-    return () => {
-      for (const timeout of idleTimeouts.values()) {
-        clearTimeout(timeout)
-      }
-      idleTimeouts.clear()
-      for (const timeout of startupGraceTimeouts.values()) {
-        clearTimeout(timeout)
-      }
-      startupGraceTimeouts.clear()
-      if (workspaceSaveTimeoutRef.current) {
-        clearTimeout(workspaceSaveTimeoutRef.current)
-      }
-      backend.off('render', handleRender)
-      backend.off('exit', handleExit)
-      backend.off('error', handleError)
-      void backend.destroy(true)
-    }
-  }, [backend])
-
   const terminalSize = useMemo(() => {
     const sidebarWidth = state.sidebar.visible ? state.sidebar.width + 3 : 0
     const reservedRows =
@@ -573,26 +395,6 @@ export function App({ backend }: { backend: SessionBackend }) {
     }, 500)
   }, [backend, terminalSize.cols, terminalSize.rows])
 
-  const directoryQuery =
-    state.modal.type === 'create-session'
-      ? state.modal.activeField === 'directory'
-        ? (state.modal.editBuffer ?? '')
-        : (state.modal.secondaryBuffer ?? '')
-      : ''
-
-  useEffect(() => {
-    if (state.modal.type !== 'create-session') return
-    if (!directoryQuery.trim()) {
-      dispatch({ type: 'set-directory-results', results: [] })
-      return
-    }
-    const timer = setTimeout(async () => {
-      const results = await searchDirectories(directoryQuery)
-      dispatch({ type: 'set-directory-results', results })
-    }, 200)
-    return () => clearTimeout(timer)
-  }, [state.modal.type, directoryQuery])
-
   function getCurrentSessionProjectPath(): string | undefined {
     if (!state.currentSessionId) return undefined
     return state.sessions.find((s) => s.id === state.currentSessionId)?.projectPath
@@ -621,7 +423,7 @@ export function App({ backend }: { backend: SessionBackend }) {
       backend,
       dispatch,
       clearStartupGrace,
-      startStartupGrace,
+      (tabId) => startStartupGrace(tabId, STARTUP_GRACE_MS),
       tab,
       state.layout.terminalCols,
       state.layout.terminalRows,
@@ -735,7 +537,7 @@ export function App({ backend }: { backend: SessionBackend }) {
       backend,
       dispatch,
       clearStartupGrace,
-      startStartupGrace,
+      (tabId) => startStartupGrace(tabId, STARTUP_GRACE_MS),
       tab,
       state.layout.terminalCols,
       state.layout.terminalRows,

@@ -6,69 +6,9 @@ import { THEME_IDS } from '../ui/themes'
 const THEME_COUNT = THEME_IDS.length
 import type { AppAction, AppState, SessionRecord, SnippetRecord, TabSession } from './types'
 
-import { restoreWorkspaceState } from './session-persistence'
-
-const MAX_BUFFER_LENGTH = 50_000
-
-function clampBuffer(buffer: string): string {
-  return buffer.length <= MAX_BUFFER_LENGTH
-    ? buffer
-    : buffer.slice(buffer.length - MAX_BUFFER_LENGTH)
-}
-
-function updateTab(
-  tabs: TabSession[],
-  tabId: string,
-  updater: (tab: TabSession) => TabSession
-): TabSession[] {
-  return tabs.map((tab) => (tab.id === tabId ? updater(tab) : tab))
-}
-
-function getActiveIndex(state: AppState): number {
-  if (!state.activeTabId) {
-    return -1
-  }
-
-  return state.tabs.findIndex((tab) => tab.id === state.activeTabId)
-}
-
-function closeTabAtIndex(state: AppState, indexToClose: number): AppState {
-  if (indexToClose < 0 || indexToClose >= state.tabs.length) {
-    return state
-  }
-
-  const closingTabId = state.tabs[indexToClose]?.id
-  const tabs = state.tabs.filter((_, index) => index !== indexToClose)
-  const nextActiveTab =
-    state.activeTabId === closingTabId
-      ? (tabs[indexToClose] ?? tabs[indexToClose - 1] ?? null)
-      : (tabs.find((tab) => tab.id === state.activeTabId) ?? null)
-
-  return {
-    ...state,
-    tabs,
-    activeTabId: nextActiveTab?.id ?? null,
-    focusMode: tabs.length === 0 ? 'navigation' : state.focusMode,
-  }
-}
-
-export function filterSessions(sessions: SessionRecord[], filter: string | null): SessionRecord[] {
-  if (!filter) return sessions
-  const lower = filter.toLowerCase()
-  return sessions.filter(
-    (s) =>
-      s.name.toLowerCase().includes(lower) ||
-      (s.projectPath && s.projectPath.toLowerCase().includes(lower))
-  )
-}
-
-export function filterSnippets(snippets: SnippetRecord[], filter: string | null): SnippetRecord[] {
-  if (!filter) return snippets
-  const lower = filter.toLowerCase()
-  return snippets.filter(
-    (s) => s.name.toLowerCase().includes(lower) || s.content.toLowerCase().includes(lower)
-  )
-}
+import { reduceSessionState } from './reducers/session-state'
+import { reduceTabState } from './reducers/tab-state'
+import { filterSessions, filterSnippets, getActiveTab } from './selectors'
 
 function emptyModal() {
   return {
@@ -109,11 +49,17 @@ export function createInitialState(
   }
 }
 
-export function getActiveTab(state: AppState): TabSession | undefined {
-  return state.activeTabId ? state.tabs.find((tab) => tab.id === state.activeTabId) : undefined
-}
-
 export function appReducer(state: AppState, action: AppAction): AppState {
+  const sessionState = reduceSessionState(state, action)
+  if (sessionState) {
+    return sessionState
+  }
+
+  const tabState = reduceTabState(state, action)
+  if (tabState) {
+    return tabState
+  }
+
   switch (action.type) {
     case 'open-new-tab-modal':
       return {
@@ -276,156 +222,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         },
       }
     }
-    case 'add-tab':
-      return {
-        ...state,
-        tabs: [...state.tabs, { ...action.tab, activity: action.tab.activity ?? 'idle' }],
-        activeTabId: action.tab.id,
-        focusMode: 'navigation',
-        modal: emptyModal(),
-      }
-    case 'hydrate-workspace': {
-      const hydratedActiveTabId =
-        action.activeTabId && action.tabs.some((tab) => tab.id === action.activeTabId)
-          ? action.activeTabId
-          : (action.tabs[0]?.id ?? null)
-      return {
-        ...state,
-        tabs: action.tabs,
-        activeTabId: hydratedActiveTabId,
-        focusMode: 'navigation',
-      }
-    }
-    case 'load-session': {
-      const snapshot =
-        action.workspaceSnapshot ??
-        state.sessions.find((entry) => entry.id === action.sessionId)?.workspaceSnapshot
-      return {
-        ...state,
-        ...restoreWorkspaceState(state, snapshot),
-        currentSessionId: action.sessionId,
-        sessions: state.sessions.map((entry) =>
-          entry.id === action.sessionId
-            ? {
-                ...entry,
-                lastOpenedAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              }
-            : entry
-        ),
-        focusMode: 'navigation',
-        modal: emptyModal(),
-      }
-    }
-    case 'set-sessions':
-      return { ...state, sessions: action.sessions }
-    case 'create-session-record':
-      return {
-        ...state,
-        sessions: [...state.sessions, action.session],
-        currentSessionId: action.session.id,
-        focusMode: 'navigation',
-        modal: emptyModal(),
-      }
-    case 'rename-session-record':
-      return {
-        ...state,
-        sessions: state.sessions.map((session) =>
-          session.id === action.sessionId
-            ? { ...session, name: action.name, updatedAt: new Date().toISOString() }
-            : session
-        ),
-        focusMode: 'modal',
-        modal: {
-          type: 'session-picker',
-          selectedIndex: state.modal.selectedIndex,
-          editBuffer: null,
-          sessionTargetId: null,
-        },
-      }
-    case 'delete-session-record': {
-      const newSessions = state.sessions.filter((session) => session.id !== action.sessionId)
-      const filteredNew = filterSessions(newSessions, state.modal.editBuffer)
-      const maxIndex = filteredNew.length // index of "Create new session" option
-      const clampedIndex = Math.min(state.modal.selectedIndex, maxIndex)
-      return {
-        ...state,
-        sessions: newSessions,
-        currentSessionId:
-          action.sessionId === state.currentSessionId ? null : state.currentSessionId,
-        tabs: action.sessionId === state.currentSessionId ? [] : state.tabs,
-        activeTabId: action.sessionId === state.currentSessionId ? null : state.activeTabId,
-        focusMode: 'modal',
-        modal: {
-          type: 'session-picker',
-          selectedIndex: clampedIndex,
-          editBuffer: null,
-          sessionTargetId: null,
-        },
-      }
-    }
-    case 'close-tab':
-      return closeTabAtIndex(
-        state,
-        state.tabs.findIndex((tab) => tab.id === action.tabId)
-      )
-    case 'close-active-tab':
-      return closeTabAtIndex(state, getActiveIndex(state))
-    case 'set-active-tab':
-      return { ...state, activeTabId: action.tabId }
-    case 'move-active-tab': {
-      if (state.tabs.length === 0) {
-        return state
-      }
-      const currentIndex = state.tabs.findIndex((tab) => tab.id === state.activeTabId)
-      const safeIndex = currentIndex === -1 ? 0 : currentIndex
-      const nextIndex = (safeIndex + action.delta + state.tabs.length) % state.tabs.length
-      const nextTabId = state.tabs[nextIndex]?.id
-      return !nextTabId || nextTabId === state.activeTabId
-        ? state
-        : { ...state, activeTabId: nextTabId }
-    }
-    case 'reorder-active-tab': {
-      const activeIndex = getActiveIndex(state)
-      if (activeIndex === -1) {
-        return state
-      }
-      const nextIndex = activeIndex + action.delta
-      if (nextIndex < 0 || nextIndex >= state.tabs.length) {
-        return state
-      }
-      const tabs = [...state.tabs]
-      const current = tabs[activeIndex]
-      const target = tabs[nextIndex]
-      if (!current || !target) {
-        return state
-      }
-      tabs[activeIndex] = target
-      tabs[nextIndex] = current
-      return { ...state, tabs }
-    }
-    case 'reset-tab-session':
-      return {
-        ...state,
-        activeTabId: action.tabId,
-        focusMode: 'navigation',
-        tabs: updateTab(state.tabs, action.tabId, (tab) => ({
-          ...tab,
-          status: 'starting',
-          activity: 'idle',
-          buffer: '',
-          viewport: undefined,
-          errorMessage: undefined,
-          exitCode: undefined,
-          terminalModes: {
-            mouseTrackingMode: 'none',
-            sendFocusMode: false,
-            alternateScrollMode: false,
-            isAlternateBuffer: false,
-            bracketedPasteMode: false,
-          },
-        })),
-      }
     case 'toggle-sidebar':
       return { ...state, sidebar: { ...state.sidebar, visible: !state.sidebar.visible } }
     case 'resize-sidebar': {
@@ -437,51 +233,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     }
     case 'set-focus-mode':
       return { ...state, focusMode: action.focusMode }
-    case 'append-tab-buffer':
-      return {
-        ...state,
-        tabs: updateTab(state.tabs, action.tabId, (tab) => ({
-          ...tab,
-          buffer: clampBuffer(`${tab.buffer}${action.chunk}`),
-          status: tab.status === 'starting' ? 'running' : tab.status,
-        })),
-      }
-    case 'replace-tab-viewport':
-      return {
-        ...state,
-        tabs: updateTab(state.tabs, action.tabId, (tab) => ({
-          ...tab,
-          viewport: action.viewport,
-          terminalModes: action.terminalModes,
-          status: tab.status === 'starting' ? 'running' : tab.status,
-        })),
-      }
-    case 'set-tab-activity':
-      return {
-        ...state,
-        tabs: updateTab(state.tabs, action.tabId, (tab) => ({ ...tab, activity: action.activity })),
-      }
-    case 'set-tab-status':
-      return {
-        ...state,
-        tabs: updateTab(state.tabs, action.tabId, (tab) => ({
-          ...tab,
-          status: action.status,
-          exitCode: action.exitCode,
-          activity: action.status === 'running' ? tab.activity : undefined,
-        })),
-      }
-    case 'set-tab-error':
-      return {
-        ...state,
-        tabs: updateTab(state.tabs, action.tabId, (tab) => ({
-          ...tab,
-          status: 'error',
-          activity: undefined,
-          errorMessage: action.message,
-          buffer: clampBuffer(`${tab.buffer}${action.message}\n`),
-        })),
-      }
     case 'set-terminal-size':
       return { ...state, layout: { terminalCols: action.cols, terminalRows: action.rows } }
     case 'begin-command-edit': {
@@ -642,11 +393,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         },
       }
     }
-    case 'rename-tab':
-      return {
-        ...state,
-        tabs: updateTab(state.tabs, action.tabId, (tab) => ({ ...tab, title: action.title })),
-      }
     default:
       return state
   }

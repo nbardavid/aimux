@@ -1,19 +1,12 @@
 import type { SnippetRecord } from '../../state/types'
 
+import { filterSnippets } from '../../state/selectors'
 import { theme } from '../theme'
 
 interface SnippetPickerModalProps {
   snippets: SnippetRecord[]
   selectedIndex: number
   filter: string | null
-}
-
-function filterSnippets(snippets: SnippetRecord[], filter: string | null): SnippetRecord[] {
-  if (!filter) return snippets
-  const lower = filter.toLowerCase()
-  return snippets.filter(
-    (s) => s.name.toLowerCase().includes(lower) || s.content.toLowerCase().includes(lower)
-  )
 }
 
 const MAX_PREVIEW_LENGTH = 60

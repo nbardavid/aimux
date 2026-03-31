@@ -2,6 +2,7 @@ import { homedir } from 'node:os'
 
 import type { SessionRecord } from '../../state/types'
 
+import { filterSessions } from '../../state/selectors'
 import { theme } from '../theme'
 
 function abbreviatePath(path: string): string {
@@ -15,16 +16,6 @@ interface SessionPickerModalProps {
   currentSessionId: string | null
   currentTabCount: number
   filter: string | null
-}
-
-function filterSessions(sessions: SessionRecord[], filter: string | null): SessionRecord[] {
-  if (!filter) return sessions
-  const lower = filter.toLowerCase()
-  return sessions.filter(
-    (s) =>
-      s.name.toLowerCase().includes(lower) ||
-      (s.projectPath && s.projectPath.toLowerCase().includes(lower))
-  )
 }
 
 function formatSessionLine(

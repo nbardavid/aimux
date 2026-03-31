@@ -7,6 +7,7 @@ import { logDebug } from './debug/input-log'
 import { runDoctor } from './doctor'
 import { runRestartDaemon } from './restart-daemon'
 import { createSessionBackend } from './session-backend/bootstrap'
+import { runUpdate } from './update'
 
 const command = process.argv[2]
 
@@ -18,6 +19,10 @@ if (command === 'restart-daemon') {
   process.exit(await runRestartDaemon())
 }
 
+if (command === 'update') {
+  process.exit(await runUpdate())
+}
+
 if (command === 'daemon') {
   logDebug('index.daemonMode')
   await runDaemon()
@@ -25,7 +30,7 @@ if (command === 'daemon') {
 
 if (command === '--help' || command === '-h') {
   process.stdout.write(
-    'aimux\n\nUsage:\n  bun run src/index.tsx\n  bun run src/index.tsx doctor\n  bun run src/index.tsx restart-daemon\n\n'
+    'aimux -- terminal multiplexer for AI CLIs\n\nUsage:\n  aimux                  Start aimux\n  aimux update           Update to latest version\n  aimux doctor           Diagnose setup issues\n  aimux restart-daemon   Restart background daemon\n\n'
   )
   process.exit(0)
 }

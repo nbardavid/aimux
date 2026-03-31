@@ -1,6 +1,8 @@
 {
   "name": "aimux",
-  "private": true,
+  "bin": {
+    "aimux": "src/index.tsx"
+  },
   "type": "module",
   "module": "src/index.tsx",
   "scripts": {

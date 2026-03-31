@@ -48,23 +48,23 @@ Switch between 9 built-in themes on the fly:
 ## Install
 
 ```bash
-bun install
+bun install -g github:BrimVeyn/aimux
 ```
 
 ## Usage
 
 ```bash
 # Start aimux
-bun run start
+aimux
 
-# Development mode (auto-reload)
-bun run dev
+# Update to latest version
+aimux update
 
 # Diagnose setup issues
-bun run start -- doctor
+aimux doctor
 
 # Restart the background daemon
-bun run restart-daemon
+aimux restart-daemon
 ```
 
 ## Keyboard Shortcuts
@@ -142,6 +142,16 @@ src/
 ## Development
 
 ```bash
+# Clone and install dependencies
+git clone https://github.com/BrimVeyn/aimux && cd aimux
+bun install
+
+# Development mode (auto-reload)
+bun run dev
+
+# Run from source
+bun run start
+
 # Run tests
 bun test
 

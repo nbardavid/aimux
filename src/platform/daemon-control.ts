@@ -1,7 +1,10 @@
 import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 import { getDaemonSocketPath } from '../daemon/runtime-paths'
 import { logDebug } from '../debug/input-log'
+
+const ENTRY_POINT = resolve(import.meta.dir, '..', 'index.tsx')
 
 export async function findDaemonPid(socketPath: string): Promise<number | null> {
   try {
@@ -39,7 +42,7 @@ export async function killDaemon(pid: number): Promise<void> {
 }
 
 export async function spawnDetachedDaemon(): Promise<boolean> {
-  Bun.spawn([process.execPath, 'run', 'src/index.tsx', 'daemon'], {
+  Bun.spawn([process.execPath, 'run', ENTRY_POINT, 'daemon'], {
     stdout: 'ignore',
     stderr: 'ignore',
     stdin: 'ignore',

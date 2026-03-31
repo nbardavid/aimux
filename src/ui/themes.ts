@@ -18,6 +18,7 @@ export interface ThemeColors {
 export type ThemeId =
   | 'aimux'
   | 'dracula'
+  | 'dracula-at-night'
   | 'tokyo-night'
   | 'gruvbox-dark'
   | 'catppuccin-mocha'
@@ -63,6 +64,25 @@ export const THEMES: Record<ThemeId, { name: string; colors: ThemeColors }> = {
       danger: '#ff5555',
       success: '#50fa7b',
       dim: '#383a4a',
+    },
+  },
+  'dracula-at-night': {
+    name: 'Dracula At Night',
+    colors: {
+      background: '#0e1419',
+      panel: '#131920',
+      panelMuted: '#1a2129',
+      panelHighlight: '#222a33',
+      border: '#2a3440',
+      borderActive: '#bd93f9',
+      text: '#f8f8f2',
+      textMuted: '#6272a4',
+      accent: '#bd93f9',
+      accentAlt: '#ff79c6',
+      warning: '#f1fa8c',
+      danger: '#ff5555',
+      success: '#50fa7b',
+      dim: '#1e2630',
     },
   },
   'tokyo-night': {

@@ -6,93 +6,93 @@ Set Width 1200
 Set Height 700
 Set Padding 0
 Set Theme "Dracula"
-Set TypingSpeed 60ms
+Set TypingSpeed 40ms
 
 # Start aimux
 Type "bun run start"
 Enter
-Sleep 3s
+Sleep 2s
 
 # Create a session
 Type "n"
-Sleep 1s
+Sleep 500ms
 Type "aimux"
-Sleep 2s
-Enter
 Sleep 1s
 Enter
-Sleep 2s
+Sleep 500ms
+Enter
+Sleep 1.5s
 
 # Launch a Claude tab
 Ctrl+N
-Sleep 1s
+Sleep 500ms
 Enter
-Sleep 4s
+Sleep 3s
 
 # Enter input mode and type something
 Type "i"
-Sleep 500ms
+Sleep 300ms
 Type "Say hello"
 Enter
-Sleep 5s
+Sleep 4s
 
 # Enter layout mode with Ctrl+W
 Ctrl+W
-Sleep 1s
+Sleep 500ms
 
 # Split vertically with |
 Type "|"
-Sleep 1s
+Sleep 500ms
 
 # Select assistant and confirm
 Enter
-Sleep 4s
+Sleep 3s
 
 # Enter input mode in the new pane
 Type "i"
-Sleep 500ms
+Sleep 300ms
 Type "Say hi"
-Enter
-Sleep 5s
-
-# Enter layout mode again
-Ctrl+W
-Sleep 1s
-
-# Split horizontally with -
-Type "-"
-Sleep 1s
-
-# Select assistant and confirm
 Enter
 Sleep 4s
 
-# Navigate between panes
+# Enter layout mode again
 Ctrl+W
 Sleep 500ms
+
+# Split horizontally with -
+Type "-"
+Sleep 500ms
+
+# Select assistant and confirm
+Enter
+Sleep 3s
+
+# Navigate between panes
+Ctrl+W
+Sleep 300ms
 Type "h"
-Sleep 1s
+Sleep 500ms
 Type "l"
-Sleep 1s
+Sleep 500ms
 Type "k"
-Sleep 1s
+Sleep 500ms
 Type "j"
-Sleep 1s
+Sleep 500ms
 
 # Resize panes
 Type "H"
-Sleep 500ms
+Sleep 300ms
 Type "H"
-Sleep 500ms
+Sleep 300ms
 Type "L"
-Sleep 500ms
+Sleep 300ms
 Type "L"
-Sleep 500ms
+Sleep 300ms
 
 # Back to navigation
 Escape
-Sleep 1s
+Sleep 500ms
 
 # Exit
 Ctrl+C
-Sleep 1s
+Sleep 500ms

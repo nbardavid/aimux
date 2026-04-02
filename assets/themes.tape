@@ -6,76 +6,76 @@ Set Width 1200
 Set Height 700
 Set Padding 0
 Set Theme "Dracula"
-Set TypingSpeed 60ms
+Set TypingSpeed 40ms
 
 # Start aimux
 Type "bun run start"
 Enter
-Sleep 3s
+Sleep 2s
 
 # Create a session
 Type "n"
-Sleep 1s
+Sleep 500ms
 Type "aimux"
-Sleep 2s
-Enter
 Sleep 1s
 Enter
-Sleep 2s
+Sleep 500ms
+Enter
+Sleep 1.5s
 
 # Launch a tab so there's content visible
 Ctrl+N
-Sleep 1s
+Sleep 500ms
 Enter
-Sleep 4s
+Sleep 3s
 
 # Open theme picker with Ctrl+T
 Ctrl+T
-Sleep 1.5s
+Sleep 800ms
 
 # Browse themes with j/k
 Type "j"
-Sleep 1s
+Sleep 500ms
 Type "j"
-Sleep 1s
+Sleep 500ms
 Type "j"
-Sleep 1s
+Sleep 500ms
 
 # Select a theme
 Enter
-Sleep 2s
+Sleep 1s
 
 # Open theme picker again
 Ctrl+T
-Sleep 1.5s
+Sleep 800ms
 
 # Browse more
 Type "j"
-Sleep 1s
+Sleep 500ms
 Type "j"
-Sleep 1s
+Sleep 500ms
 
 # Select another theme
 Enter
-Sleep 2s
+Sleep 1s
 
 # Open theme picker one more time
 Ctrl+T
-Sleep 1.5s
+Sleep 800ms
 
 # Go back to first theme
 Type "k"
-Sleep 1s
+Sleep 500ms
 Type "k"
-Sleep 1s
+Sleep 500ms
 Type "k"
-Sleep 1s
+Sleep 500ms
 Type "k"
-Sleep 1s
+Sleep 500ms
 
 Enter
-Sleep 2s
+Sleep 1s
 
 # Exit
 Ctrl+C
-Sleep 1s
+Sleep 500ms

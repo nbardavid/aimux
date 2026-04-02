@@ -8,6 +8,7 @@ import { theme } from '../theme'
 
 interface TerminalPaneProps {
   tab?: TabSession
+  tabId?: string
   focusMode: import('../../state/types').FocusMode
   isActive?: boolean
   contentOrigin: TerminalContentOrigin
@@ -15,7 +16,8 @@ interface TerminalPaneProps {
   localScrollbackEnabled: boolean
   onTerminalMouseEvent: (event: OtuiMouseEvent, origin: TerminalContentOrigin) => void
   onTerminalScrollEvent: (event: OtuiMouseEvent) => void
-  onTerminalClick?: (event: OtuiMouseEvent, origin: TerminalContentOrigin) => void
+  onTerminalClick?: (event: OtuiMouseEvent, origin: TerminalContentOrigin, tabId?: string) => void
+  onPaneActivate?: (tabId: string) => void
 }
 
 function getTitle(tab?: TabSession): string {
@@ -70,6 +72,7 @@ function renderViewport(tab: TabSession): ReactNode {
 
 export function TerminalPane({
   tab,
+  tabId,
   focusMode,
   isActive,
   contentOrigin,
@@ -78,19 +81,17 @@ export function TerminalPane({
   onTerminalMouseEvent,
   onTerminalScrollEvent,
   onTerminalClick,
+  onPaneActivate,
 }: TerminalPaneProps) {
   const canForwardMouse = focusMode === 'terminal-input' && !!tab && mouseForwardingEnabled
   const canUseLocalScrollback = focusMode === 'terminal-input' && !!tab && localScrollbackEnabled
   const forwardMouseEvent = (event: OtuiMouseEvent) => {
+    if (tabId && onPaneActivate && event.type === 'down') {
+      onPaneActivate(tabId)
+    }
     if (!canForwardMouse) {
-      if (
-        focusMode === 'terminal-input' &&
-        tab &&
-        event.type === 'down' &&
-        event.button === 0 &&
-        onTerminalClick
-      ) {
-        onTerminalClick(event, contentOrigin)
+      if (tab && event.type === 'down' && event.button === 0 && onTerminalClick) {
+        onTerminalClick(event, contentOrigin, tabId)
       }
       return
     }

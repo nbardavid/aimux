@@ -320,8 +320,22 @@ export function App({ backend }: { backend: SessionBackend }) {
     }
   }
 
-  const handleTerminalClick = (event: OtuiMouseEvent, origin: TerminalContentOrigin) => {
-    if (state.focusMode !== 'terminal-input' || !state.activeTabId || !event.target) {
+  const handlePaneActivate = (tabId: string) => {
+    if (tabId !== state.activeTabId) {
+      dispatch({ type: 'set-active-tab', tabId })
+    }
+    if (state.focusMode !== 'terminal-input') {
+      dispatch({ type: 'set-focus-mode', focusMode: 'terminal-input' })
+    }
+  }
+
+  const handleTerminalClick = (
+    event: OtuiMouseEvent,
+    origin: TerminalContentOrigin,
+    tabId?: string
+  ) => {
+    const targetTabId = tabId ?? state.activeTabId
+    if (!targetTabId || !event.target) {
       return
     }
 
@@ -333,7 +347,7 @@ export function App({ backend }: { backend: SessionBackend }) {
       return
     }
 
-    const tab = state.tabs.find((t) => t.id === state.activeTabId)
+    const tab = state.tabs.find((t) => t.id === targetTabId)
     if (!tab?.viewport?.lines[row]) {
       return
     }
@@ -729,6 +743,9 @@ export function App({ backend }: { backend: SessionBackend }) {
       onTerminalMouseEvent={handleTerminalMouseEvent}
       onTerminalScrollEvent={handleTerminalScrollEvent}
       onTerminalClick={handleTerminalClick}
+      onPaneActivate={handlePaneActivate}
+      terminalCols={terminalSize.cols}
+      terminalRows={terminalSize.rows}
     />
   )
 }

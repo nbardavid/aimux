@@ -27,7 +27,10 @@ interface RootViewProps {
   localScrollbackEnabled: boolean
   onTerminalMouseEvent: (event: MouseEvent, origin: TerminalContentOrigin) => void
   onTerminalScrollEvent: (event: MouseEvent) => void
-  onTerminalClick?: (event: MouseEvent, origin: TerminalContentOrigin) => void
+  onTerminalClick?: (event: MouseEvent, origin: TerminalContentOrigin, tabId?: string) => void
+  onPaneActivate?: (tabId: string) => void
+  terminalCols: number
+  terminalRows: number
 }
 
 export function RootView({
@@ -39,6 +42,9 @@ export function RootView({
   onTerminalMouseEvent,
   onTerminalScrollEvent,
   onTerminalClick,
+  onPaneActivate,
+  terminalCols,
+  terminalRows,
 }: RootViewProps) {
   const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId)
 
@@ -60,6 +66,8 @@ export function RootView({
             onTerminalMouseEvent={onTerminalMouseEvent}
             onTerminalScrollEvent={onTerminalScrollEvent}
             onTerminalClick={onTerminalClick}
+            onPaneActivate={onPaneActivate}
+            bounds={{ x: 0, y: 0, cols: terminalCols, rows: terminalRows }}
           />
         ) : (
           <TerminalPane

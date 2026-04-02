@@ -1,5 +1,3 @@
-import type { MouseEvent as OtuiMouseEvent } from '@opentui/core'
-
 import { useKeyboard, useRenderer, useTerminalDimensions } from '@opentui/react'
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 
@@ -10,19 +8,17 @@ import type { ThemeId } from './ui/themes'
 import { type SideEffectContext, executeSideEffect } from './app-runtime/side-effects'
 import { useBackendRuntime } from './app-runtime/use-backend-runtime'
 import { useDirectorySearch } from './app-runtime/use-directory-search'
+import { useMouseHandlers } from './app-runtime/use-mouse-handlers'
+import { useTerminalResize } from './app-runtime/use-terminal-resize'
 import { useWorkspaceAutosave } from './app-runtime/use-workspace-autosave'
 import { loadConfig } from './config'
 import { INPUT_DEBUG_LOG_PATH, logInputDebug } from './debug/input-log'
 import { deriveModeId } from './input/modes/bridge'
 import { registerAllModes } from './input/modes/handlers'
 import { getHandler, transitionTo } from './input/modes/registry'
-import { encodeMouseEventForPty } from './input/mouse-forwarding'
-import { MultiClickDetector } from './input/multi-click-detector'
 import { buildPtyPastePayload } from './input/paste'
 import { createRawInputHandler, type TerminalContentOrigin } from './input/raw-input-handler'
-import { getLineText, getWordAtColumn } from './input/terminal-text-extraction'
 import { copyToSystemClipboard } from './platform/clipboard'
-import { PANE_BORDER, computePaneRects } from './state/layout-tree'
 import { loadSessionCatalog } from './state/session-catalog'
 import { loadSnippetCatalog } from './state/snippet-catalog'
 import { appReducer, createInitialState } from './state/store'
@@ -31,12 +27,6 @@ import { applyTheme } from './ui/theme'
 
 registerAllModes()
 
-const MAIN_AREA_HORIZONTAL_CHROME = 2
-const MAIN_AREA_VERTICAL_PADDING = 0
-const STATUS_BAR_HEIGHT = 4
-const TERMINAL_PANE_VERTICAL_CHROME = 2
-const MIN_TERMINAL_ROWS = 1
-const MIN_TERMINAL_COLS = 20
 const WORKSPACE_SAVE_DEBOUNCE_MS = 250
 
 export function App({ backend }: { backend: SessionBackend }) {
@@ -54,7 +44,6 @@ export function App({ backend }: { backend: SessionBackend }) {
     return createInitialState(customCommands, loadSessionCatalog(), loadSnippetCatalog(), true)
   })
   const resizingRef = useRef(false)
-  const resizingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const layoutRef = useRef(state.layout)
   layoutRef.current = state.layout
   const activeTab = useMemo(
@@ -78,7 +67,6 @@ export function App({ backend }: { backend: SessionBackend }) {
   activeTabRef.current = activeTab
 
   const contentOriginRef = useRef<TerminalContentOrigin>({ x: 0, y: 0, cols: 0, rows: 0 })
-  const multiClickRef = useRef(new MultiClickDetector())
   const currentSessionWorkspaceSnapshot = currentSession?.workspaceSnapshot
 
   const { clearIdleTimer, clearStartupGrace, startStartupGrace } = useBackendRuntime({
@@ -93,6 +81,33 @@ export function App({ backend }: { backend: SessionBackend }) {
 
   useWorkspaceAutosave(state, WORKSPACE_SAVE_DEBOUNCE_MS)
   useDirectorySearch(state.modal, dispatch)
+
+  const terminalSize = useTerminalResize({
+    state,
+    dispatch,
+    backend,
+    dimensions,
+    contentOriginRef,
+    resizingRef,
+  })
+
+  const {
+    handleTerminalMouseEvent,
+    handleTerminalScrollEvent,
+    handleTerminalClick,
+    handlePaneActivate,
+    handleSplitResize,
+    handleSeparatorDragStart,
+    handleSeparatorDrag,
+    handleSeparatorDragEnd,
+  } = useMouseHandlers({
+    state,
+    dispatch,
+    backend,
+    renderer,
+    activeMouseForwardingEnabled,
+    activeLocalScrollbackEnabled,
+  })
 
   useEffect(() => {
     renderer.useMouse = true
@@ -193,199 +208,6 @@ export function App({ backend }: { backend: SessionBackend }) {
       process.stdout.write('\x1b[?2004l')
     }
   }, [state.activeTabId, state.focusMode])
-
-  const handleTerminalMouseEvent = (event: OtuiMouseEvent, origin: TerminalContentOrigin) => {
-    if (
-      state.focusMode !== 'terminal-input' ||
-      !state.activeTabId ||
-      !activeMouseForwardingEnabled
-    ) {
-      return
-    }
-
-    const sequence = encodeMouseEventForPty(event, origin)
-    if (!sequence) {
-      return
-    }
-
-    backend.write(state.activeTabId, sequence)
-  }
-
-  const handleTerminalScrollEvent = (event: OtuiMouseEvent) => {
-    if (state.focusMode !== 'terminal-input' || !state.activeTabId) {
-      return
-    }
-
-    if (activeMouseForwardingEnabled) {
-      return
-    }
-
-    if (!activeLocalScrollbackEnabled || event.type !== 'scroll') {
-      return
-    }
-
-    const direction = event.scroll?.direction
-    if (direction === 'up') {
-      backend.scrollViewport(state.activeTabId, -3)
-    } else if (direction === 'down') {
-      backend.scrollViewport(state.activeTabId, 3)
-    }
-  }
-
-  const separatorDragRef = useRef<{
-    tabId: string
-    direction: import('./state/layout-tree').SplitDirection
-    screenStart: number
-    totalSize: number
-  } | null>(null)
-
-  const handleSplitResize = (
-    tabId: string,
-    ratio: number,
-    axis: import('./state/layout-tree').SplitDirection
-  ) => {
-    dispatch({ type: 'set-split-ratio', tabId, ratio, axis })
-  }
-
-  const handleSeparatorDragStart = (info: {
-    tabId: string
-    direction: import('./state/layout-tree').SplitDirection
-    screenStart: number
-    totalSize: number
-  }) => {
-    separatorDragRef.current = info
-  }
-
-  const handleSeparatorDrag = (event: OtuiMouseEvent): boolean => {
-    const drag = separatorDragRef.current
-    if (!drag) return false
-    const pos = drag.direction === 'vertical' ? event.x : event.y
-    const newRatio = (pos - drag.screenStart) / drag.totalSize
-    dispatch({ type: 'set-split-ratio', tabId: drag.tabId, ratio: newRatio, axis: drag.direction })
-    return true
-  }
-
-  const handleSeparatorDragEnd = () => {
-    separatorDragRef.current = null
-  }
-
-  const handlePaneActivate = (tabId: string) => {
-    if (tabId !== state.activeTabId) {
-      dispatch({ type: 'set-active-tab', tabId })
-    }
-    if (state.focusMode !== 'terminal-input') {
-      dispatch({ type: 'set-focus-mode', focusMode: 'terminal-input' })
-    }
-  }
-
-  const handleTerminalClick = (
-    event: OtuiMouseEvent,
-    origin: TerminalContentOrigin,
-    tabId?: string
-  ) => {
-    const targetTabId = tabId ?? state.activeTabId
-    if (!targetTabId || !event.target) {
-      return
-    }
-
-    const col = event.x - origin.x
-    const row = event.y - origin.y
-    const clickCount = multiClickRef.current.track(col, row)
-
-    if (clickCount < 2) {
-      return
-    }
-
-    const tab = state.tabs.find((t) => t.id === targetTabId)
-    if (!tab?.viewport?.lines[row]) {
-      return
-    }
-
-    const line = tab.viewport.lines[row]
-    const lineBox = event.target.parent
-    if (!lineBox) {
-      return
-    }
-    const baseX = lineBox.x
-
-    const lineText = getLineText(line)
-    let selectedText: string
-    let startCol: number
-    let endCol: number
-
-    if (clickCount === 2) {
-      const word = getWordAtColumn(lineText, col)
-      if (word.text.length === 0) {
-        return
-      }
-      selectedText = word.text
-      startCol = word.startCol
-      endCol = word.endCol
-    } else {
-      selectedText = lineText
-      startCol = 0
-      endCol = lineText.length
-    }
-
-    event.preventDefault()
-    renderer.clearSelection()
-    renderer.startSelection(event.target, baseX + startCol, event.y)
-    renderer.updateSelection(event.target, baseX + endCol, event.y, {
-      finishDragging: true,
-    })
-    copyToSystemClipboard(selectedText)
-  }
-
-  const terminalSize = useMemo(() => {
-    const sidebarWidth = state.sidebar.visible ? state.sidebar.width + 1 : 0
-    const reservedRows =
-      MAIN_AREA_VERTICAL_PADDING + STATUS_BAR_HEIGHT + TERMINAL_PANE_VERTICAL_CHROME
-    const cols = Math.max(
-      MIN_TERMINAL_COLS,
-      Math.floor(dimensions.width - sidebarWidth - MAIN_AREA_HORIZONTAL_CHROME)
-    )
-    const rows = Math.max(MIN_TERMINAL_ROWS, Math.floor(dimensions.height - reservedRows))
-
-    // Terminal content origin in 0-based screen cells.
-    // X: root padding(1) + sidebar outer(sidebarWidth) + terminal border(1) + terminal padding(1)
-    // Y: root padding(1) + terminal border(1) + terminal padding(1)
-    // X: sidebar outer(sidebarWidth) + terminal border(1)
-    // Y: terminal border(1)
-    contentOriginRef.current = {
-      x: sidebarWidth + 1,
-      y: 1,
-      cols,
-      rows,
-    }
-
-    return { cols, rows }
-  }, [dimensions.height, dimensions.width, state.sidebar.visible, state.sidebar.width])
-
-  useEffect(() => {
-    dispatch({
-      type: 'set-terminal-size',
-      cols: terminalSize.cols,
-      rows: terminalSize.rows,
-    })
-    resizingRef.current = true
-    if (resizingTimerRef.current) {
-      clearTimeout(resizingTimerRef.current)
-    }
-    if (state.layoutTree && state.layoutTree.type === 'split') {
-      const bounds = { x: 0, y: 0, cols: terminalSize.cols, rows: terminalSize.rows }
-      const rects = computePaneRects(state.layoutTree, bounds)
-      const chrome = PANE_BORDER * 2
-      for (const [tabId, rect] of rects) {
-        backend.resizeTab(tabId, Math.max(1, rect.cols - chrome), Math.max(1, rect.rows - chrome))
-      }
-    } else {
-      backend.resizeAll(terminalSize.cols, terminalSize.rows)
-    }
-    resizingTimerRef.current = setTimeout(() => {
-      resizingRef.current = false
-      resizingTimerRef.current = null
-    }, 500)
-  }, [backend, terminalSize.cols, terminalSize.rows, state.layoutTree])
 
   const sideEffectCtx: SideEffectContext = {
     state,

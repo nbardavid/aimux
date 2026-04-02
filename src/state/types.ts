@@ -210,7 +210,8 @@ export interface AppState {
   customCommands: Record<AssistantId, string>
 }
 
-export type AppAction =
+// -- Modal actions --
+export type ModalAction =
   | { type: 'open-new-tab-modal' }
   | { type: 'open-help-modal' }
   | { type: 'open-split-picker'; direction: import('./layout-tree').SplitDirection }
@@ -218,38 +219,6 @@ export type AppAction =
   | { type: 'open-session-name-modal'; sessionTargetId?: string; initialName?: string }
   | { type: 'close-modal' }
   | { type: 'move-modal-selection'; delta: number }
-  | { type: 'add-tab'; tab: TabSession }
-  | {
-      type: 'hydrate-workspace'
-      tabs: TabSession[]
-      activeTabId: string | null
-      layoutTree?: import('./layout-tree').LayoutNode | null
-    }
-  | { type: 'load-session'; sessionId: string; workspaceSnapshot?: WorkspaceSnapshotV1 }
-  | { type: 'set-sessions'; sessions: SessionRecord[] }
-  | { type: 'create-session-record'; session: SessionRecord }
-  | { type: 'rename-session-record'; sessionId: string; name: string }
-  | { type: 'delete-session-record'; sessionId: string }
-  | { type: 'close-tab'; tabId: string }
-  | { type: 'close-active-tab' }
-  | { type: 'set-active-tab'; tabId: string }
-  | { type: 'move-active-tab'; delta: number }
-  | { type: 'reorder-active-tab'; delta: number }
-  | { type: 'reset-tab-session'; tabId: string }
-  | { type: 'toggle-sidebar' }
-  | { type: 'resize-sidebar'; delta: number }
-  | { type: 'set-focus-mode'; focusMode: FocusMode }
-  | { type: 'append-tab-buffer'; tabId: string; chunk: string }
-  | {
-      type: 'replace-tab-viewport'
-      tabId: string
-      viewport: TerminalSnapshot
-      terminalModes: TerminalModeState
-    }
-  | { type: 'set-tab-activity'; tabId: string; activity?: TabActivity }
-  | { type: 'set-tab-status'; tabId: string; status: TabStatus; exitCode?: number }
-  | { type: 'set-tab-error'; tabId: string; message: string }
-  | { type: 'set-terminal-size'; cols: number; rows: number }
   | { type: 'begin-command-edit' }
   | { type: 'update-command-edit'; char: string }
   | { type: 'commit-command-edit' }
@@ -260,13 +229,48 @@ export type AppAction =
   | { type: 'select-directory' }
   | { type: 'begin-session-filter' }
   | { type: 'open-rename-tab-modal' }
-  | { type: 'rename-tab'; tabId: string; title: string }
   | { type: 'open-snippet-picker' }
   | { type: 'open-snippet-editor'; snippetId?: string }
-  | { type: 'set-snippets'; snippets: SnippetRecord[] }
-  | { type: 'delete-snippet'; snippetId: string }
   | { type: 'begin-snippet-filter' }
   | { type: 'open-theme-picker' }
+
+// -- Session actions --
+export type SessionAction =
+  | { type: 'load-session'; sessionId: string; workspaceSnapshot?: WorkspaceSnapshotV1 }
+  | { type: 'set-sessions'; sessions: SessionRecord[] }
+  | { type: 'create-session-record'; session: SessionRecord }
+  | { type: 'rename-session-record'; sessionId: string; name: string }
+  | { type: 'delete-session-record'; sessionId: string }
+
+// -- Tab actions --
+export type TabAction =
+  | { type: 'add-tab'; tab: TabSession }
+  | {
+      type: 'hydrate-workspace'
+      tabs: TabSession[]
+      activeTabId: string | null
+      layoutTree?: import('./layout-tree').LayoutNode | null
+    }
+  | { type: 'close-tab'; tabId: string }
+  | { type: 'close-active-tab' }
+  | { type: 'set-active-tab'; tabId: string }
+  | { type: 'move-active-tab'; delta: number }
+  | { type: 'reorder-active-tab'; delta: number }
+  | { type: 'reset-tab-session'; tabId: string }
+  | { type: 'rename-tab'; tabId: string; title: string }
+  | { type: 'append-tab-buffer'; tabId: string; chunk: string }
+  | {
+      type: 'replace-tab-viewport'
+      tabId: string
+      viewport: TerminalSnapshot
+      terminalModes: TerminalModeState
+    }
+  | { type: 'set-tab-activity'; tabId: string; activity?: TabActivity }
+  | { type: 'set-tab-status'; tabId: string; status: TabStatus; exitCode?: number }
+  | { type: 'set-tab-error'; tabId: string; message: string }
+
+// -- Layout actions --
+export type LayoutAction =
   | {
       type: 'split-pane'
       direction: import('./layout-tree').SplitDirection
@@ -289,3 +293,23 @@ export type AppAction =
       ratio: number
       axis?: import('./layout-tree').SplitDirection
     }
+
+// -- UI actions --
+export type UIAction =
+  | { type: 'toggle-sidebar' }
+  | { type: 'resize-sidebar'; delta: number }
+  | { type: 'set-focus-mode'; focusMode: FocusMode }
+  | { type: 'set-terminal-size'; cols: number; rows: number }
+
+// -- Data actions --
+export type DataAction =
+  | { type: 'set-snippets'; snippets: SnippetRecord[] }
+  | { type: 'delete-snippet'; snippetId: string }
+
+export type AppAction =
+  | ModalAction
+  | SessionAction
+  | TabAction
+  | LayoutAction
+  | UIAction
+  | DataAction

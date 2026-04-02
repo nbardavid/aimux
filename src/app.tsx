@@ -673,6 +673,7 @@ export function App({ backend }: { backend: SessionBackend }) {
         const tab = createTabSession(option.id, customCommand, state.customCommands)
         dispatch({ type: 'close-modal' })
         executeSplitPane(direction, tab)
+        dispatch({ type: 'set-focus-mode', focusMode: 'terminal-input' })
         return
       }
     }

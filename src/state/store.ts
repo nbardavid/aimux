@@ -203,7 +203,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         state.modal.type !== 'session-picker' &&
         state.modal.type !== 'snippet-picker' &&
         state.modal.type !== 'theme-picker' &&
-        state.modal.type !== 'create-session'
+        state.modal.type !== 'create-session' &&
+        state.modal.type !== 'split-picker'
       ) {
         return state
       }
@@ -211,7 +212,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         return state
       }
       let optionCount: number
-      if (state.modal.type === 'new-tab') {
+      if (state.modal.type === 'new-tab' || state.modal.type === 'split-picker') {
         optionCount = getAllAssistantOptions(state.customCommands).length
       } else if (state.modal.type === 'create-session') {
         optionCount = state.modal.directoryResults.length

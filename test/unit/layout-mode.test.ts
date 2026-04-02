@@ -353,6 +353,74 @@ describe('layout mode reducer integration', () => {
   })
 })
 
+describe('hydrate-workspace layout restoration', () => {
+  test('hydrate-workspace restores layout tree with ratios', () => {
+    const tab1 = createTab('tab-1')
+    const tab2 = createTab('tab-2')
+    const savedTree = {
+      type: 'split' as const,
+      direction: 'vertical' as const,
+      ratio: 0.35,
+      first: { type: 'leaf' as const, tabId: 'tab-1' },
+      second: { type: 'leaf' as const, tabId: 'tab-2' },
+    }
+
+    let state = createInitialState()
+    state = appReducer(state, {
+      type: 'hydrate-workspace',
+      tabs: [tab1, tab2],
+      activeTabId: 'tab-1',
+      layoutTree: savedTree,
+    })
+
+    expect(state.layoutTree).toEqual(savedTree)
+    expect(state.tabs).toHaveLength(2)
+    expect(state.activeTabId).toBe('tab-1')
+  })
+
+  test('hydrate-workspace prunes missing tabs from layout tree', () => {
+    const tab1 = createTab('tab-1')
+    const savedTree = {
+      type: 'split' as const,
+      direction: 'vertical' as const,
+      ratio: 0.5,
+      first: { type: 'leaf' as const, tabId: 'tab-1' },
+      second: { type: 'leaf' as const, tabId: 'tab-gone' },
+    }
+
+    let state = createInitialState()
+    state = appReducer(state, {
+      type: 'hydrate-workspace',
+      tabs: [tab1],
+      activeTabId: 'tab-1',
+      layoutTree: savedTree,
+    })
+
+    // tab-gone pruned → split collapsed to leaf
+    expect(state.layoutTree).toEqual(createLeaf('tab-1'))
+  })
+
+  test('hydrate-workspace falls back to leaf when all tree tabs are gone', () => {
+    const tab1 = createTab('tab-new')
+
+    let state = createInitialState()
+    state = appReducer(state, {
+      type: 'hydrate-workspace',
+      tabs: [tab1],
+      activeTabId: 'tab-new',
+      layoutTree: {
+        type: 'split',
+        direction: 'vertical',
+        ratio: 0.5,
+        first: { type: 'leaf', tabId: 'tab-gone-1' },
+        second: { type: 'leaf', tabId: 'tab-gone-2' },
+      },
+    })
+
+    expect(state.layoutTree).toEqual(createLeaf('tab-new'))
+  })
+})
+
 describe('full split flow simulation', () => {
   test('Ctrl+W enters layout mode, | splits, state is correct', () => {
     // Start: one tab in terminal-input mode

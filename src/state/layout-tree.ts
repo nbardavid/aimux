@@ -96,6 +96,19 @@ export function allLeafIds(tree: LayoutNode): string[] {
   return [...allLeafIds(tree.first), ...allLeafIds(tree.second)]
 }
 
+export function pruneLayoutTree(tree: LayoutNode, validTabIds: Set<string>): LayoutNode | null {
+  if (tree.type === 'leaf') {
+    return validTabIds.has(tree.tabId) ? tree : null
+  }
+  const first = pruneLayoutTree(tree.first, validTabIds)
+  const second = pruneLayoutTree(tree.second, validTabIds)
+  if (!first && !second) return null
+  if (!first) return second
+  if (!second) return first
+  if (first === tree.first && second === tree.second) return tree
+  return { ...tree, first, second }
+}
+
 export function resizeSplit(
   tree: LayoutNode,
   targetTabId: string,

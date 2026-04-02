@@ -4,6 +4,7 @@ import {
   createLeaf,
   findLeaf,
   getAdjacentLeaf,
+  pruneLayoutTree,
   removeNode,
   resizeSplit,
   splitNode,
@@ -82,8 +83,10 @@ export function reduceTabState(state: AppState, action: AppAction): AppState | n
         action.activeTabId && action.tabs.some((tab) => tab.id === action.activeTabId)
           ? action.activeTabId
           : (action.tabs[0]?.id ?? null)
-      const hydratedTree =
-        action.layoutTree ?? (action.tabs[0] ? createLeaf(action.tabs[0].id) : null)
+      const tabIds = new Set(action.tabs.map((t) => t.id))
+      const rawTree = action.layoutTree ?? (action.tabs[0] ? createLeaf(action.tabs[0].id) : null)
+      const prunedTree = rawTree ? pruneLayoutTree(rawTree, tabIds) : null
+      const hydratedTree = prunedTree ?? (action.tabs[0] ? createLeaf(action.tabs[0].id) : null)
       return {
         ...state,
         tabs: action.tabs,

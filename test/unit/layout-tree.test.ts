@@ -7,6 +7,7 @@ import {
   findLeaf,
   getAdjacentLeaf,
   type LayoutNode,
+  pruneLayoutTree,
   removeNode,
   resizeSplit,
   splitNode,
@@ -412,5 +413,75 @@ describe('getAdjacentLeaf', () => {
     }
 
     expect(getAdjacentLeaf(tree, 'tab-999', 'right')).toBeNull()
+  })
+})
+
+describe('pruneLayoutTree', () => {
+  test('keeps valid leaf', () => {
+    const leaf = createLeaf('tab-1')
+    expect(pruneLayoutTree(leaf, new Set(['tab-1']))).toBe(leaf)
+  })
+
+  test('removes invalid leaf', () => {
+    const leaf = createLeaf('tab-1')
+    expect(pruneLayoutTree(leaf, new Set(['tab-2']))).toBeNull()
+  })
+
+  test('keeps valid split unchanged', () => {
+    const tree: LayoutNode = {
+      type: 'split',
+      direction: 'vertical',
+      ratio: 0.5,
+      first: createLeaf('tab-1'),
+      second: createLeaf('tab-2'),
+    }
+    expect(pruneLayoutTree(tree, new Set(['tab-1', 'tab-2']))).toBe(tree)
+  })
+
+  test('collapses split when one child is invalid', () => {
+    const tree: LayoutNode = {
+      type: 'split',
+      direction: 'vertical',
+      ratio: 0.5,
+      first: createLeaf('tab-1'),
+      second: createLeaf('tab-2'),
+    }
+    expect(pruneLayoutTree(tree, new Set(['tab-1']))).toEqual(createLeaf('tab-1'))
+  })
+
+  test('returns null when all tabs are invalid', () => {
+    const tree: LayoutNode = {
+      type: 'split',
+      direction: 'vertical',
+      ratio: 0.5,
+      first: createLeaf('tab-1'),
+      second: createLeaf('tab-2'),
+    }
+    expect(pruneLayoutTree(tree, new Set(['tab-99']))).toBeNull()
+  })
+
+  test('prunes nested split correctly', () => {
+    const tree: LayoutNode = {
+      type: 'split',
+      direction: 'vertical',
+      ratio: 0.5,
+      first: {
+        type: 'split',
+        direction: 'horizontal',
+        ratio: 0.3,
+        first: createLeaf('tab-1'),
+        second: createLeaf('tab-2'),
+      },
+      second: createLeaf('tab-3'),
+    }
+    // Remove tab-2 → inner split collapses to tab-1
+    const result = pruneLayoutTree(tree, new Set(['tab-1', 'tab-3']))
+    expect(result).toEqual({
+      type: 'split',
+      direction: 'vertical',
+      ratio: 0.5,
+      first: createLeaf('tab-1'),
+      second: createLeaf('tab-3'),
+    })
   })
 })

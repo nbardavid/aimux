@@ -7,6 +7,7 @@ import type { AppAction, LayoutState, TerminalModeState } from '../state/types'
 import type { TabSession } from '../state/types'
 
 import { logInputDebug } from '../debug/input-log'
+import { computePaneRects } from '../state/layout-tree'
 
 interface BackendRuntimeOptions {
   backend: SessionBackend
@@ -107,18 +108,42 @@ export function useBackendRuntime({
           activeTabId: result?.activeTabId ?? null,
         })
         if (result) {
+          const layoutTree = currentSessionWorkspaceSnapshot?.layoutTree
           dispatch({
             type: 'hydrate-workspace',
             tabs: result.tabs,
             activeTabId: result.activeTabId,
-            layoutTree: currentSessionWorkspaceSnapshot?.layoutTree,
+            layoutTree,
           })
+          if (layoutTree && layoutTree.type === 'split') {
+            const bounds = {
+              x: 0,
+              y: 0,
+              cols: layoutRef.current.terminalCols,
+              rows: layoutRef.current.terminalRows,
+            }
+            for (const [tabId, rect] of computePaneRects(layoutTree, bounds)) {
+              backend.resizeTab(tabId, rect.cols, rect.rows)
+            }
+          }
         } else if (currentSessionWorkspaceSnapshot) {
           dispatch({
             type: 'load-session',
             sessionId: currentSessionId,
             workspaceSnapshot: currentSessionWorkspaceSnapshot,
           })
+          const layoutTree = currentSessionWorkspaceSnapshot.layoutTree
+          if (layoutTree && layoutTree.type === 'split') {
+            const bounds = {
+              x: 0,
+              y: 0,
+              cols: layoutRef.current.terminalCols,
+              rows: layoutRef.current.terminalRows,
+            }
+            for (const [tabId, rect] of computePaneRects(layoutTree, bounds)) {
+              backend.resizeTab(tabId, rect.cols, rect.rows)
+            }
+          }
         }
       })
       .catch((error) => {
@@ -134,6 +159,18 @@ export function useBackendRuntime({
             sessionId: currentSessionId,
             workspaceSnapshot: currentSessionWorkspaceSnapshot,
           })
+          const layoutTree = currentSessionWorkspaceSnapshot.layoutTree
+          if (layoutTree && layoutTree.type === 'split') {
+            const bounds = {
+              x: 0,
+              y: 0,
+              cols: layoutRef.current.terminalCols,
+              rows: layoutRef.current.terminalRows,
+            }
+            for (const [tabId, rect] of computePaneRects(layoutTree, bounds)) {
+              backend.resizeTab(tabId, rect.cols, rect.rows)
+            }
+          }
         }
       })
 

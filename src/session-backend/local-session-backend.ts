@@ -5,6 +5,7 @@ import type { SessionBackend, SessionBackendEvents } from './types'
 
 import { SessionManager } from '../daemon/session-manager'
 import { logDebug } from '../debug/input-log'
+import { computePaneRects } from '../state/layout-tree'
 
 export class LocalSessionBackend
   extends EventEmitter<SessionBackendEvents>
@@ -45,7 +46,20 @@ export class LocalSessionBackend
       snapshotTabs: options.workspaceSnapshot?.tabs.length ?? 0,
     })
     this.currentSessionId = options.sessionId
-    this.sessionManager.resize(options.sessionId, options.cols, options.rows)
+    const layoutTree = options.workspaceSnapshot?.layoutTree
+    if (layoutTree && layoutTree.type === 'split') {
+      const rects = computePaneRects(layoutTree, {
+        x: 0,
+        y: 0,
+        cols: options.cols,
+        rows: options.rows,
+      })
+      for (const [tabId, rect] of rects) {
+        this.sessionManager.resizeTab(options.sessionId, tabId, rect.cols, rect.rows)
+      }
+    } else {
+      this.sessionManager.resize(options.sessionId, options.cols, options.rows)
+    }
     return this.sessionManager.attachSession(options.sessionId, options.workspaceSnapshot)
   }
 

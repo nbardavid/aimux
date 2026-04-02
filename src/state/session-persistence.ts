@@ -1,6 +1,6 @@
 import type { AppState, TabSession, TabStatus, WorkspaceSnapshotV1 } from './types'
 
-import { createLeaf, type LayoutNode } from './layout-tree'
+import { createLeaf, pruneLayoutTree, type LayoutNode } from './layout-tree'
 
 export function createEmptyWorkspaceSnapshot(): WorkspaceSnapshotV1 {
   return {
@@ -73,7 +73,9 @@ export function restoreLayoutTree(
   tabs: TabSession[]
 ): LayoutNode | null {
   if (snapshot?.layoutTree) {
-    return snapshot.layoutTree
+    const validTabIds = new Set(tabs.map((t) => t.id))
+    const pruned = pruneLayoutTree(snapshot.layoutTree, validTabIds)
+    if (pruned) return pruned
   }
   // Fallback: single leaf for the first tab
   return tabs[0] ? createLeaf(tabs[0].id) : null

@@ -4,6 +4,7 @@ import type { ModeId } from './types'
 export function deriveModeId(state: AppState): ModeId {
   if (state.focusMode === 'navigation') return 'navigation'
   if (state.focusMode === 'terminal-input') return 'terminal-input'
+  if (state.focusMode === 'layout') return 'layout'
 
   if (state.focusMode === 'command-edit') {
     switch (state.modal.type) {

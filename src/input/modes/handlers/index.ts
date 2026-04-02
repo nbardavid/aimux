@@ -1,4 +1,5 @@
 import { registerMode } from '../registry'
+import { layoutMode } from './layout'
 import { modalCreateSessionMode } from './modal-create-session'
 import { modalHelpMode } from './modal-help'
 import { modalNewTabMode } from './modal-new-tab'
@@ -17,6 +18,7 @@ import { terminalInputMode } from './terminal-input'
 export function registerAllModes(): void {
   registerMode(navigationMode)
   registerMode(terminalInputMode)
+  registerMode(layoutMode)
   registerMode(modalHelpMode)
   registerMode(modalThemePickerMode)
   registerMode(modalRenameTabMode)

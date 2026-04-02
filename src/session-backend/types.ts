@@ -40,6 +40,7 @@ export interface SessionBackend extends EventEmitter<SessionBackendEvents> {
   scrollViewportToBottom(tabId: string): void
   setActiveTab(tabId: string | null): void
   resizeAll(cols: number, rows: number): void
+  resizeTab(tabId: string, cols: number, rows: number): void
   disposeSession(tabId: string): void
   disposeAll(): void
   destroy(keepSessions?: boolean): Promise<void> | void

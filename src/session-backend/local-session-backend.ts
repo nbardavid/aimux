@@ -113,6 +113,13 @@ export class LocalSessionBackend
     this.sessionManager.resize(this.currentSessionId, cols, rows)
   }
 
+  resizeTab(tabId: string, cols: number, rows: number): void {
+    if (!this.currentSessionId) {
+      return
+    }
+    this.sessionManager.resizeTab(this.currentSessionId, tabId, cols, rows)
+  }
+
   disposeSession(tabId: string): void {
     if (!this.currentSessionId) {
       return

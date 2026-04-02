@@ -60,14 +60,19 @@ export function getStatusBarModel(state: AppState, activeTab?: TabSession): Stat
         left: `INPUT  ${getActiveTabLabel(activeTab)}  ${sessionIcon}  ${sessionLabel}`,
         right: activeTab
           ? activeTab.status === 'disconnected'
-            ? 'Ctrl+z unfocus  Ctrl+r restart restored tab'
-            : 'Ctrl+z unfocus  typing goes to active tab'
+            ? 'Ctrl+z unfocus  Ctrl+w layout  Ctrl+r restart'
+            : 'Ctrl+z unfocus  Ctrl+w layout  typing goes to active tab'
           : 'Ctrl+n new  no active tab to focus',
       }
     case 'modal':
       return {
         left: `MODAL  ${sessionIcon}  ${sessionLabel}`,
         right: 'j/k move  Enter confirm  n/r/d actions  Esc cancel',
+      }
+    case 'layout':
+      return {
+        left: `LAYOUT  ${getActiveTabLabel(activeTab)}  ${sessionIcon}  ${sessionLabel}`,
+        right: 'h/j/k/l focus  |/- split  H/L resize  q close  Esc cancel',
       }
     case 'navigation':
     default:

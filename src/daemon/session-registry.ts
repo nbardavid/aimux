@@ -160,6 +160,10 @@ export class SessionRegistry extends EventEmitter<SessionRegistryEvents> {
     this.ptyManager.resizeAll(cols, rows)
   }
 
+  resizeTab(tabId: string, cols: number, rows: number): void {
+    this.ptyManager.resizeSession(tabId, cols, rows)
+  }
+
   scrollViewport(tabId: string, deltaLines: number): void {
     this.ptyManager.scrollViewport(tabId, deltaLines)
   }

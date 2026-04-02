@@ -12,6 +12,7 @@ import { SessionPickerModal } from './components/session-picker-modal'
 import { Sidebar } from './components/sidebar'
 import { SnippetEditorModal } from './components/snippet-editor-modal'
 import { SnippetPickerModal } from './components/snippet-picker-modal'
+import { SplitLayout } from './components/split-layout'
 import { StatusBar } from './components/status-bar'
 import { TerminalPane } from './components/terminal-pane'
 import { ThemePickerModal } from './components/theme-picker-modal'
@@ -44,16 +45,31 @@ export function RootView({
     <box flexDirection="column" width="100%" height="100%" backgroundColor={theme.background}>
       <box flexDirection="row" gap={1} padding={1} flexGrow={1}>
         <Sidebar state={state} />
-        <TerminalPane
-          tab={activeTab}
-          focusMode={state.focusMode}
-          contentOrigin={contentOrigin}
-          mouseForwardingEnabled={mouseForwardingEnabled}
-          localScrollbackEnabled={localScrollbackEnabled}
-          onTerminalMouseEvent={onTerminalMouseEvent}
-          onTerminalScrollEvent={onTerminalScrollEvent}
-          onTerminalClick={onTerminalClick}
-        />
+        {state.layoutTree && state.layoutTree.type === 'split' ? (
+          <SplitLayout
+            node={state.layoutTree}
+            tabs={state.tabs}
+            activeTabId={state.activeTabId}
+            focusMode={state.focusMode}
+            contentOrigin={contentOrigin}
+            mouseForwardingEnabled={mouseForwardingEnabled}
+            localScrollbackEnabled={localScrollbackEnabled}
+            onTerminalMouseEvent={onTerminalMouseEvent}
+            onTerminalScrollEvent={onTerminalScrollEvent}
+            onTerminalClick={onTerminalClick}
+          />
+        ) : (
+          <TerminalPane
+            tab={activeTab}
+            focusMode={state.focusMode}
+            contentOrigin={contentOrigin}
+            mouseForwardingEnabled={mouseForwardingEnabled}
+            localScrollbackEnabled={localScrollbackEnabled}
+            onTerminalMouseEvent={onTerminalMouseEvent}
+            onTerminalScrollEvent={onTerminalScrollEvent}
+            onTerminalClick={onTerminalClick}
+          />
+        )}
       </box>
       <StatusBar state={state} activeTab={activeTab} />
       {state.modal.type === 'new-tab' ? (

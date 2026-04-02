@@ -111,6 +111,7 @@ export function useBackendRuntime({
             type: 'hydrate-workspace',
             tabs: result.tabs,
             activeTabId: result.activeTabId,
+            layoutTree: currentSessionWorkspaceSnapshot?.layoutTree,
           })
         } else if (currentSessionWorkspaceSnapshot) {
           dispatch({

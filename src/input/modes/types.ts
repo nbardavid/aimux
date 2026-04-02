@@ -5,6 +5,7 @@ import type { AppAction, AppState, TabSession } from '../../state/types'
 export type ModeId =
   | 'navigation'
   | 'terminal-input'
+  | 'layout'
   | 'modal.new-tab'
   | 'modal.new-tab.command-edit'
   | 'modal.session-picker'
@@ -37,6 +38,7 @@ export type SideEffect =
   | { type: 'apply-theme'; action: 'confirm' }
   | { type: 'apply-theme'; action: 'preview'; delta: 1 | -1 }
   | { type: 'rename-session'; sessionId: string; name: string }
+  | { type: 'split-pane'; direction: import('../../state/layout-tree').SplitDirection }
 
 export interface KeyResult {
   actions: AppAction[]

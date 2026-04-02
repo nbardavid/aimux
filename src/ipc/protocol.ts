@@ -37,6 +37,7 @@ export type ClientRequest =
     }
   | { id: string; type: 'write'; payload: { tabId: string; data: string } }
   | { id: string; type: 'resizeClient'; payload: { cols: number; rows: number } }
+  | { id: string; type: 'resizeTab'; payload: { tabId: string; cols: number; rows: number } }
   | { id: string; type: 'scroll'; payload: { tabId: string; deltaLines: number } }
   | { id: string; type: 'scrollToBottom'; payload: { tabId: string } }
   | { id: string; type: 'setActiveTab'; payload: { tabId: string | null } }
@@ -220,6 +221,11 @@ export function parseClientRequest(value: unknown): ClientRequest {
     case 'resizeClient':
       assert(isFiniteNumber(value.payload.cols), 'resizeClient.cols must be a number')
       assert(isFiniteNumber(value.payload.rows), 'resizeClient.rows must be a number')
+      return value as ClientRequest
+    case 'resizeTab':
+      assert(isString(value.payload.tabId), 'resizeTab.tabId must be a string')
+      assert(isFiniteNumber(value.payload.cols), 'resizeTab.cols must be a number')
+      assert(isFiniteNumber(value.payload.rows), 'resizeTab.rows must be a number')
       return value as ClientRequest
     case 'scroll':
       assert(isString(value.payload.tabId), 'scroll.tabId must be a string')

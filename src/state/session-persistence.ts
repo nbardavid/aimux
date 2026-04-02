@@ -1,5 +1,7 @@
 import type { AppState, TabSession, TabStatus, WorkspaceSnapshotV1 } from './types'
 
+import { createLeaf, type LayoutNode } from './layout-tree'
+
 export function createEmptyWorkspaceSnapshot(): WorkspaceSnapshotV1 {
   return {
     version: 1,
@@ -42,6 +44,7 @@ export function serializeWorkspace(state: AppState): WorkspaceSnapshotV1 {
       errorMessage: tab.errorMessage,
       exitCode: tab.exitCode,
     })),
+    layoutTree: state.layoutTree ?? undefined,
   }
 }
 
@@ -65,10 +68,21 @@ export function restoreTabsFromWorkspace(snapshot: WorkspaceSnapshotV1 | undefin
   }))
 }
 
+export function restoreLayoutTree(
+  snapshot: WorkspaceSnapshotV1 | undefined,
+  tabs: TabSession[]
+): LayoutNode | null {
+  if (snapshot?.layoutTree) {
+    return snapshot.layoutTree
+  }
+  // Fallback: single leaf for the first tab
+  return tabs[0] ? createLeaf(tabs[0].id) : null
+}
+
 export function restoreWorkspaceState(
   state: AppState,
   workspaceSnapshot: WorkspaceSnapshotV1 | undefined
-): Pick<AppState, 'tabs' | 'activeTabId' | 'focusMode' | 'sidebar'> {
+): Pick<AppState, 'tabs' | 'activeTabId' | 'focusMode' | 'sidebar' | 'layoutTree'> {
   const tabs = restoreTabsFromWorkspace(workspaceSnapshot)
   const activeTabId =
     workspaceSnapshot?.activeTabId && tabs.some((tab) => tab.id === workspaceSnapshot.activeTabId)
@@ -78,6 +92,7 @@ export function restoreWorkspaceState(
   return {
     tabs,
     activeTabId,
+    layoutTree: restoreLayoutTree(workspaceSnapshot, tabs),
     focusMode: 'navigation',
     sidebar: {
       ...state.sidebar,

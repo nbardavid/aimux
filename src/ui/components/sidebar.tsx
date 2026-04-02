@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import type { AppState } from '../../state/types'
 
+import { allLeafIds } from '../../state/layout-tree'
 import { getCurrentBranch } from '../git-branch'
 import { theme } from '../theme'
 import { getSidebarScrollTarget } from './sidebar-scroll'
@@ -116,16 +117,23 @@ export function Sidebar({ state }: SidebarProps) {
             <text fg={theme.textMuted}>No tabs yet. Press Ctrl+n.</text>
           </box>
         ) : (
-          state.tabs.map((tab) => (
-            <TabItem
-              key={tab.id}
-              id={`sidebar-tab-${tab.id}`}
-              tab={tab}
-              active={tab.id === state.activeTabId}
-              focused={state.focusMode === 'navigation'}
-              isFocusedInput={tab.id === state.activeTabId && state.focusMode === 'terminal-input'}
-            />
-          ))
+          state.tabs.map((tab) => {
+            const layoutIds = state.layoutTree ? allLeafIds(state.layoutTree) : []
+            const isInLayout = layoutIds.includes(tab.id)
+            return (
+              <TabItem
+                key={tab.id}
+                id={`sidebar-tab-${tab.id}`}
+                tab={tab}
+                active={tab.id === state.activeTabId}
+                focused={state.focusMode === 'navigation'}
+                isFocusedInput={
+                  tab.id === state.activeTabId && state.focusMode === 'terminal-input'
+                }
+                inLayout={isInLayout && layoutIds.length > 1}
+              />
+            )
+          })
         )}
       </scrollbox>
     </box>

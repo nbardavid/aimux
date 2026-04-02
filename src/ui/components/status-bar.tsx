@@ -12,6 +12,8 @@ function getModeBorderColor(focusMode: AppState['focusMode']): string {
   switch (focusMode) {
     case 'terminal-input':
       return theme.accent
+    case 'layout':
+      return theme.warning
     case 'modal':
       return theme.warning
     case 'navigation':

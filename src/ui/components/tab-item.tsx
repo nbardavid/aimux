@@ -10,6 +10,7 @@ interface TabItemProps {
   active: boolean
   focused: boolean
   isFocusedInput: boolean
+  inLayout?: boolean
 }
 
 function getStatusColor(status: TabSession['status']): string {
@@ -70,18 +71,24 @@ function ActivityIndicator({ tab, isFocusedInput }: { tab: TabSession; isFocused
   return <text fg={getStatusColor(tab.status)}>{tab.status}</text>
 }
 
-export function TabItem({ id, tab, active, focused, isFocusedInput }: TabItemProps) {
+export function TabItem({ id, tab, active, focused, isFocusedInput, inLayout }: TabItemProps) {
   const label = tab.assistant.charAt(0).toUpperCase() + tab.assistant.slice(1).toLowerCase()
-  const indicator = active ? (focused ? '▶' : '◆') : '│'
-  const indicatorColor = active ? (focused ? theme.accent : theme.accentAlt) : theme.dim
+  const indicator = active ? (focused ? '▶' : '◆') : inLayout ? '┃' : '│'
+  const indicatorColor = active
+    ? focused
+      ? theme.accent
+      : theme.accentAlt
+    : inLayout
+      ? theme.accent
+      : theme.dim
 
   return (
     <box
       id={id}
       paddingLeft={1}
       paddingRight={1}
-      paddingTop={1}
-      paddingBottom={1}
+      paddingTop={0}
+      paddingBottom={0}
       border={active}
       borderColor={active ? theme.borderActive : theme.border}
       backgroundColor={active ? theme.panelHighlight : theme.panelMuted}

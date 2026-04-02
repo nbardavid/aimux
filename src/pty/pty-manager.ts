@@ -234,6 +234,18 @@ export class PtyManager extends EventEmitter<PtyManagerEvents> {
     }
   }
 
+  resizeSession(tabId: string, cols: number, rows: number): void {
+    const session = this.sessions.get(tabId)
+    if (!session) {
+      return
+    }
+    const safeCols = Math.max(20, cols)
+    const safeRows = Math.max(8, rows)
+    session.pty.resize(safeCols, safeRows)
+    session.emulator.resize(safeCols, safeRows)
+    this.emitRenderIfChanged(session)
+  }
+
   disposeSession(tabId: string): void {
     const session = this.sessions.get(tabId)
     if (!session) {

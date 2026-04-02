@@ -124,6 +124,17 @@ export async function runDaemon(): Promise<void> {
                 sendOk(socket, message.id)
                 break
               }
+              case 'resizeTab': {
+                const sessionId = requireSession(socket, attachedSessions)
+                sessionManager.resizeTab(
+                  sessionId,
+                  message.payload.tabId,
+                  message.payload.cols,
+                  message.payload.rows
+                )
+                sendOk(socket, message.id)
+                break
+              }
               case 'scroll': {
                 const sessionId = requireSession(socket, attachedSessions)
                 sessionManager.scroll(sessionId, message.payload.tabId, message.payload.deltaLines)

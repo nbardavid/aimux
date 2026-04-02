@@ -187,6 +187,7 @@ function MouseHarness({
       state={{
         tabs: [tab],
         activeTabId: TEST_TAB_ID,
+        layoutTree: { type: 'leaf', tabId: TEST_TAB_ID },
         sessions: [],
         currentSessionId: null,
         snippets: [],

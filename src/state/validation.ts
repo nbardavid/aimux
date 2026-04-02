@@ -70,6 +70,24 @@ function isTerminalModeState(value: unknown): value is TerminalModeState {
   )
 }
 
+function isLayoutNode(value: unknown): boolean {
+  if (!isObjectRecord(value)) return false
+  if (value.type === 'leaf') {
+    return isString(value.tabId) && value.tabId.length > 0
+  }
+  if (value.type === 'split') {
+    return (
+      (value.direction === 'horizontal' || value.direction === 'vertical') &&
+      isFiniteNumber(value.ratio) &&
+      value.ratio > 0 &&
+      value.ratio < 1 &&
+      isLayoutNode(value.first) &&
+      isLayoutNode(value.second)
+    )
+  }
+  return false
+}
+
 export function isWorkspaceSnapshotV1(value: unknown): value is WorkspaceSnapshotV1 {
   return (
     isObjectRecord(value) &&
@@ -97,7 +115,8 @@ export function isWorkspaceSnapshotV1(value: unknown): value is WorkspaceSnapsho
         (tab.viewport === undefined || isTerminalSnapshot(tab.viewport)) &&
         (tab.errorMessage === undefined || isString(tab.errorMessage)) &&
         (tab.exitCode === undefined || isFiniteNumber(tab.exitCode))
-    )
+    ) &&
+    (value.layoutTree === undefined || isLayoutNode(value.layoutTree))
   )
 }
 

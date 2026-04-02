@@ -67,6 +67,10 @@ export class SessionManager extends EventEmitter<SessionManagerEvents> {
     this.getOrCreateRegistry(sessionId).resizeAll(cols, rows)
   }
 
+  resizeTab(sessionId: string, tabId: string, cols: number, rows: number): void {
+    this.getOrCreateRegistry(sessionId).resizeTab(tabId, cols, rows)
+  }
+
   scroll(sessionId: string, tabId: string, deltaLines: number): void {
     this.getOrCreateRegistry(sessionId).scrollViewport(tabId, deltaLines)
   }

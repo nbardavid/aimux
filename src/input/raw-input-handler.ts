@@ -6,6 +6,8 @@ import { BRACKETED_PASTE_END, BRACKETED_PASTE_START, buildPtyPastePayload } from
 const ESC = '\x1b'
 const CTRL_Z_RAW = '\x1a'
 const CTRL_Z_KITTY = `${ESC}[122;5u`
+const CTRL_W_RAW = '\x17'
+const CTRL_W_KITTY = `${ESC}[119;5u`
 const CTRL_B_RAW = '\x02'
 const CTRL_B_KITTY = `${ESC}[98;5u`
 const KITTY_CTRL_RE = new RegExp(`^${ESC}\\[(\\d+);(\\d+)u$`)
@@ -77,6 +79,7 @@ export function createRawInputHandler(deps: {
   getBracketedPasteModeEnabled: () => boolean
   writeToPty: (tabId: string, data: string) => void
   leaveTerminalInput: () => void
+  enterLayoutMode: () => void
   toggleSidebar: () => void
 }): (sequence: string) => boolean {
   let bracketedPasteBuffer: string | null = null
@@ -141,6 +144,11 @@ export function createRawInputHandler(deps: {
       return true
     }
 
+    if (bracketedPasteBuffer === null && (sequence === CTRL_W_RAW || sequence === CTRL_W_KITTY)) {
+      deps.enterLayoutMode()
+      return true
+    }
+
     if (bracketedPasteBuffer === null && (sequence === CTRL_B_RAW || sequence === CTRL_B_KITTY)) {
       deps.toggleSidebar()
       return true
@@ -163,6 +171,11 @@ export function createRawInputHandler(deps: {
 
     if (sequence === CTRL_Z_RAW || sequence === CTRL_Z_KITTY) {
       deps.leaveTerminalInput()
+      return true
+    }
+
+    if (sequence === CTRL_W_RAW || sequence === CTRL_W_KITTY) {
+      deps.enterLayoutMode()
       return true
     }
 

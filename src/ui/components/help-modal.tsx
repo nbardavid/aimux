@@ -7,6 +7,7 @@ const SECTIONS = [
       ['j / k', 'Move between tabs'],
       ['Shift+J / K', 'Reorder tabs'],
       ['i', 'Focus terminal input'],
+      ['r', 'Rename tab'],
       ['?', 'Show this help'],
     ],
   },
@@ -17,10 +18,12 @@ const SECTIONS = [
       ['Ctrl+w', 'Close tab'],
       ['Ctrl+r', 'Restart tab'],
       ['Ctrl+g', 'Session picker'],
+      ['Ctrl+s', 'Snippet picker'],
+      ['Ctrl+t', 'Theme picker'],
     ],
   },
   {
-    title: 'Layout',
+    title: 'Sidebar',
     bindings: [
       ['Ctrl+b', 'Toggle sidebar'],
       ['Ctrl+h / l', 'Resize sidebar'],
@@ -28,7 +31,22 @@ const SECTIONS = [
   },
   {
     title: 'Terminal Input',
-    bindings: [['Ctrl+z', 'Back to navigation']],
+    bindings: [
+      ['Ctrl+z', 'Back to navigation'],
+      ['Ctrl+w', 'Enter layout mode'],
+      ['Ctrl+b', 'Toggle sidebar'],
+    ],
+  },
+  {
+    title: 'Layout Mode (Ctrl+w)',
+    bindings: [
+      ['|', 'Split vertical'],
+      ['-', 'Split horizontal'],
+      ['h / j / k / l', 'Focus pane'],
+      ['Shift+H/J/K/L', 'Resize pane'],
+      ['q', 'Close pane'],
+      ['Esc', 'Cancel'],
+    ],
   },
   {
     title: 'General',

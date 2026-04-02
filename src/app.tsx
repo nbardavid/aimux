@@ -40,6 +40,7 @@ import {
   isCommandAvailable,
   parseCommand,
 } from './pty/command-registry'
+import { allLeafIds, computePaneRects, createLeaf, findLeaf, splitNode } from './state/layout-tree'
 import { filterSessions, filterSnippets } from './state/selectors'
 import { loadSessionCatalog } from './state/session-catalog'
 import { loadSnippetCatalog } from './state/snippet-catalog'
@@ -202,6 +203,7 @@ export function App({ backend }: { backend: SessionBackend }) {
         backend.write(tabId, data)
       },
       leaveTerminalInput: () => dispatch({ type: 'set-focus-mode', focusMode: 'navigation' }),
+      enterLayoutMode: () => dispatch({ type: 'set-focus-mode', focusMode: 'layout' }),
       toggleSidebar: () => dispatch({ type: 'toggle-sidebar' }),
     })
 
@@ -404,12 +406,20 @@ export function App({ backend }: { backend: SessionBackend }) {
     if (resizingTimerRef.current) {
       clearTimeout(resizingTimerRef.current)
     }
-    backend.resizeAll(terminalSize.cols, terminalSize.rows)
+    if (state.layoutTree && state.layoutTree.type === 'split') {
+      const bounds = { x: 0, y: 0, cols: terminalSize.cols, rows: terminalSize.rows }
+      const rects = computePaneRects(state.layoutTree, bounds)
+      for (const [tabId, rect] of rects) {
+        backend.resizeTab(tabId, rect.cols, rect.rows)
+      }
+    } else {
+      backend.resizeAll(terminalSize.cols, terminalSize.rows)
+    }
     resizingTimerRef.current = setTimeout(() => {
       resizingRef.current = false
       resizingTimerRef.current = null
     }, 500)
-  }, [backend, terminalSize.cols, terminalSize.rows])
+  }, [backend, terminalSize.cols, terminalSize.rows, state.layoutTree])
 
   function getCurrentSessionProjectPath(): string | undefined {
     if (!state.currentSessionId) return undefined
@@ -616,6 +626,37 @@ export function App({ backend }: { backend: SessionBackend }) {
       }
       case 'rename-session': {
         handleRenameSessionEffect(state.sessions, dispatch, effect.sessionId, effect.name)
+        return
+      }
+      case 'split-pane': {
+        const customCommand = state.customCommands.terminal
+        const tab = createTabSession('terminal', customCommand, state.customCommands)
+
+        // Compute expected pane dimensions after the split
+        const currentTree = state.layoutTree ?? createLeaf(state.activeTabId!)
+        const baseTree = findLeaf(currentTree, state.activeTabId!)
+          ? currentTree
+          : createLeaf(state.activeTabId!)
+        const newTree = splitNode(baseTree, state.activeTabId!, effect.direction, tab.id)
+        const bounds = {
+          x: 0,
+          y: 0,
+          cols: state.layout.terminalCols,
+          rows: state.layout.terminalRows,
+        }
+        const paneRect = computePaneRects(newTree, bounds).get(tab.id)
+
+        dispatch({ type: 'split-pane', direction: effect.direction, newTab: tab })
+        startTabSession(
+          backend,
+          dispatch,
+          clearStartupGrace,
+          (tabId) => startStartupGrace(tabId, STARTUP_GRACE_MS),
+          tab,
+          paneRect?.cols ?? state.layout.terminalCols,
+          paneRect?.rows ?? state.layout.terminalRows,
+          getCurrentSessionProjectPath()
+        )
         return
       }
     }

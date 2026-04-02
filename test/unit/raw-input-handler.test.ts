@@ -16,6 +16,7 @@ function setup(overrides?: {
   const bracketedPasteModeEnabled = overrides?.bracketedPasteModeEnabled ?? false
   const writeToPty = mock((_tabId: string, _data: string) => {})
   const leaveTerminalInput = mock(() => {})
+  const enterLayoutMode = mock(() => {})
   const toggleSidebar = mock(() => {})
 
   const handler = createRawInputHandler({
@@ -26,10 +27,11 @@ function setup(overrides?: {
     getBracketedPasteModeEnabled: () => bracketedPasteModeEnabled,
     writeToPty,
     leaveTerminalInput,
+    enterLayoutMode,
     toggleSidebar,
   })
 
-  return { handler, writeToPty, leaveTerminalInput, toggleSidebar }
+  return { handler, writeToPty, leaveTerminalInput, enterLayoutMode, toggleSidebar }
 }
 
 describe('createRawInputHandler', () => {

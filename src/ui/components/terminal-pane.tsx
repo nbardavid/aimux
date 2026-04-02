@@ -8,7 +8,8 @@ import { theme } from '../theme'
 
 interface TerminalPaneProps {
   tab?: TabSession
-  focusMode: 'navigation' | 'terminal-input' | 'modal' | 'command-edit'
+  focusMode: import('../../state/types').FocusMode
+  isActive?: boolean
   contentOrigin: TerminalContentOrigin
   mouseForwardingEnabled: boolean
   localScrollbackEnabled: boolean
@@ -70,6 +71,7 @@ function renderViewport(tab: TabSession): ReactNode {
 export function TerminalPane({
   tab,
   focusMode,
+  isActive,
   contentOrigin,
   mouseForwardingEnabled,
   localScrollbackEnabled,
@@ -116,7 +118,11 @@ export function TerminalPane({
     <box flexDirection="column" flexGrow={1} gap={1}>
       <box
         border
-        borderColor={focusMode === 'terminal-input' ? theme.borderActive : theme.border}
+        borderColor={
+          (isActive !== undefined ? isActive : focusMode === 'terminal-input')
+            ? theme.borderActive
+            : theme.border
+        }
         title={getTitle(tab)}
         padding={1}
         flexDirection="column"

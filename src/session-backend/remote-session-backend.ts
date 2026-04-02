@@ -331,6 +331,18 @@ export class RemoteSessionBackend
     }).catch((error) => this.reportCommandError('resizeClient', error))
   }
 
+  resizeTab(tabId: string, cols: number, rows: number): void {
+    if (!this.attached) {
+      return
+    }
+    logDebug('backend.remote.resizeTab', { sessionId: this.currentSessionId, tabId, cols, rows })
+    void this.sendExpectOk({
+      id: crypto.randomUUID(),
+      type: 'resizeTab',
+      payload: { tabId, cols, rows },
+    }).catch((error) => this.reportCommandError('resizeTab', error, tabId))
+  }
+
   disposeSession(tabId: string): void {
     if (!this.attached) {
       return

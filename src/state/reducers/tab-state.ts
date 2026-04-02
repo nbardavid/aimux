@@ -1,5 +1,14 @@
 import type { AppAction, AppState, TabSession } from '../types'
 
+import {
+  createLeaf,
+  findLeaf,
+  getAdjacentLeaf,
+  removeNode,
+  resizeSplit,
+  splitNode,
+} from '../layout-tree'
+
 function clampBuffer(buffer: string): string {
   return buffer.length <= 50_000 ? buffer : buffer.slice(buffer.length - 50_000)
 }
@@ -27,38 +36,59 @@ function closeTabAtIndex(state: AppState, indexToClose: number): AppState {
 
   const closingTabId = state.tabs[indexToClose]?.id
   const tabs = state.tabs.filter((_, index) => index !== indexToClose)
-  const nextActiveTab =
-    state.activeTabId === closingTabId
-      ? (tabs[indexToClose] ?? tabs[indexToClose - 1] ?? null)
-      : (tabs.find((tab) => tab.id === state.activeTabId) ?? null)
+
+  let nextActiveTabId: string | null
+  if (state.activeTabId === closingTabId) {
+    // Try to find adjacent pane in layout tree first
+    const layoutNeighbor =
+      closingTabId && state.layoutTree
+        ? (getAdjacentLeaf(state.layoutTree, closingTabId, 'right') ??
+          getAdjacentLeaf(state.layoutTree, closingTabId, 'left') ??
+          getAdjacentLeaf(state.layoutTree, closingTabId, 'down') ??
+          getAdjacentLeaf(state.layoutTree, closingTabId, 'up'))
+        : null
+    nextActiveTabId = layoutNeighbor ?? tabs[indexToClose]?.id ?? tabs[indexToClose - 1]?.id ?? null
+  } else {
+    nextActiveTabId = tabs.find((tab) => tab.id === state.activeTabId)?.id ?? null
+  }
+
+  const newTree =
+    closingTabId && state.layoutTree ? removeNode(state.layoutTree, closingTabId) : state.layoutTree
 
   return {
     ...state,
     tabs,
-    activeTabId: nextActiveTab?.id ?? null,
+    activeTabId: nextActiveTabId,
+    layoutTree: newTree,
     focusMode: tabs.length === 0 ? 'navigation' : state.focusMode,
   }
 }
 
 export function reduceTabState(state: AppState, action: AppAction): AppState | null {
   switch (action.type) {
-    case 'add-tab':
+    case 'add-tab': {
+      const newTab = { ...action.tab, activity: action.tab.activity ?? 'idle' }
       return {
         ...state,
-        tabs: [...state.tabs, { ...action.tab, activity: action.tab.activity ?? 'idle' }],
-        activeTabId: action.tab.id,
+        tabs: [...state.tabs, newTab],
+        activeTabId: newTab.id,
+        layoutTree: state.layoutTree ? state.layoutTree : createLeaf(newTab.id),
         focusMode: 'navigation',
         modal: { type: null, selectedIndex: 0, editBuffer: null, sessionTargetId: null },
       }
+    }
     case 'hydrate-workspace': {
       const hydratedActiveTabId =
         action.activeTabId && action.tabs.some((tab) => tab.id === action.activeTabId)
           ? action.activeTabId
           : (action.tabs[0]?.id ?? null)
+      const hydratedTree =
+        action.layoutTree ?? (action.tabs[0] ? createLeaf(action.tabs[0].id) : null)
       return {
         ...state,
         tabs: action.tabs,
         activeTabId: hydratedActiveTabId,
+        layoutTree: hydratedTree,
         focusMode: 'navigation',
       }
     }
@@ -174,6 +204,46 @@ export function reduceTabState(state: AppState, action: AppAction): AppState | n
         ...state,
         tabs: updateTab(state.tabs, action.tabId, (tab) => ({ ...tab, title: action.title })),
       }
+    case 'split-pane': {
+      if (!state.activeTabId) {
+        return state
+      }
+      const newTab = { ...action.newTab, activity: action.newTab.activity ?? 'idle' }
+      const currentTree = state.layoutTree ?? createLeaf(state.activeTabId)
+      const tree = findLeaf(currentTree, state.activeTabId)
+        ? currentTree
+        : createLeaf(state.activeTabId)
+      return {
+        ...state,
+        tabs: [...state.tabs, newTab],
+        activeTabId: newTab.id,
+        layoutTree: splitNode(tree, state.activeTabId, action.direction, newTab.id),
+      }
+    }
+    case 'close-pane': {
+      const idx = state.tabs.findIndex((tab) => tab.id === action.tabId)
+      return closeTabAtIndex(state, idx)
+    }
+    case 'focus-pane-direction': {
+      if (!state.activeTabId || !state.layoutTree) {
+        return state
+      }
+      const neighbor = getAdjacentLeaf(state.layoutTree, state.activeTabId, action.direction)
+      if (!neighbor) {
+        return state
+      }
+      return { ...state, activeTabId: neighbor }
+    }
+    case 'resize-pane': {
+      if (!state.layoutTree) {
+        return state
+      }
+      const newTree = resizeSplit(state.layoutTree, action.tabId, action.delta, action.axis)
+      if (newTree === state.layoutTree) {
+        return state
+      }
+      return { ...state, layoutTree: newTree }
+    }
     default:
       return null
   }

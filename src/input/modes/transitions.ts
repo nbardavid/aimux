@@ -10,7 +10,8 @@ const TRANSITIONS: Record<ModeId, ModeId[]> = {
     'modal.theme-picker',
     'modal.rename-tab',
   ],
-  'terminal-input': ['navigation'],
+  'terminal-input': ['navigation', 'layout'],
+  'layout': ['terminal-input', 'navigation'],
   'modal.new-tab': ['navigation', 'modal.new-tab.command-edit'],
   'modal.new-tab.command-edit': ['modal.new-tab'],
   'modal.session-picker': [

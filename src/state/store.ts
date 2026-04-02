@@ -28,6 +28,7 @@ export function createInitialState(
   return {
     tabs: [],
     activeTabId: null,
+    layoutTree: null,
     sessions,
     currentSessionId: null,
     snippets,

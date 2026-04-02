@@ -6,7 +6,7 @@ export type TabStatus = 'starting' | 'running' | 'disconnected' | 'exited' | 'er
 
 export type TabActivity = 'busy' | 'idle'
 
-export type FocusMode = 'navigation' | 'terminal-input' | 'modal' | 'command-edit'
+export type FocusMode = 'navigation' | 'terminal-input' | 'modal' | 'command-edit' | 'layout'
 
 export type ModalType =
   | 'new-tab'
@@ -71,6 +71,7 @@ export interface WorkspaceSnapshotV1 {
     width: number
   }
   tabs: PersistedTabSnapshot[]
+  layoutTree?: import('./layout-tree').LayoutNode
 }
 
 export interface SessionRecord {
@@ -191,6 +192,7 @@ export interface SnippetRecord {
 export interface AppState {
   tabs: TabSession[]
   activeTabId: string | null
+  layoutTree: import('./layout-tree').LayoutNode | null
   sessions: SessionRecord[]
   currentSessionId: string | null
   snippets: SnippetRecord[]
@@ -209,7 +211,12 @@ export type AppAction =
   | { type: 'close-modal' }
   | { type: 'move-modal-selection'; delta: number }
   | { type: 'add-tab'; tab: TabSession }
-  | { type: 'hydrate-workspace'; tabs: TabSession[]; activeTabId: string | null }
+  | {
+      type: 'hydrate-workspace'
+      tabs: TabSession[]
+      activeTabId: string | null
+      layoutTree?: import('./layout-tree').LayoutNode | null
+    }
   | { type: 'load-session'; sessionId: string; workspaceSnapshot?: WorkspaceSnapshotV1 }
   | { type: 'set-sessions'; sessions: SessionRecord[] }
   | { type: 'create-session-record'; session: SessionRecord }
@@ -252,3 +259,19 @@ export type AppAction =
   | { type: 'delete-snippet'; snippetId: string }
   | { type: 'begin-snippet-filter' }
   | { type: 'open-theme-picker' }
+  | {
+      type: 'split-pane'
+      direction: import('./layout-tree').SplitDirection
+      newTab: TabSession
+    }
+  | { type: 'close-pane'; tabId: string }
+  | {
+      type: 'focus-pane-direction'
+      direction: 'left' | 'right' | 'up' | 'down'
+    }
+  | {
+      type: 'resize-pane'
+      tabId: string
+      delta: number
+      axis?: import('./layout-tree').SplitDirection
+    }

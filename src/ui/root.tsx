@@ -1,6 +1,7 @@
 import type { MouseEvent } from '@opentui/core'
 
 import type { TerminalContentOrigin } from '../input/raw-input-handler'
+import type { SplitDirection } from '../state/layout-tree'
 import type { AppState } from '../state/types'
 import type { ThemeId } from './themes'
 
@@ -29,6 +30,15 @@ interface RootViewProps {
   onTerminalScrollEvent: (event: MouseEvent) => void
   onTerminalClick?: (event: MouseEvent, origin: TerminalContentOrigin, tabId?: string) => void
   onPaneActivate?: (tabId: string) => void
+  onSplitResize?: (tabId: string, ratio: number, axis: SplitDirection) => void
+  onSeparatorDragStart?: (info: {
+    tabId: string
+    direction: SplitDirection
+    screenStart: number
+    totalSize: number
+  }) => void
+  onSeparatorDrag?: (event: MouseEvent) => boolean
+  onSeparatorDragEnd?: () => void
   terminalCols: number
   terminalRows: number
 }
@@ -43,6 +53,10 @@ export function RootView({
   onTerminalScrollEvent,
   onTerminalClick,
   onPaneActivate,
+  onSplitResize,
+  onSeparatorDragStart,
+  onSeparatorDrag,
+  onSeparatorDragEnd,
   terminalCols,
   terminalRows,
 }: RootViewProps) {
@@ -67,6 +81,10 @@ export function RootView({
             onTerminalScrollEvent={onTerminalScrollEvent}
             onTerminalClick={onTerminalClick}
             onPaneActivate={onPaneActivate}
+            onSplitResize={onSplitResize}
+            onSeparatorDragStart={onSeparatorDragStart}
+            onSeparatorDrag={onSeparatorDrag}
+            onSeparatorDragEnd={onSeparatorDragEnd}
             bounds={{ x: 0, y: 0, cols: terminalCols, rows: terminalRows }}
           />
         ) : (

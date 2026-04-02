@@ -153,6 +153,44 @@ export function resizeSplit(
   return tree
 }
 
+export function setSplitRatio(
+  tree: LayoutNode,
+  targetTabId: string,
+  ratio: number,
+  axis?: SplitDirection
+): LayoutNode {
+  if (tree.type === 'leaf') {
+    return tree
+  }
+
+  const inFirst = findLeaf(tree.first, targetTabId)
+  const inSecond = findLeaf(tree.second, targetTabId)
+
+  if (!inFirst && !inSecond) {
+    return tree
+  }
+
+  const canResizeThis = !axis || tree.direction === axis
+
+  if (inFirst || inSecond) {
+    if (inFirst) {
+      const newFirst = setSplitRatio(tree.first, targetTabId, ratio, axis)
+      if (newFirst !== tree.first) return { ...tree, first: newFirst }
+    } else {
+      const newSecond = setSplitRatio(tree.second, targetTabId, ratio, axis)
+      if (newSecond !== tree.second) return { ...tree, second: newSecond }
+    }
+
+    if (canResizeThis) {
+      const newRatio = Math.min(MAX_RATIO, Math.max(MIN_RATIO, ratio))
+      if (newRatio === tree.ratio) return tree
+      return { ...tree, ratio: newRatio }
+    }
+  }
+
+  return tree
+}
+
 export function computePaneRects(tree: LayoutNode, bounds: PaneRect): Map<string, PaneRect> {
   const result = new Map<string, PaneRect>()
 

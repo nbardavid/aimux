@@ -1,7 +1,7 @@
 import type { MouseEvent as OtuiMouseEvent } from '@opentui/core'
 
 import type { TerminalContentOrigin } from '../../input/raw-input-handler'
-import type { LayoutNode, PaneRect } from '../../state/layout-tree'
+import type { LayoutNode, PaneRect, SplitDirection } from '../../state/layout-tree'
 import type { FocusMode, TabSession } from '../../state/types'
 
 import { PANE_BORDER, computePaneRects } from '../../state/layout-tree'
@@ -21,6 +21,15 @@ interface SplitLayoutProps {
   onTerminalScrollEvent: (event: OtuiMouseEvent) => void
   onTerminalClick?: (event: OtuiMouseEvent, origin: TerminalContentOrigin, tabId?: string) => void
   onPaneActivate?: (tabId: string) => void
+  onSplitResize?: (tabId: string, ratio: number, axis: SplitDirection) => void
+  onSeparatorDragStart?: (info: {
+    tabId: string
+    direction: SplitDirection
+    screenStart: number
+    totalSize: number
+  }) => void
+  onSeparatorDrag?: (event: OtuiMouseEvent) => boolean
+  onSeparatorDragEnd?: () => void
   contentOrigin: TerminalContentOrigin
   bounds: PaneRect
 }
@@ -36,6 +45,10 @@ export function SplitLayout({
   onTerminalScrollEvent,
   onTerminalClick,
   onPaneActivate,
+  onSplitResize,
+  onSeparatorDragStart,
+  onSeparatorDrag,
+  onSeparatorDragEnd,
   contentOrigin,
   bounds,
 }: SplitLayoutProps) {
@@ -61,6 +74,8 @@ export function SplitLayout({
         onTerminalScrollEvent={onTerminalScrollEvent}
         onTerminalClick={onTerminalClick}
         onPaneActivate={onPaneActivate}
+        onSeparatorDrag={onSeparatorDrag}
+        onSeparatorDragEnd={onSeparatorDragEnd}
       />
     )
   }
@@ -94,6 +109,10 @@ export function SplitLayout({
           onTerminalScrollEvent={onTerminalScrollEvent}
           onTerminalClick={onTerminalClick}
           onPaneActivate={onPaneActivate}
+          onSplitResize={onSplitResize}
+          onSeparatorDragStart={onSeparatorDragStart}
+          onSeparatorDrag={onSeparatorDrag}
+          onSeparatorDragEnd={onSeparatorDragEnd}
           contentOrigin={contentOrigin}
           bounds={firstBounds}
         />
@@ -102,6 +121,21 @@ export function SplitLayout({
         minWidth={node.direction === 'vertical' ? 1 : undefined}
         minHeight={node.direction === 'horizontal' ? 1 : undefined}
         backgroundColor={theme.border}
+        onMouseDown={(e: OtuiMouseEvent) => {
+          e.preventDefault()
+          if (!onSeparatorDragStart) return
+          const leafId = getFirstLeafId(node.first)
+          if (!leafId) return
+          onSeparatorDragStart({
+            tabId: leafId,
+            direction: node.direction,
+            screenStart:
+              node.direction === 'vertical'
+                ? contentOrigin.x + bounds.x
+                : contentOrigin.y + bounds.y,
+            totalSize: node.direction === 'vertical' ? bounds.cols : bounds.rows,
+          })
+        }}
       />
       <box flexGrow={secondGrow} flexDirection="column" overflow="hidden">
         <SplitLayout
@@ -115,6 +149,10 @@ export function SplitLayout({
           onTerminalScrollEvent={onTerminalScrollEvent}
           onTerminalClick={onTerminalClick}
           onPaneActivate={onPaneActivate}
+          onSplitResize={onSplitResize}
+          onSeparatorDragStart={onSeparatorDragStart}
+          onSeparatorDrag={onSeparatorDrag}
+          onSeparatorDragEnd={onSeparatorDragEnd}
           contentOrigin={contentOrigin}
           bounds={secondBounds}
         />

@@ -7,6 +7,7 @@ import {
   pruneLayoutTree,
   removeNode,
   resizeSplit,
+  setSplitRatio,
   splitNode,
 } from '../layout-tree'
 
@@ -242,6 +243,16 @@ export function reduceTabState(state: AppState, action: AppAction): AppState | n
         return state
       }
       const newTree = resizeSplit(state.layoutTree, action.tabId, action.delta, action.axis)
+      if (newTree === state.layoutTree) {
+        return state
+      }
+      return { ...state, layoutTree: newTree }
+    }
+    case 'set-split-ratio': {
+      if (!state.layoutTree) {
+        return state
+      }
+      const newTree = setSplitRatio(state.layoutTree, action.tabId, action.ratio, action.axis)
       if (newTree === state.layoutTree) {
         return state
       }

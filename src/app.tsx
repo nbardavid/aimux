@@ -327,6 +327,43 @@ export function App({ backend }: { backend: SessionBackend }) {
     }
   }
 
+  const separatorDragRef = useRef<{
+    tabId: string
+    direction: import('./state/layout-tree').SplitDirection
+    screenStart: number
+    totalSize: number
+  } | null>(null)
+
+  const handleSplitResize = (
+    tabId: string,
+    ratio: number,
+    axis: import('./state/layout-tree').SplitDirection
+  ) => {
+    dispatch({ type: 'set-split-ratio', tabId, ratio, axis })
+  }
+
+  const handleSeparatorDragStart = (info: {
+    tabId: string
+    direction: import('./state/layout-tree').SplitDirection
+    screenStart: number
+    totalSize: number
+  }) => {
+    separatorDragRef.current = info
+  }
+
+  const handleSeparatorDrag = (event: OtuiMouseEvent): boolean => {
+    const drag = separatorDragRef.current
+    if (!drag) return false
+    const pos = drag.direction === 'vertical' ? event.x : event.y
+    const newRatio = (pos - drag.screenStart) / drag.totalSize
+    dispatch({ type: 'set-split-ratio', tabId: drag.tabId, ratio: newRatio, axis: drag.direction })
+    return true
+  }
+
+  const handleSeparatorDragEnd = () => {
+    separatorDragRef.current = null
+  }
+
   const handlePaneActivate = (tabId: string) => {
     if (tabId !== state.activeTabId) {
       dispatch({ type: 'set-active-tab', tabId })
@@ -754,6 +791,10 @@ export function App({ backend }: { backend: SessionBackend }) {
       onTerminalScrollEvent={handleTerminalScrollEvent}
       onTerminalClick={handleTerminalClick}
       onPaneActivate={handlePaneActivate}
+      onSplitResize={handleSplitResize}
+      onSeparatorDragStart={handleSeparatorDragStart}
+      onSeparatorDrag={handleSeparatorDrag}
+      onSeparatorDragEnd={handleSeparatorDragEnd}
       terminalCols={terminalSize.cols}
       terminalRows={terminalSize.rows}
     />

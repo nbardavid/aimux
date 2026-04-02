@@ -283,3 +283,9 @@ export type AppAction =
       delta: number
       axis?: import('./layout-tree').SplitDirection
     }
+  | {
+      type: 'set-split-ratio'
+      tabId: string
+      ratio: number
+      axis?: import('./layout-tree').SplitDirection
+    }

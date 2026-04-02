@@ -18,6 +18,8 @@ interface TerminalPaneProps {
   onTerminalScrollEvent: (event: OtuiMouseEvent) => void
   onTerminalClick?: (event: OtuiMouseEvent, origin: TerminalContentOrigin, tabId?: string) => void
   onPaneActivate?: (tabId: string) => void
+  onSeparatorDrag?: (event: OtuiMouseEvent) => boolean
+  onSeparatorDragEnd?: () => void
 }
 
 function getTitle(tab?: TabSession): string {
@@ -82,10 +84,19 @@ export function TerminalPane({
   onTerminalScrollEvent,
   onTerminalClick,
   onPaneActivate,
+  onSeparatorDrag,
+  onSeparatorDragEnd,
 }: TerminalPaneProps) {
   const canForwardMouse = focusMode === 'terminal-input' && !!tab && mouseForwardingEnabled
   const canUseLocalScrollback = focusMode === 'terminal-input' && !!tab && localScrollbackEnabled
   const forwardMouseEvent = (event: OtuiMouseEvent) => {
+    if (event.type === 'drag' && onSeparatorDrag?.(event)) {
+      event.preventDefault()
+      return
+    }
+    if (event.type === 'up') {
+      onSeparatorDragEnd?.()
+    }
     if (tabId && onPaneActivate && event.type === 'down') {
       onPaneActivate(tabId)
     }
@@ -129,6 +140,8 @@ export function TerminalPane({
         flexDirection="column"
         flexGrow={1}
         backgroundColor={theme.background}
+        onMouseDrag={forwardMouseEvent}
+        onMouseUp={forwardMouseEvent}
       >
         {!tab ? (
           <box flexGrow={1} justifyContent="center" alignItems="center" flexDirection="column">

@@ -12,7 +12,7 @@ import { runUpdate } from './update'
 
 const command = process.argv[2]
 
-if (command === '--version' || command === '-v') {
+if (command === '--version' || command === '-v' || command === 'version') {
   const { version } = await import('../package.json')
   process.stdout.write(`aimux ${version}\n`)
   process.exit(0)

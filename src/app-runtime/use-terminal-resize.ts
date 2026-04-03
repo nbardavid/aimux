@@ -14,6 +14,40 @@ const STATUS_BAR_HEIGHT = 4
 const TERMINAL_PANE_VERTICAL_CHROME = 2
 const MIN_TERMINAL_ROWS = 1
 const MIN_TERMINAL_COLS = 20
+const RESIZE_ACTIVITY_SETTLE_MS = 500
+
+function getTerminalBounds(cols: number, rows: number) {
+  return { x: 0, y: 0, cols, rows }
+}
+
+function resizeSplitTabs(
+  backend: SessionBackend,
+  layoutTrees: AppState['layoutTrees'],
+  tabs: AppState['tabs'],
+  cols: number,
+  rows: number
+): void {
+  const chrome = PANE_BORDER * 2
+  const bounds = getTerminalBounds(cols, rows)
+  const resizedTabIds = new Set<string>()
+
+  for (const tree of Object.values(layoutTrees)) {
+    if (tree.type !== 'split') {
+      continue
+    }
+
+    for (const [tabId, rect] of computePaneRects(tree, bounds)) {
+      backend.resizeTab(tabId, Math.max(1, rect.cols - chrome), Math.max(1, rect.rows - chrome))
+      resizedTabIds.add(tabId)
+    }
+  }
+
+  for (const tab of tabs) {
+    if (!resizedTabIds.has(tab.id)) {
+      backend.resizeTab(tab.id, cols, rows)
+    }
+  }
+}
 
 interface UseTerminalResizeOptions {
   state: AppState
@@ -73,30 +107,14 @@ export function useTerminalResize({
     const trees = Object.values(state.layoutTrees)
     const hasSplits = trees.some((t) => t.type === 'split')
     if (hasSplits) {
-      const bounds = { x: 0, y: 0, cols: terminalSize.cols, rows: terminalSize.rows }
-      const chrome = PANE_BORDER * 2
-      const resizedTabIds = new Set<string>()
-      for (const tree of trees) {
-        if (tree.type !== 'split') continue
-        const rects = computePaneRects(tree, bounds)
-        for (const [tabId, rect] of rects) {
-          backend.resizeTab(tabId, Math.max(1, rect.cols - chrome), Math.max(1, rect.rows - chrome))
-          resizedTabIds.add(tabId)
-        }
-      }
-      // Resize standalone tabs (not in any split group) to full size
-      for (const tab of state.tabs) {
-        if (!resizedTabIds.has(tab.id)) {
-          backend.resizeTab(tab.id, terminalSize.cols, terminalSize.rows)
-        }
-      }
+      resizeSplitTabs(backend, state.layoutTrees, state.tabs, terminalSize.cols, terminalSize.rows)
     } else {
       backend.resizeAll(terminalSize.cols, terminalSize.rows)
     }
     resizingTimerRef.current = setTimeout(() => {
       resizingRef.current = false
       resizingTimerRef.current = null
-    }, 500)
+    }, RESIZE_ACTIVITY_SETTLE_MS)
   }, [
     backend,
     dispatch,

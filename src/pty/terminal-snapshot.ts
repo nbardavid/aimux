@@ -29,7 +29,7 @@ function toHex(value: number): string {
 
 function paletteToHex(index: number): string {
   if (index < ANSI_PALETTE.length) {
-    return ANSI_PALETTE[index] ?? ANSI_PALETTE[0]!
+    return ANSI_PALETTE[index] ?? ANSI_PALETTE[0] ?? '#000000'
   }
 
   if (index >= 232) {
@@ -52,6 +52,18 @@ function getColorHex(color: number, mode: 'rgb' | 'palette' | 'default'): string
   }
 
   return mode === 'rgb' ? toHex(color) : paletteToHex(color)
+}
+
+function getColorMode(isRgb: boolean, isPalette: boolean): 'rgb' | 'palette' | 'default' {
+  if (isRgb) {
+    return 'rgb'
+  }
+
+  if (isPalette) {
+    return 'palette'
+  }
+
+  return 'default'
 }
 
 function pushSpan(spans: TerminalSpan[], span: TerminalSpan): void {
@@ -94,8 +106,8 @@ function buildLine(
     }
 
     const text = current.getChars() || ' '
-    const fgMode = current.isFgRGB() ? 'rgb' : current.isFgPalette() ? 'palette' : 'default'
-    const bgMode = current.isBgRGB() ? 'rgb' : current.isBgPalette() ? 'palette' : 'default'
+    const fgMode = getColorMode(current.isFgRGB(), current.isFgPalette())
+    const bgMode = getColorMode(current.isBgRGB(), current.isBgPalette())
 
     let fg = getColorHex(current.getFgColor(), fgMode)
     let bg = getColorHex(current.getBgColor(), bgMode)

@@ -17,7 +17,7 @@
     "demo:splits": "vhs assets/splits.tape",
     "demo:themes": "vhs assets/themes.tape",
     "restart-daemon": "bun run src/index.tsx restart-daemon",
-    "lint": "oxlint",
+    "lint": "oxlint .",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "prepare": "lefthook install"

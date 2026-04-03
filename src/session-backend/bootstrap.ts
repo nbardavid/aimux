@@ -1,4 +1,3 @@
-import { existsSync } from 'node:fs'
 import { connect } from 'node:net'
 
 import type { SessionBackend } from './types'

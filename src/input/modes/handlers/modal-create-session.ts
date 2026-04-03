@@ -3,6 +3,15 @@ import type { KeyInput, KeyResult, ModeContext, ModeHandler } from '../types'
 
 import { handleCtrlNavigation, handleTextInput } from './shared'
 
+function getDefaultSessionName(projectPath?: string): string {
+  if (!projectPath) {
+    return ''
+  }
+
+  const segments = projectPath.split('/').filter(Boolean)
+  return segments.at(-1) ?? ''
+}
+
 export const modalCreateSessionMode: ModeHandler = {
   id: 'modal.create-session',
 
@@ -27,7 +36,7 @@ export const modalCreateSessionMode: ModeHandler = {
       }
       const trimmed = (modal.editBuffer ?? '').trim()
       const projectPath = modal.pendingProjectPath ?? undefined
-      const sessionName = trimmed || (projectPath ? projectPath.split('/').pop()! : '')
+      const sessionName = trimmed || getDefaultSessionName(projectPath)
       if (sessionName) {
         return {
           actions: [{ type: 'close-modal' }],

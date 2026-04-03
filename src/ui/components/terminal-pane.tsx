@@ -31,6 +31,18 @@ function getTitle(tab?: TabSession): string {
   return `${tab.title} - ${tab.status}`
 }
 
+function getBorderColor(isActive: boolean, focusMode: TerminalPaneProps['focusMode']): string {
+  if (isActive && focusMode === 'terminal-input') {
+    return theme.borderActive
+  }
+
+  if (isActive && (focusMode === 'navigation' || focusMode === 'layout')) {
+    return theme.accentAlt
+  }
+
+  return theme.border
+}
+
 function renderSpan(span: TerminalSpan, index: number): ReactNode {
   let node: ReactNode = span.text
 
@@ -88,6 +100,7 @@ export function TerminalPane({
   onSeparatorDrag,
   onSeparatorDragEnd,
 }: TerminalPaneProps) {
+  const paneIsActive = isActive ?? true
   const canForwardMouse = focusMode === 'terminal-input' && !!tab && mouseForwardingEnabled
   const canUseLocalScrollback = focusMode === 'terminal-input' && !!tab && localScrollbackEnabled
   const forwardMouseEvent = (event: OtuiMouseEvent) => {
@@ -142,13 +155,7 @@ export function TerminalPane({
     <box flexDirection="column" flexGrow={1} gap={0}>
       <box
         border
-        borderColor={
-          (isActive ?? true) && focusMode === 'terminal-input'
-            ? theme.borderActive
-            : (isActive ?? true) && (focusMode === 'navigation' || focusMode === 'layout')
-              ? theme.accentAlt
-              : theme.border
-        }
+        borderColor={getBorderColor(paneIsActive, focusMode)}
         title={getTitle(tab)}
         padding={0}
         flexDirection="column"

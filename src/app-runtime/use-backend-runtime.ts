@@ -10,17 +10,34 @@ import type { WorkspaceSnapshotV1 } from '../state/types'
 import { logInputDebug } from '../debug/input-log'
 import { PANE_BORDER, computePaneRects, type LayoutNode } from '../state/layout-tree'
 
+const IDLE_ACTIVITY_TIMEOUT_MS = 2_000
+
+function getSnapshotTrees(snapshot: WorkspaceSnapshotV1 | undefined): LayoutNode[] {
+  if (snapshot?.layoutTrees) {
+    return Object.values(snapshot.layoutTrees)
+  }
+
+  if (snapshot?.layoutTree) {
+    return [snapshot.layoutTree]
+  }
+
+  return []
+}
+
+function clearTimeoutMap(timeouts: Map<string, ReturnType<typeof setTimeout>>): void {
+  for (const timeout of timeouts.values()) {
+    clearTimeout(timeout)
+  }
+  timeouts.clear()
+}
+
 function resizeSnapshotPanes(
   snapshot: WorkspaceSnapshotV1 | undefined,
   layoutRef: MutableRefObject<LayoutState>,
   backend: SessionBackend
 ): void {
   if (!snapshot) return
-  const trees: LayoutNode[] = snapshot.layoutTrees
-    ? Object.values(snapshot.layoutTrees)
-    : snapshot.layoutTree
-      ? [snapshot.layoutTree]
-      : []
+  const trees = getSnapshotTrees(snapshot)
   const bounds = {
     x: 0,
     y: 0,
@@ -36,6 +53,37 @@ function resizeSnapshotPanes(
         Math.max(1, rect.rows - PANE_BORDER * 2)
       )
     }
+  }
+}
+
+function hydrateAttachedSession(
+  dispatch: (action: AppAction) => void,
+  sessionId: string,
+  workspaceSnapshot: WorkspaceSnapshotV1 | undefined,
+  result: Awaited<ReturnType<SessionBackend['attach']>>,
+  layoutRef: MutableRefObject<LayoutState>,
+  backend: SessionBackend
+): void {
+  if (result) {
+    dispatch({
+      type: 'hydrate-workspace',
+      tabs: result.tabs,
+      activeTabId: result.activeTabId,
+      layoutTree: workspaceSnapshot?.layoutTree,
+      layoutTrees: workspaceSnapshot?.layoutTrees,
+      tabGroupMap: workspaceSnapshot?.tabGroupMap,
+    })
+    resizeSnapshotPanes(workspaceSnapshot, layoutRef, backend)
+    return
+  }
+
+  if (workspaceSnapshot) {
+    dispatch({
+      type: 'load-session',
+      sessionId,
+      workspaceSnapshot,
+    })
+    resizeSnapshotPanes(workspaceSnapshot, layoutRef, backend)
   }
 }
 
@@ -137,24 +185,14 @@ export function useBackendRuntime({
           tabs: result?.tabs.length ?? 0,
           activeTabId: result?.activeTabId ?? null,
         })
-        if (result) {
-          dispatch({
-            type: 'hydrate-workspace',
-            tabs: result.tabs,
-            activeTabId: result.activeTabId,
-            layoutTree: currentSessionWorkspaceSnapshot?.layoutTree,
-            layoutTrees: currentSessionWorkspaceSnapshot?.layoutTrees,
-            tabGroupMap: currentSessionWorkspaceSnapshot?.tabGroupMap,
-          })
-          resizeSnapshotPanes(currentSessionWorkspaceSnapshot, layoutRef, backend)
-        } else if (currentSessionWorkspaceSnapshot) {
-          dispatch({
-            type: 'load-session',
-            sessionId: currentSessionId,
-            workspaceSnapshot: currentSessionWorkspaceSnapshot,
-          })
-          resizeSnapshotPanes(currentSessionWorkspaceSnapshot, layoutRef, backend)
-        }
+        hydrateAttachedSession(
+          dispatch,
+          currentSessionId,
+          currentSessionWorkspaceSnapshot,
+          result,
+          layoutRef,
+          backend
+        )
       })
       .catch((error) => {
         if (cancelled || attachRequestIdRef.current !== attachRequestId) {
@@ -163,14 +201,14 @@ export function useBackendRuntime({
         logInputDebug('app.backend.attachError', {
           error: error instanceof Error ? error.message : String(error),
         })
-        if (currentSessionWorkspaceSnapshot) {
-          dispatch({
-            type: 'load-session',
-            sessionId: currentSessionId,
-            workspaceSnapshot: currentSessionWorkspaceSnapshot,
-          })
-          resizeSnapshotPanes(currentSessionWorkspaceSnapshot, layoutRef, backend)
-        }
+        hydrateAttachedSession(
+          dispatch,
+          currentSessionId,
+          currentSessionWorkspaceSnapshot,
+          null,
+          layoutRef,
+          backend
+        )
       })
 
     return () => {
@@ -205,7 +243,7 @@ export function useBackendRuntime({
       }
 
       dispatch({ type: 'set-tab-activity', tabId, activity: 'busy' })
-      scheduleIdle(tabId, 2_000)
+      scheduleIdle(tabId, IDLE_ACTIVITY_TIMEOUT_MS)
     }
 
     const handleExit = (tabId: string, exitCode: number) => {
@@ -226,14 +264,8 @@ export function useBackendRuntime({
     backend.on('error', handleError)
 
     return () => {
-      for (const timeout of idleTimeouts.values()) {
-        clearTimeout(timeout)
-      }
-      idleTimeouts.clear()
-      for (const timeout of startupGraceTimeouts.values()) {
-        clearTimeout(timeout)
-      }
-      startupGraceTimeouts.clear()
+      clearTimeoutMap(idleTimeouts)
+      clearTimeoutMap(startupGraceTimeouts)
       backend.off('render', handleRender)
       backend.off('exit', handleExit)
       backend.off('error', handleError)

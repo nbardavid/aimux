@@ -20,7 +20,7 @@ function createTempSocketPath(): string {
   return join(dir, 'test.sock')
 }
 
-function startMockDaemon(socketPath: string) {
+function startMockDaemon() {
   const decoder = new MessageDecoder<ClientRequest>(parseClientRequest)
   const received: ClientRequest[] = []
 
@@ -122,7 +122,7 @@ describe('IPC round-trip integration', () => {
 
   test('attach -> createTab -> receive render event', async () => {
     const socketPath = createTempSocketPath()
-    const { server, received } = startMockDaemon(socketPath)
+    const { server, received } = startMockDaemon()
 
     await new Promise<void>((resolve) => server.listen(socketPath, resolve))
     cleanups.push(() => {
@@ -188,7 +188,7 @@ describe('IPC round-trip integration', () => {
 
   test('write command is acknowledged', async () => {
     const socketPath = createTempSocketPath()
-    const { server } = startMockDaemon(socketPath)
+    const { server } = startMockDaemon()
 
     await new Promise<void>((resolve) => server.listen(socketPath, resolve))
     cleanups.push(() => {
@@ -228,7 +228,7 @@ describe('IPC round-trip integration', () => {
 
   test('ping is acknowledged', async () => {
     const socketPath = createTempSocketPath()
-    const { server } = startMockDaemon(socketPath)
+    const { server } = startMockDaemon()
 
     await new Promise<void>((resolve) => server.listen(socketPath, resolve))
     cleanups.push(() => {
@@ -249,7 +249,7 @@ describe('IPC round-trip integration', () => {
 
   test('custom assistant id is accepted in createTab', async () => {
     const socketPath = createTempSocketPath()
-    const { server, received } = startMockDaemon(socketPath)
+    const { server, received } = startMockDaemon()
 
     await new Promise<void>((resolve) => server.listen(socketPath, resolve))
     cleanups.push(() => {

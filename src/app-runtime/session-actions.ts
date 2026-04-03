@@ -2,6 +2,7 @@ import type { SessionBackend } from '../session-backend/types'
 import type { AppAction, AppState, SessionRecord, TabSession } from '../state/types'
 
 import { logInputDebug } from '../debug/input-log'
+import { createPrefixedId } from '../platform/id'
 import { saveSessionCatalog } from '../state/session-catalog'
 import { createEmptyWorkspaceSnapshot, serializeWorkspace } from '../state/session-persistence'
 import { buildSessionsWithCurrentSnapshot } from '../state/workspace-save'
@@ -17,7 +18,7 @@ export function createSessionFromCurrentState(
       ? createEmptyWorkspaceSnapshot()
       : serializeWorkspace(state)
   const session: SessionRecord = {
-    id: `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: createPrefixedId('session'),
     name,
     projectPath,
     createdAt: now,

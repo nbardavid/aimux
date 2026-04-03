@@ -4,22 +4,33 @@ import type { AppAction, ModalState } from '../state/types'
 
 import { searchProjectDirectories } from '../platform/project-search'
 
+const DEFAULT_DIRECTORY_SEARCH_DEBOUNCE_MS = 200
+
+function getDirectoryQuery(modal: ModalState): string {
+  if (modal.type !== 'create-session') {
+    return ''
+  }
+
+  if (modal.activeField === 'directory') {
+    return modal.editBuffer ?? ''
+  }
+
+  return modal.nameBuffer
+}
+
 export function useDirectorySearch(
   modal: ModalState,
   dispatch: (action: AppAction) => void,
-  debounceMs = 200
+  debounceMs = DEFAULT_DIRECTORY_SEARCH_DEBOUNCE_MS
 ): void {
-  const directoryQuery =
-    modal.type === 'create-session'
-      ? modal.activeField === 'directory'
-        ? (modal.editBuffer ?? '')
-        : modal.nameBuffer
-      : ''
+  const directoryQuery = getDirectoryQuery(modal)
 
   useEffect(() => {
     if (modal.type !== 'create-session') {
       return
     }
+
+    let isCurrent = true
 
     if (!directoryQuery.trim()) {
       dispatch({ type: 'set-directory-results', results: [] })
@@ -28,9 +39,14 @@ export function useDirectorySearch(
 
     const timer = setTimeout(async () => {
       const results = await searchProjectDirectories(directoryQuery)
-      dispatch({ type: 'set-directory-results', results })
+      if (isCurrent) {
+        dispatch({ type: 'set-directory-results', results })
+      }
     }, debounceMs)
 
-    return () => clearTimeout(timer)
+    return () => {
+      isCurrent = false
+      clearTimeout(timer)
+    }
   }, [debounceMs, directoryQuery, dispatch, modal.type])
 }

@@ -71,6 +71,29 @@ export function RootView({
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId)
   const activeTree = activeTabId ? getTreeForTab(layoutTrees, tabGroupMap, activeTabId) : null
+  let createSessionDirectoryQuery = ''
+  let createSessionName = ''
+  if (modal.type === 'create-session') {
+    if (modal.activeField === 'directory') {
+      createSessionDirectoryQuery = modal.editBuffer ?? ''
+      createSessionName = modal.nameBuffer
+    } else {
+      createSessionDirectoryQuery = modal.nameBuffer
+      createSessionName = modal.editBuffer ?? ''
+    }
+  }
+
+  let snippetName = ''
+  let snippetContent = ''
+  if (modal.type === 'snippet-editor') {
+    if (modal.activeField === 'name') {
+      snippetName = modal.editBuffer ?? ''
+      snippetContent = modal.contentBuffer
+    } else {
+      snippetName = modal.contentBuffer
+      snippetContent = modal.editBuffer ?? ''
+    }
+  }
 
   return (
     <box flexDirection="column" width="100%" height="100%" backgroundColor={theme.background}>
@@ -137,10 +160,8 @@ export function RootView({
       {modal.type === 'create-session' ? (
         <CreateSessionModal
           activeField={modal.activeField}
-          directoryQuery={
-            modal.activeField === 'directory' ? (modal.editBuffer ?? '') : modal.nameBuffer
-          }
-          sessionName={modal.activeField === 'name' ? (modal.editBuffer ?? '') : modal.nameBuffer}
+          directoryQuery={createSessionDirectoryQuery}
+          sessionName={createSessionName}
           results={modal.directoryResults}
           selectedIndex={modal.selectedIndex}
           pendingProjectPath={modal.pendingProjectPath}
@@ -156,12 +177,8 @@ export function RootView({
       {modal.type === 'snippet-editor' ? (
         <SnippetEditorModal
           activeField={modal.activeField}
-          snippetName={
-            modal.activeField === 'name' ? (modal.editBuffer ?? '') : modal.contentBuffer
-          }
-          snippetContent={
-            modal.activeField === 'content' ? (modal.editBuffer ?? '') : modal.contentBuffer
-          }
+          snippetName={snippetName}
+          snippetContent={snippetContent}
           isEditing={modal.sessionTargetId !== null}
         />
       ) : null}

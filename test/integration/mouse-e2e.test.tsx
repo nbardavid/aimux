@@ -4,7 +4,7 @@ import { afterEach, describe, test } from 'bun:test'
 import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import type { TerminalContentOrigin } from '../../src/input/raw-input-handler'
 import type { TabSession, TerminalModeState, TerminalSnapshot } from '../../src/state/types'
@@ -19,10 +19,17 @@ const TEST_WIDTH = 120
 const TEST_HEIGHT = 40
 const TEST_TAB_ID = 'tab-mouse'
 const SIDEBAR_WIDTH = 28
+const SIDEBAR_MIN_WIDTH = 18
+const SIDEBAR_MAX_WIDTH = 42
 const CONTENT_ORIGIN_X = 34
 const CONTENT_ORIGIN_Y = 3
 const TERMINAL_CLICK_X = 40
 const TERMINAL_CLICK_Y = 10
+const MIN_TERMINAL_COLS = 20
+const MIN_TERMINAL_ROWS = 1
+const TERMINAL_HORIZONTAL_CHROME = 4
+const TERMINAL_VERTICAL_CHROME = 10
+const LOCAL_SCROLL_DELTA = 3
 const EXPECTED_PTY_X = TERMINAL_CLICK_X + 1 - CONTENT_ORIGIN_X
 const EXPECTED_PTY_Y = TERMINAL_CLICK_Y + 1 - CONTENT_ORIGIN_Y
 
@@ -117,8 +124,14 @@ function MouseHarness({
   const [terminalModes, setTerminalModes] = useState<TerminalModeState>(INITIAL_TERMINAL_MODES)
 
   const terminalSize = useMemo(() => {
-    const cols = Math.max(20, Math.floor(dimensions.width - SIDEBAR_WIDTH - 4))
-    const rows = Math.max(1, Math.floor(dimensions.height - (2 + 4 + 4)))
+    const cols = Math.max(
+      MIN_TERMINAL_COLS,
+      Math.floor(dimensions.width - SIDEBAR_WIDTH - TERMINAL_HORIZONTAL_CHROME)
+    )
+    const rows = Math.max(
+      MIN_TERMINAL_ROWS,
+      Math.floor(dimensions.height - TERMINAL_VERTICAL_CHROME)
+    )
     return { cols, rows }
   }, [dimensions.height, dimensions.width])
 
@@ -170,50 +183,57 @@ function MouseHarness({
     }
   }, [command, ptyManager, terminalSize.cols, terminalSize.rows])
 
-  const tab: TabSession = {
-    id: TEST_TAB_ID,
-    assistant: 'claude',
-    title: 'Fixture',
-    status: 'running',
-    activity: 'idle',
-    buffer: '',
-    viewport,
-    terminalModes,
-    command,
-  }
+  const storeState = useMemo(
+    () => ({
+      tabs: [
+        {
+          id: TEST_TAB_ID,
+          assistant: 'claude',
+          title: 'Fixture',
+          status: 'running',
+          activity: 'idle',
+          buffer: '',
+          viewport,
+          terminalModes,
+          command,
+        } satisfies TabSession,
+      ],
+      activeTabId: TEST_TAB_ID,
+      layoutTrees: {},
+      tabGroupMap: {},
+      sessions: [],
+      currentSessionId: null,
+      snippets: [],
+      focusMode: 'terminal-input' as const,
+      sidebar: {
+        visible: true,
+        width: SIDEBAR_WIDTH,
+        minWidth: SIDEBAR_MIN_WIDTH,
+        maxWidth: SIDEBAR_MAX_WIDTH,
+      },
+      modal: {
+        type: null,
+        selectedIndex: 0,
+        editBuffer: null,
+        sessionTargetId: null,
+      },
+      layout: {
+        terminalCols: terminalSize.cols,
+        terminalRows: terminalSize.rows,
+      },
+      customCommands: {
+        claude: command,
+        codex: 'codex',
+        opencode: 'opencode',
+        terminal: 'zsh',
+      },
+    }),
+    [command, terminalModes, terminalSize.cols, terminalSize.rows, viewport]
+  )
 
-  appStore.setState({
-    tabs: [tab],
-    activeTabId: TEST_TAB_ID,
-    layoutTrees: {},
-    tabGroupMap: {},
-    sessions: [],
-    currentSessionId: null,
-    snippets: [],
-    focusMode: 'terminal-input',
-    sidebar: {
-      visible: true,
-      width: SIDEBAR_WIDTH,
-      minWidth: 18,
-      maxWidth: 42,
-    },
-    modal: {
-      type: null,
-      selectedIndex: 0,
-      editBuffer: null,
-      sessionTargetId: null,
-    },
-    layout: {
-      terminalCols: terminalSize.cols,
-      terminalRows: terminalSize.rows,
-    },
-    customCommands: {
-      claude: command,
-      codex: 'codex',
-      opencode: 'opencode',
-      terminal: 'zsh',
-    },
-  })
+  useLayoutEffect(() => {
+    appStore.setState(storeState)
+  }, [storeState])
 
   return (
     <RootView
@@ -236,9 +256,9 @@ function MouseHarness({
 
         const direction = event.scroll?.direction
         if (direction === 'up') {
-          ptyManager.scrollViewport(TEST_TAB_ID, -3)
+          ptyManager.scrollViewport(TEST_TAB_ID, -LOCAL_SCROLL_DELTA)
         } else if (direction === 'down') {
-          ptyManager.scrollViewport(TEST_TAB_ID, 3)
+          ptyManager.scrollViewport(TEST_TAB_ID, LOCAL_SCROLL_DELTA)
         }
       }}
     />

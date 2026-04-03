@@ -38,7 +38,12 @@ export const ASSISTANT_OPTIONS: AssistantOption[] = [
 ]
 
 export function getAssistantOption(index: number): AssistantOption {
-  return ASSISTANT_OPTIONS[index] ?? ASSISTANT_OPTIONS[0]!
+  const option = ASSISTANT_OPTIONS[index] ?? ASSISTANT_OPTIONS[0]
+  if (!option) {
+    throw new Error('Assistant options are not configured.')
+  }
+
+  return option
 }
 
 export function getAllAssistantOptions(customCommands: Record<string, string>): AssistantOption[] {

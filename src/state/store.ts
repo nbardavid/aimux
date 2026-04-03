@@ -7,6 +7,12 @@ import { reduceTabState } from './reducers/tab-state'
 import { reduceUIState } from './reducers/ui-state'
 import { filterSnippets } from './selectors'
 
+const DEFAULT_SIDEBAR_WIDTH = 28
+const DEFAULT_SIDEBAR_MIN_WIDTH = 18
+const DEFAULT_SIDEBAR_MAX_WIDTH = 42
+const DEFAULT_TERMINAL_COLS = 80
+const DEFAULT_TERMINAL_ROWS = 24
+
 export function createInitialState(
   customCommands: Record<string, string> = {},
   sessions: SessionRecord[] = [],
@@ -24,16 +30,16 @@ export function createInitialState(
     focusMode: showSessionPicker ? 'modal' : 'navigation',
     sidebar: {
       visible: true,
-      width: 28,
-      minWidth: 18,
-      maxWidth: 42,
+      width: DEFAULT_SIDEBAR_WIDTH,
+      minWidth: DEFAULT_SIDEBAR_MIN_WIDTH,
+      maxWidth: DEFAULT_SIDEBAR_MAX_WIDTH,
     },
     modal: showSessionPicker
       ? { type: 'session-picker', selectedIndex: 0, editBuffer: null, sessionTargetId: null }
       : emptyModal(),
     layout: {
-      terminalCols: 80,
-      terminalRows: 24,
+      terminalCols: DEFAULT_TERMINAL_COLS,
+      terminalRows: DEFAULT_TERMINAL_ROWS,
     },
     customCommands,
   }

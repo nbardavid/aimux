@@ -7,6 +7,18 @@ import { SessionManager } from '../daemon/session-manager'
 import { logDebug } from '../debug/input-log'
 import { PANE_BORDER, computePaneRects, type LayoutNode } from '../state/layout-tree'
 
+function getSnapshotTrees(snapshot?: WorkspaceSnapshotV1): LayoutNode[] {
+  if (snapshot?.layoutTrees) {
+    return Object.values(snapshot.layoutTrees)
+  }
+
+  if (snapshot?.layoutTree) {
+    return [snapshot.layoutTree]
+  }
+
+  return []
+}
+
 export class LocalSessionBackend
   extends EventEmitter<SessionBackendEvents>
   implements SessionBackend
@@ -46,11 +58,7 @@ export class LocalSessionBackend
       snapshotTabs: options.workspaceSnapshot?.tabs.length ?? 0,
     })
     this.currentSessionId = options.sessionId
-    const trees: LayoutNode[] = options.workspaceSnapshot?.layoutTrees
-      ? Object.values(options.workspaceSnapshot.layoutTrees)
-      : options.workspaceSnapshot?.layoutTree
-        ? [options.workspaceSnapshot.layoutTree]
-        : []
+    const trees = getSnapshotTrees(options.workspaceSnapshot)
     const splitTrees = trees.filter((t) => t.type === 'split')
     if (splitTrees.length > 0) {
       const bounds = { x: 0, y: 0, cols: options.cols, rows: options.rows }

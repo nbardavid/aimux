@@ -99,10 +99,6 @@ export function SplitLayout({
 
   // Compute sub-bounds for each child
   const rects = computePaneRects(node, bounds)
-  const firstLeafId = getFirstLeafId(node.first)
-  const secondLeafId = getFirstLeafId(node.second)
-  const firstRect = (firstLeafId && rects.get(firstLeafId)) ?? bounds
-  const secondRect = (secondLeafId && rects.get(secondLeafId)) ?? bounds
 
   // Compute the bounding rect for each subtree
   const firstBounds = subtreeBounds(node.first, rects, bounds)

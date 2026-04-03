@@ -13,6 +13,14 @@ import {
   splitNode,
 } from '../../src/state/layout-tree'
 
+function requireValue<T>(value: T | null | undefined, message: string): T {
+  if (value == null) {
+    throw new Error(message)
+  }
+
+  return value
+}
+
 describe('createLeaf', () => {
   test('creates a leaf node', () => {
     const leaf = createLeaf('tab-1')
@@ -263,8 +271,8 @@ describe('computePaneRects', () => {
     }
 
     const rects = computePaneRects(tree, fullBounds)
-    const r1 = rects.get('tab-1')!
-    const r2 = rects.get('tab-2')!
+    const r1 = requireValue(rects.get('tab-1'), 'Missing rect for tab-1')
+    const r2 = requireValue(rects.get('tab-2'), 'Missing rect for tab-2')
 
     expect(r1.x).toBe(0)
     expect(r1.cols).toBe(50)
@@ -285,8 +293,8 @@ describe('computePaneRects', () => {
     }
 
     const rects = computePaneRects(tree, fullBounds)
-    const r1 = rects.get('tab-1')!
-    const r2 = rects.get('tab-2')!
+    const r1 = requireValue(rects.get('tab-1'), 'Missing rect for tab-1')
+    const r2 = requireValue(rects.get('tab-2'), 'Missing rect for tab-2')
 
     expect(r1.y).toBe(0)
     expect(r1.rows).toBe(20)
@@ -315,12 +323,12 @@ describe('computePaneRects', () => {
     const rects = computePaneRects(tree, fullBounds)
     expect(rects.size).toBe(3)
 
-    const r1 = rects.get('tab-1')!
+    const r1 = requireValue(rects.get('tab-1'), 'Missing rect for tab-1')
     expect(r1.x).toBe(0)
     expect(r1.cols).toBe(50)
 
-    const r2 = rects.get('tab-2')!
-    const r3 = rects.get('tab-3')!
+    const r2 = requireValue(rects.get('tab-2'), 'Missing rect for tab-2')
+    const r3 = requireValue(rects.get('tab-3'), 'Missing rect for tab-3')
     expect(r2.x).toBe(51)
     expect(r3.x).toBe(51)
     expect(r2.y).toBeLessThan(r3.y)

@@ -1,14 +1,8 @@
-import { homedir } from 'node:os'
-
 import type { SessionRecord } from '../../state/types'
 
 import { filterSessions } from '../../state/selectors'
+import { abbreviatePath } from '../path-format'
 import { theme } from '../theme'
-
-function abbreviatePath(path: string): string {
-  const home = homedir()
-  return path.startsWith(home) ? `~${path.slice(home.length)}` : path
-}
 
 interface SessionPickerModalProps {
   sessions: SessionRecord[]
@@ -30,6 +24,14 @@ function formatSessionLine(
   return `${session.name} (${tabCount} tab${tabCount === 1 ? '' : 's'})`
 }
 
+function getEmptyStateMessage(hasFilter: boolean): string {
+  if (hasFilter) {
+    return 'No matching sessions.'
+  }
+
+  return 'No sessions yet. Press Enter or n to create your first session.'
+}
+
 export function SessionPickerModal({
   sessions,
   selectedIndex,
@@ -38,6 +40,9 @@ export function SessionPickerModal({
   filter,
 }: SessionPickerModalProps) {
   const filtered = filterSessions(sessions, filter)
+  const hasFilter = !!filter
+  const showFilteredEmptyState = filtered.length === 0 && sessions.length > 0
+  const showInitialEmptyState = filtered.length === 0 && sessions.length === 0
 
   return (
     <box
@@ -72,20 +77,14 @@ export function SessionPickerModal({
             <text fg={theme.text}>/{filter}_</text>
           </box>
         ) : null}
-        {filtered.length === 0 && sessions.length > 0 ? (
+        {showFilteredEmptyState ? (
           <box padding={1}>
-            <text fg={theme.textMuted}>
-              {filter
-                ? 'No matching sessions.'
-                : 'No sessions yet. Press Enter or n to create your first session.'}
-            </text>
+            <text fg={theme.textMuted}>{getEmptyStateMessage(hasFilter)}</text>
           </box>
         ) : null}
-        {filtered.length === 0 && sessions.length === 0 ? (
+        {showInitialEmptyState ? (
           <box padding={1}>
-            <text fg={theme.textMuted}>
-              No sessions yet. Press Enter or n to create your first session.
-            </text>
+            <text fg={theme.textMuted}>{getEmptyStateMessage(false)}</text>
           </box>
         ) : null}
         {filtered.map((session, index) => {

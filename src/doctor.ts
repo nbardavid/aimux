@@ -17,6 +17,38 @@ function formatStatus(ok: boolean): string {
   return ok ? 'OK' : 'WARN'
 }
 
+function getConfigDetails(configResult: ReturnType<typeof loadConfigResult>): string {
+  if (configResult.issues.length > 0) {
+    return configResult.issues.join('; ')
+  }
+
+  if (existsSync(CONFIG_PATH)) {
+    return `loaded ${CONFIG_PATH}`
+  }
+
+  return `using defaults (${CONFIG_PATH} not found)`
+}
+
+function getAssistantDetails(
+  configuredCommand: string,
+  args: string[],
+  executable: string
+): string {
+  if (executable.length === 0) {
+    return 'empty command'
+  }
+
+  return args.length > 0 ? `${configuredCommand} (${args.length} args)` : configuredCommand
+}
+
+function getSummaryLine(failedChecks: DoctorCheck[]): string {
+  if (failedChecks.length === 0) {
+    return 'All core checks passed.'
+  }
+
+  return `${failedChecks.length} check(s) need attention before aimux will work reliably.`
+}
+
 export function buildDoctorReport(): DoctorReport {
   const configResult = loadConfigResult()
   const config = configResult.config
@@ -37,12 +69,7 @@ export function buildDoctorReport(): DoctorReport {
   checks.push({
     name: 'config',
     ok: configResult.issues.length === 0,
-    details:
-      configResult.issues.length > 0
-        ? configResult.issues.join('; ')
-        : existsSync(CONFIG_PATH)
-          ? `loaded ${CONFIG_PATH}`
-          : `using defaults (${CONFIG_PATH} not found)`,
+    details: getConfigDetails(configResult),
   })
 
   for (const option of ASSISTANT_OPTIONS) {
@@ -51,10 +78,7 @@ export function buildDoctorReport(): DoctorReport {
     checks.push({
       name: `assistant:${option.id}`,
       ok: executable.length > 0 && isCommandAvailable(executable),
-      details:
-        executable.length === 0
-          ? 'empty command'
-          : `${configuredCommand}${args.length > 0 ? ` (${args.length} args)` : ''}`,
+      details: getAssistantDetails(configuredCommand, args, executable),
     })
   }
 
@@ -70,11 +94,7 @@ export function formatDoctorReport(report: DoctorReport): string {
 
   const failedChecks = report.checks.filter((check) => !check.ok)
   lines.push('')
-  lines.push(
-    failedChecks.length === 0
-      ? 'All core checks passed.'
-      : `${failedChecks.length} check(s) need attention before aimux will work reliably.`
-  )
+  lines.push(getSummaryLine(failedChecks))
 
   return lines.join('\n')
 }

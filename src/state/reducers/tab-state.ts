@@ -4,7 +4,6 @@ import {
   allLeafIds,
   createGroupId,
   createLeaf,
-  findLeaf,
   getAdjacentLeaf,
   getGroupIdForTab,
   getTreeForTab,
@@ -14,9 +13,18 @@ import {
   setSplitRatio,
   splitNode,
 } from '../layout-tree'
+import { createDefaultTerminalModes } from '../terminal-modes'
+
+const MAX_BUFFER_LENGTH = 50_000
 
 function clampBuffer(buffer: string): string {
-  return buffer.length <= 50_000 ? buffer : buffer.slice(buffer.length - 50_000)
+  return buffer.length <= MAX_BUFFER_LENGTH
+    ? buffer
+    : buffer.slice(buffer.length - MAX_BUFFER_LENGTH)
+}
+
+function getTabIdAtIndex(tabs: TabSession[], index: number): string | undefined {
+  return tabs[index]?.id
 }
 
 function updateTab(
@@ -183,42 +191,66 @@ export function reduceTabState(state: AppState, action: AppAction): AppState | n
         const layoutSet = new Set(layoutIds)
         let groupStart = activeIndex
         let groupEnd = activeIndex
-        while (groupStart > 0 && layoutSet.has(state.tabs[groupStart - 1]!.id)) groupStart--
-        while (groupEnd < state.tabs.length - 1 && layoutSet.has(state.tabs[groupEnd + 1]!.id))
+        while (groupStart > 0 && layoutSet.has(getTabIdAtIndex(state.tabs, groupStart - 1) ?? '')) {
+          groupStart--
+        }
+        while (
+          groupEnd < state.tabs.length - 1 &&
+          layoutSet.has(getTabIdAtIndex(state.tabs, groupEnd + 1) ?? '')
+        )
           groupEnd++
 
         const tabs = [...state.tabs]
         if (action.delta > 0 && groupEnd < tabs.length - 1) {
           // Check if the adjacent item belongs to another group → skip over it
-          const adjacentId = tabs[groupEnd + 1]!.id
+          const adjacentId = getTabIdAtIndex(tabs, groupEnd + 1)
+          if (!adjacentId) {
+            return state
+          }
           const adjacentGroupId = getGroupIdForTab(state.tabGroupMap, adjacentId)
           const adjacentTree = adjacentGroupId ? state.layoutTrees[adjacentGroupId] : null
           if (adjacentTree && adjacentTree.type === 'split') {
             const adjacentIds = new Set(allLeafIds(adjacentTree))
             let otherEnd = groupEnd + 1
-            while (otherEnd < tabs.length - 1 && adjacentIds.has(tabs[otherEnd + 1]!.id)) otherEnd++
+            while (
+              otherEnd < tabs.length - 1 &&
+              adjacentIds.has(getTabIdAtIndex(tabs, otherEnd + 1) ?? '')
+            ) {
+              otherEnd++
+            }
             // Move the other group's tabs before our group
             const otherCount = otherEnd - groupEnd
             const moved = tabs.splice(groupEnd + 1, otherCount)
             tabs.splice(groupStart, 0, ...moved)
           } else {
-            const [moved] = tabs.splice(groupEnd + 1, 1)
-            tabs.splice(groupStart, 0, moved!)
+            const moved = tabs.splice(groupEnd + 1, 1)[0]
+            if (!moved) {
+              return state
+            }
+            tabs.splice(groupStart, 0, moved)
           }
         } else if (action.delta < 0 && groupStart > 0) {
-          const adjacentId = tabs[groupStart - 1]!.id
+          const adjacentId = getTabIdAtIndex(tabs, groupStart - 1)
+          if (!adjacentId) {
+            return state
+          }
           const adjacentGroupId = getGroupIdForTab(state.tabGroupMap, adjacentId)
           const adjacentTree = adjacentGroupId ? state.layoutTrees[adjacentGroupId] : null
           if (adjacentTree && adjacentTree.type === 'split') {
             const adjacentIds = new Set(allLeafIds(adjacentTree))
             let otherStart = groupStart - 1
-            while (otherStart > 0 && adjacentIds.has(tabs[otherStart - 1]!.id)) otherStart--
+            while (otherStart > 0 && adjacentIds.has(getTabIdAtIndex(tabs, otherStart - 1) ?? '')) {
+              otherStart--
+            }
             const otherCount = groupStart - otherStart
             const moved = tabs.splice(otherStart, otherCount)
             tabs.splice(otherStart + (groupEnd - groupStart + 1), 0, ...moved)
           } else {
-            const [moved] = tabs.splice(groupStart - 1, 1)
-            tabs.splice(groupEnd, 0, moved!)
+            const moved = tabs.splice(groupStart - 1, 1)[0]
+            if (!moved) {
+              return state
+            }
+            tabs.splice(groupEnd, 0, moved)
           }
         } else {
           return state
@@ -232,7 +264,10 @@ export function reduceTabState(state: AppState, action: AppAction): AppState | n
         return state
       }
       // Check if target belongs to a group → skip over the entire group
-      const targetTabId = state.tabs[nextIndex]!.id
+      const targetTabId = getTabIdAtIndex(state.tabs, nextIndex)
+      if (!targetTabId) {
+        return state
+      }
       const targetGroupId = getGroupIdForTab(state.tabGroupMap, targetTabId)
       const targetTree = targetGroupId ? state.layoutTrees[targetGroupId] : null
       if (targetTree && targetTree.type === 'split') {
@@ -240,14 +275,27 @@ export function reduceTabState(state: AppState, action: AppAction): AppState | n
         const tabs = [...state.tabs]
         if (action.delta > 0) {
           let targetEnd = nextIndex
-          while (targetEnd < tabs.length - 1 && targetIds.has(tabs[targetEnd + 1]!.id)) targetEnd++
-          const [moved] = tabs.splice(activeIndex, 1)
-          tabs.splice(targetEnd, 0, moved!)
+          while (
+            targetEnd < tabs.length - 1 &&
+            targetIds.has(getTabIdAtIndex(tabs, targetEnd + 1) ?? '')
+          ) {
+            targetEnd++
+          }
+          const moved = tabs.splice(activeIndex, 1)[0]
+          if (!moved) {
+            return state
+          }
+          tabs.splice(targetEnd, 0, moved)
         } else {
           let targetStart = nextIndex
-          while (targetStart > 0 && targetIds.has(tabs[targetStart - 1]!.id)) targetStart--
-          const [moved] = tabs.splice(activeIndex, 1)
-          tabs.splice(targetStart, 0, moved!)
+          while (targetStart > 0 && targetIds.has(getTabIdAtIndex(tabs, targetStart - 1) ?? '')) {
+            targetStart--
+          }
+          const moved = tabs.splice(activeIndex, 1)[0]
+          if (!moved) {
+            return state
+          }
+          tabs.splice(targetStart, 0, moved)
         }
         return { ...state, tabs }
       }
@@ -274,13 +322,7 @@ export function reduceTabState(state: AppState, action: AppAction): AppState | n
           viewport: undefined,
           errorMessage: undefined,
           exitCode: undefined,
-          terminalModes: {
-            mouseTrackingMode: 'none',
-            sendFocusMode: false,
-            alternateScrollMode: false,
-            isAlternateBuffer: false,
-            bracketedPasteMode: false,
-          },
+          terminalModes: createDefaultTerminalModes(),
         })),
       }
     case 'append-tab-buffer':
@@ -342,8 +384,9 @@ export function reduceTabState(state: AppState, action: AppAction): AppState | n
       // Find existing group for active tab, or create a new one
       let groupId = getGroupIdForTab(state.tabGroupMap, state.activeTabId)
       let tree: import('../layout-tree').LayoutNode
-      if (groupId && state.layoutTrees[groupId] !== undefined) {
-        tree = state.layoutTrees[groupId]!
+      const existingTree = groupId ? state.layoutTrees[groupId] : undefined
+      if (groupId && existingTree) {
+        tree = existingTree
       } else {
         groupId = createGroupId()
         tree = createLeaf(state.activeTabId)
@@ -355,7 +398,8 @@ export function reduceTabState(state: AppState, action: AppAction): AppState | n
       const layoutIdSet = new Set(allLeafIds(tree))
       let insertIndex = state.tabs.length
       for (let i = state.tabs.length - 1; i >= 0; i--) {
-        if (layoutIdSet.has(state.tabs[i]!.id)) {
+        const tabId = getTabIdAtIndex(state.tabs, i)
+        if (tabId && layoutIdSet.has(tabId)) {
           insertIndex = i + 1
           break
         }

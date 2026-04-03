@@ -11,9 +11,15 @@
   },
   "rules": {
     "no-console": "error",
+    "no-nested-ternary": "error",
+    "no-unused-vars": "error",
     "prefer-template": "error",
-    "no-unused-vars": "off",
     "typescript/no-empty-object-type": "off",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/promise-function-async": "error",
+    "typescript/no-non-null-assertion": "error",
+    "typescript/switch-exhaustiveness-check": "error",
     "unicorn/filename-case": [
       "error",
       {
@@ -26,24 +32,5 @@
     "unicorn/prefer-module": "error",
     "react/no-unescaped-entities": "error"
   },
-  "overrides": [
-    {
-      "files": ["**/routes/**/$*.tsx"],
-      "rules": {
-        "unicorn/filename-case": "off"
-      }
-    }
-  ],
-  "ignorePatterns": [
-    "**/*.js",
-    "**/dist/**",
-    "**/routeTree.gen.ts",
-    "**/build/**",
-    "**/.adonisjs/api.ts",
-    "**/.adonisjs/prisma.ts",
-    "**/generated/prisma/**",
-    "**/*.cjs",
-    "**/*.mjs",
-    "**/*.d.ts"
-  ]
+  "ignorePatterns": ["**/*.js", "**/dist/**", "**/build/**", "**/*.cjs", "**/*.mjs", "**/*.d.ts"]
 }

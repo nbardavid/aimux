@@ -6,6 +6,7 @@ import type { ThemeId } from '../ui/themes'
 
 import { loadConfig, saveConfig } from '../config'
 import { logInputDebug } from '../debug/input-log'
+import { createPrefixedId } from '../platform/id'
 import {
   getAllAssistantOptions,
   getAssistantOption,
@@ -22,6 +23,7 @@ import {
   splitNode,
 } from '../state/layout-tree'
 import { filterSessions, filterSnippets } from '../state/selectors'
+import { createDefaultTerminalModes } from '../state/terminal-modes'
 import { saveCurrentWorkspace } from '../state/workspace-save'
 import { applyTheme } from '../ui/theme'
 import { THEME_IDS } from '../ui/themes'
@@ -55,7 +57,17 @@ export interface SideEffectContext {
 }
 
 function createTabId(): string {
-  return `tab-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  return createPrefixedId('tab')
+}
+
+function getSelectedSession(state: AppState) {
+  const filter = state.modal.type === 'session-picker' ? state.modal.editBuffer : null
+  return filterSessions(state.sessions, filter)[state.modal.selectedIndex]
+}
+
+function getSelectedSnippet(state: AppState) {
+  const filter = state.modal.type === 'snippet-picker' ? state.modal.editBuffer : null
+  return filterSnippets(state.snippets, filter)[state.modal.selectedIndex]
 }
 
 export function createTabSession(
@@ -73,13 +85,7 @@ export function createTabSession(
     status: 'starting',
     activity: 'idle',
     buffer: '',
-    terminalModes: {
-      mouseTrackingMode: 'none',
-      sendFocusMode: false,
-      alternateScrollMode: false,
-      isAlternateBuffer: false,
-      bracketedPasteMode: false,
-    },
+    terminalModes: createDefaultTerminalModes(),
     command: customCommand ?? option.command,
   }
 }
@@ -162,9 +168,14 @@ function executeSplitPane(
   tab: TabSession
 ): void {
   const { state, dispatch, backend, clearStartupGrace, startStartupGrace } = ctx
-  const existingTree = getTreeForTab(state.layoutTrees, state.tabGroupMap, state.activeTabId!)
-  const baseTree = existingTree ?? createLeaf(state.activeTabId!)
-  const newTree = splitNode(baseTree, state.activeTabId!, direction, tab.id)
+  const activeTabId = state.activeTabId
+  if (!activeTabId) {
+    return
+  }
+
+  const existingTree = getTreeForTab(state.layoutTrees, state.tabGroupMap, activeTabId)
+  const baseTree = existingTree ?? createLeaf(activeTabId)
+  const newTree = splitNode(baseTree, activeTabId, direction, tab.id)
   const bounds = {
     x: 0,
     y: 0,
@@ -204,16 +215,12 @@ export function executeSideEffect(effect: SideEffect, ctx: SideEffectContext): v
       return
     }
     case 'confirm-selected-session': {
-      const filtered = filterSessions(
-        state.sessions,
-        state.modal.type === 'session-picker' ? state.modal.editBuffer : null
-      )
+      const selectedSession = getSelectedSession(state)
       logInputDebug('app.sessionPicker.confirm', {
         selectedIndex: state.modal.selectedIndex,
-        selectedSessionId: filtered[state.modal.selectedIndex]?.id ?? null,
-        creatingNew: state.modal.selectedIndex === filtered.length,
+        selectedSessionId: selectedSession?.id ?? null,
+        creatingNew: !selectedSession,
       })
-      const selectedSession = filtered[state.modal.selectedIndex]
       if (selectedSession) {
         handleSwitchSessionEffect(state, backend, dispatch, selectedSession)
       } else {
@@ -222,11 +229,7 @@ export function executeSideEffect(effect: SideEffect, ctx: SideEffectContext): v
       return
     }
     case 'delete-selected-session': {
-      const filtered = filterSessions(
-        state.sessions,
-        state.modal.type === 'session-picker' ? state.modal.editBuffer : null
-      )
-      const selectedSession = filtered[state.modal.selectedIndex]
+      const selectedSession = getSelectedSession(state)
       logInputDebug('app.sessionPicker.deleteSelected', {
         selectedIndex: state.modal.selectedIndex,
         selectedSessionId: selectedSession?.id ?? null,
@@ -237,11 +240,7 @@ export function executeSideEffect(effect: SideEffect, ctx: SideEffectContext): v
       return
     }
     case 'open-rename-selected-session': {
-      const filtered = filterSessions(
-        state.sessions,
-        state.modal.type === 'session-picker' ? state.modal.editBuffer : null
-      )
-      const selectedSession = filtered[state.modal.selectedIndex]
+      const selectedSession = getSelectedSession(state)
       if (selectedSession) {
         logInputDebug('app.sessionPicker.openRenameModal', {
           selectedIndex: state.modal.selectedIndex,
@@ -275,24 +274,11 @@ export function executeSideEffect(effect: SideEffect, ctx: SideEffectContext): v
       )
       return
     case 'paste-selected-snippet': {
-      const filtered = filterSnippets(
-        state.snippets,
-        state.modal.type === 'snippet-picker' ? state.modal.editBuffer : null
-      )
-      pasteSnippetToTab(
-        backend,
-        state.activeTabId,
-        ctx.activeTab,
-        filtered[state.modal.selectedIndex]
-      )
+      pasteSnippetToTab(backend, state.activeTabId, ctx.activeTab, getSelectedSnippet(state))
       return
     }
     case 'paste-snippet-to-group': {
-      const filtered = filterSnippets(
-        state.snippets,
-        state.modal.type === 'snippet-picker' ? state.modal.editBuffer : null
-      )
-      const snippet = filtered[state.modal.selectedIndex]
+      const snippet = getSelectedSnippet(state)
       if (!snippet || !state.activeTabId) return
 
       const groupId = getGroupIdForTab(state.tabGroupMap, state.activeTabId)
@@ -312,22 +298,14 @@ export function executeSideEffect(effect: SideEffect, ctx: SideEffectContext): v
       return
     }
     case 'edit-selected-snippet': {
-      const filtered = filterSnippets(
-        state.snippets,
-        state.modal.type === 'snippet-picker' ? state.modal.editBuffer : null
-      )
-      const snippet = filtered[state.modal.selectedIndex]
+      const snippet = getSelectedSnippet(state)
       if (snippet) {
         dispatch({ type: 'open-snippet-editor', snippetId: snippet.id })
       }
       return
     }
     case 'delete-selected-snippet': {
-      const filtered = filterSnippets(
-        state.snippets,
-        state.modal.type === 'snippet-picker' ? state.modal.editBuffer : null
-      )
-      const snippet = filtered[state.modal.selectedIndex]
+      const snippet = getSelectedSnippet(state)
       if (snippet) {
         handleDeleteSnippetEffect(state.snippets, dispatch, snippet.id)
       }

@@ -1,5 +1,5 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from '@opentui/react'
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react'
 
 import type { KeyResult, ModeContext, ModeId } from './input/modes/types'
 import type { SessionBackend } from './session-backend/types'
@@ -9,16 +9,14 @@ import { type SideEffectContext, executeSideEffect } from './app-runtime/side-ef
 import { useBackendRuntime } from './app-runtime/use-backend-runtime'
 import { useDirectorySearch } from './app-runtime/use-directory-search'
 import { useMouseHandlers } from './app-runtime/use-mouse-handlers'
+import { useRendererBindings } from './app-runtime/use-renderer-bindings'
 import { useTerminalResize } from './app-runtime/use-terminal-resize'
 import { useWorkspaceAutosave } from './app-runtime/use-workspace-autosave'
 import { loadConfig } from './config'
-import { INPUT_DEBUG_LOG_PATH, logInputDebug } from './debug/input-log'
 import { deriveModeId } from './input/modes/bridge'
 import { registerAllModes } from './input/modes/handlers'
 import { getHandler, transitionTo } from './input/modes/registry'
-import { buildPtyPastePayload } from './input/paste'
-import { createRawInputHandler, type TerminalContentOrigin } from './input/raw-input-handler'
-import { copyToSystemClipboard } from './platform/clipboard'
+import { type TerminalContentOrigin } from './input/raw-input-handler'
 import { appStore } from './state/app-store'
 import { loadSessionCatalog } from './state/session-catalog'
 import { loadSnippetCatalog } from './state/snippet-catalog'
@@ -44,8 +42,10 @@ export function App({ backend }: { backend: SessionBackend }) {
     const { customCommands } = loadConfig()
     return createInitialState(customCommands, loadSessionCatalog(), loadSnippetCatalog(), true)
   })
-  // Sync useReducer state into Zustand store (transition bridge)
-  appStore.setState(state)
+
+  useLayoutEffect(() => {
+    appStore.setState(state)
+  }, [state])
 
   const resizingRef = useRef(false)
   const layoutRef = useRef(state.layout)
@@ -113,105 +113,17 @@ export function App({ backend }: { backend: SessionBackend }) {
     activeLocalScrollbackEnabled,
   })
 
-  useEffect(() => {
-    renderer.useMouse = true
-    renderer.useConsole = false
-    renderer.console.hide()
-    renderer.console.show = () => {}
-
-    const handler = createRawInputHandler({
-      getFocusMode: () => focusModeRef.current,
-      getActiveTabId: () => activeTabIdRef.current,
-      getContentOrigin: () => contentOriginRef.current,
-      getMousePassthroughEnabled: () => activeTabRef.current !== undefined,
-      getBracketedPasteModeEnabled: () =>
-        activeTabRef.current?.terminalModes.bracketedPasteMode ?? false,
-      writeToPty: (tabId, data) => {
-        const viewport = activeTabRef.current?.viewport
-        if (viewport && viewport.viewportY < viewport.baseY) {
-          backend.scrollViewportToBottom(tabId)
-        }
-        backend.write(tabId, data)
-      },
-      leaveTerminalInput: () => dispatch({ type: 'set-focus-mode', focusMode: 'navigation' }),
-      enterLayoutMode: () => dispatch({ type: 'set-focus-mode', focusMode: 'layout' }),
-      toggleSidebar: () => dispatch({ type: 'toggle-sidebar' }),
-    })
-
-    const handlePasteEvent = (event: { bytes: Uint8Array; defaultPrevented?: boolean }) => {
-      logInputDebug('app.rendererPaste', {
-        defaultPrevented: event.defaultPrevented ?? false,
-        byteLength: event.bytes.length,
-      })
-
-      if (event.defaultPrevented) {
-        return
-      }
-
-      const tab = activeTabRef.current
-      const tabId = activeTabIdRef.current
-      const focusMode = focusModeRef.current
-
-      logInputDebug('app.onTerminalPaste', {
-        activeTabId: tabId,
-        focusMode,
-        byteLength: event.bytes.length,
-        decodedPreview: new TextDecoder().decode(event.bytes).slice(0, 120),
-        bracketedPasteMode: tab?.terminalModes.bracketedPasteMode ?? false,
-      })
-
-      if (focusMode !== 'terminal-input' || !tabId || !tab) {
-        return
-      }
-
-      if (tab.viewport && tab.viewport.viewportY < tab.viewport.baseY) {
-        backend.scrollViewportToBottom(tabId)
-      }
-
-      const payload = new TextDecoder().decode(event.bytes)
-      backend.write(tabId, buildPtyPastePayload(payload, tab.terminalModes.bracketedPasteMode))
-    }
-
-    const handleSelection = (selection: { isDragging?: boolean; getSelectedText(): string }) => {
-      const selectedText = selection.getSelectedText()
-      logInputDebug('app.selection', {
-        isDragging: selection.isDragging ?? false,
-        textLength: selectedText.length,
-        osc52Supported: renderer.isOsc52Supported(),
-      })
-
-      if (selection.isDragging || selectedText.length === 0) {
-        return
-      }
-
-      renderer.copyToClipboardOSC52(selectedText)
-      copyToSystemClipboard(selectedText)
-    }
-
-    renderer.prependInputHandler(handler)
-    renderer.keyInput.on('paste', handlePasteEvent)
-    renderer.on('selection', handleSelection)
-    return () => {
-      renderer.removeInputHandler(handler)
-      renderer.keyInput.off('paste', handlePasteEvent)
-      renderer.off('selection', handleSelection)
-    }
-  }, [backend, renderer])
-
-  useEffect(() => {
-    const shouldEnableBracketedPaste = state.focusMode === 'terminal-input' && !!state.activeTabId
-    logInputDebug('app.bracketedPasteMode', {
-      enabled: shouldEnableBracketedPaste,
-      activeTabId: state.activeTabId,
-      focusMode: state.focusMode,
-      logPath: INPUT_DEBUG_LOG_PATH,
-    })
-    process.stdout.write(shouldEnableBracketedPaste ? '\x1b[?2004h' : '\x1b[?2004l')
-
-    return () => {
-      process.stdout.write('\x1b[?2004l')
-    }
-  }, [state.activeTabId, state.focusMode])
+  useRendererBindings({
+    backend,
+    renderer,
+    dispatch,
+    focusMode: state.focusMode,
+    activeTabId: state.activeTabId,
+    focusModeRef,
+    activeTabIdRef,
+    activeTabRef,
+    contentOriginRef,
+  })
 
   const sideEffectCtx: SideEffectContext = {
     state,

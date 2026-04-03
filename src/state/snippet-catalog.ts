@@ -11,11 +11,6 @@ export interface SnippetRecord {
   content: string
 }
 
-interface SnippetCatalogFile {
-  version: 1
-  snippets: SnippetRecord[]
-}
-
 const SNIPPETS_PATH = join(dirname(CONFIG_PATH), 'aimux-snippets.json')
 
 const DEFAULT_SNIPPETS: SnippetRecord[] = [

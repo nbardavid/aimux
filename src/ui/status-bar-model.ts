@@ -1,6 +1,6 @@
-import { homedir } from 'node:os'
-
 import type { AppState, TabSession } from '../state/types'
+
+import { abbreviatePath } from './path-format'
 
 export interface StatusBarModel {
   left: string
@@ -15,11 +15,6 @@ function truncateLabel(label: string): string {
   }
 
   return `${label.slice(0, MAX_TAB_LABEL_LENGTH - 3)}...`
-}
-
-function abbreviatePath(path: string): string {
-  const home = homedir()
-  return path.startsWith(home) ? `~${path.slice(home.length)}` : path
 }
 
 function getActiveTabLabel(tab?: TabSession): string {
@@ -42,6 +37,18 @@ function getNavigationHint(activeTab?: TabSession): string {
   return 'Ctrl+g sessions  j/k move  Shift+J/K reorder  Ctrl+r restart  Ctrl+w close  i focus  ? help'
 }
 
+function getInputHint(activeTab?: TabSession): string {
+  if (!activeTab) {
+    return 'Ctrl+n new  no active tab to focus'
+  }
+
+  if (activeTab.status === 'disconnected') {
+    return 'Ctrl+z unfocus  Ctrl+w layout  Ctrl+r restart'
+  }
+
+  return 'Ctrl+z unfocus  Ctrl+w layout  typing goes to active tab'
+}
+
 export function getStatusBarModel(state: AppState, activeTab?: TabSession): StatusBarModel {
   const currentSession = state.currentSessionId
     ? state.sessions.find((session) => session.id === state.currentSessionId)
@@ -58,11 +65,7 @@ export function getStatusBarModel(state: AppState, activeTab?: TabSession): Stat
     case 'terminal-input':
       return {
         left: `INPUT  ${getActiveTabLabel(activeTab)}  ${sessionIcon}  ${sessionLabel}`,
-        right: activeTab
-          ? activeTab.status === 'disconnected'
-            ? 'Ctrl+z unfocus  Ctrl+w layout  Ctrl+r restart'
-            : 'Ctrl+z unfocus  Ctrl+w layout  typing goes to active tab'
-          : 'Ctrl+n new  no active tab to focus',
+        right: getInputHint(activeTab),
       }
     case 'modal':
       return {

@@ -26,20 +26,29 @@ function ctx(overrides?: Partial<ReturnType<typeof createInitialState>>): ModeCo
   return { state: { ...state, ...overrides } }
 }
 
+function requireValue<T>(value: T | null | undefined, message: string): T {
+  if (value == null) {
+    throw new Error(message)
+  }
+
+  return value
+}
+
 describe('mode handlers', () => {
   test('navigation: maps j/k to move-active-tab', () => {
-    const handler = getHandler('navigation')!
-    const result = handler.handleKey(key('j'), ctx())
-    expect(result).not.toBeNull()
-    expect(result!.actions).toEqual([{ type: 'move-active-tab', delta: 1 }])
+    const handler = requireValue(getHandler('navigation'), 'Missing navigation handler')
+    const result = requireValue(handler.handleKey(key('j'), ctx()), 'Expected navigation result')
+    expect(result.actions).toEqual([{ type: 'move-active-tab', delta: 1 }])
   })
 
   test('navigation: Ctrl+W dispatches close-active-tab', () => {
-    const handler = getHandler('navigation')!
-    const result = handler.handleKey(key('w', { ctrl: true }), ctx({ activeTabId: 'tab-1' }))
-    expect(result).not.toBeNull()
-    expect(result!.actions).toEqual([{ type: 'close-active-tab' }])
-    expect(result!.effects).toEqual([{ type: 'close-tab', tabId: 'tab-1' }])
+    const handler = requireValue(getHandler('navigation'), 'Missing navigation handler')
+    const result = requireValue(
+      handler.handleKey(key('w', { ctrl: true }), ctx({ activeTabId: 'tab-1' })),
+      'Expected close-active-tab result'
+    )
+    expect(result.actions).toEqual([{ type: 'close-active-tab' }])
+    expect(result.effects).toEqual([{ type: 'close-tab', tabId: 'tab-1' }])
   })
 
   test('navigation: Ctrl+R triggers restart-tab effect', () => {
@@ -58,104 +67,135 @@ describe('mode handlers', () => {
       },
       command: 'claude',
     }
-    const handler = getHandler('navigation')!
-    const result = handler.handleKey(
-      key('r', { ctrl: true }),
-      ctx({ activeTabId: 'tab-1', tabs: [tab] })
+    const handler = requireValue(getHandler('navigation'), 'Missing navigation handler')
+    const result = requireValue(
+      handler.handleKey(key('r', { ctrl: true }), ctx({ activeTabId: 'tab-1', tabs: [tab] })),
+      'Expected restart result'
     )
-    expect(result).not.toBeNull()
-    expect(result!.effects[0]?.type).toBe('restart-tab')
+    expect(result.effects[0]?.type).toBe('restart-tab')
   })
 
   test('navigation: Ctrl+G opens session picker', () => {
-    const handler = getHandler('navigation')!
-    const result = handler.handleKey(key('g', { ctrl: true }), ctx())
-    expect(result).not.toBeNull()
-    expect(result!.actions).toEqual([{ type: 'open-session-picker' }])
-    expect(result!.transition).toBe('modal.session-picker')
+    const handler = requireValue(getHandler('navigation'), 'Missing navigation handler')
+    const result = requireValue(
+      handler.handleKey(key('g', { ctrl: true }), ctx()),
+      'Expected session picker result'
+    )
+    expect(result.actions).toEqual([{ type: 'open-session-picker' }])
+    expect(result.transition).toBe('modal.session-picker')
   })
 
   test('navigation: Shift+J reorders tab', () => {
-    const handler = getHandler('navigation')!
-    const result = handler.handleKey(key('j', { shift: true }), ctx())
-    expect(result).not.toBeNull()
-    expect(result!.actions).toEqual([{ type: 'reorder-active-tab', delta: 1 }])
+    const handler = requireValue(getHandler('navigation'), 'Missing navigation handler')
+    const result = requireValue(
+      handler.handleKey(key('j', { shift: true }), ctx()),
+      'Expected reorder result'
+    )
+    expect(result.actions).toEqual([{ type: 'reorder-active-tab', delta: 1 }])
   })
 
   test('navigation: Shift+K reorders tab up', () => {
-    const handler = getHandler('navigation')!
-    const result = handler.handleKey(key('k', { shift: true }), ctx())
-    expect(result).not.toBeNull()
-    expect(result!.actions).toEqual([{ type: 'reorder-active-tab', delta: -1 }])
+    const handler = requireValue(getHandler('navigation'), 'Missing navigation handler')
+    const result = requireValue(
+      handler.handleKey(key('k', { shift: true }), ctx()),
+      'Expected reorder-up result'
+    )
+    expect(result.actions).toEqual([{ type: 'reorder-active-tab', delta: -1 }])
   })
 
   test('navigation: i transitions to terminal-input', () => {
-    const handler = getHandler('navigation')!
-    const result = handler.handleKey(key('i'), ctx({ activeTabId: 'tab-1' }))
-    expect(result).not.toBeNull()
-    expect(result!.transition).toBe('terminal-input')
+    const handler = requireValue(getHandler('navigation'), 'Missing navigation handler')
+    const result = requireValue(
+      handler.handleKey(key('i'), ctx({ activeTabId: 'tab-1' })),
+      'Expected terminal-input transition'
+    )
+    expect(result.transition).toBe('terminal-input')
   })
 
   test('modal.help: escape closes modal', () => {
-    const handler = getHandler('modal.help')!
-    const result = handler.handleKey(key('escape'), ctx())
-    expect(result).not.toBeNull()
-    expect(result!.actions).toEqual([{ type: 'close-modal' }])
-    expect(result!.transition).toBe('navigation')
+    const handler = requireValue(getHandler('modal.help'), 'Missing help handler')
+    const result = requireValue(
+      handler.handleKey(key('escape'), ctx()),
+      'Expected help modal close result'
+    )
+    expect(result.actions).toEqual([{ type: 'close-modal' }])
+    expect(result.transition).toBe('navigation')
   })
 
   test('modal.help: Ctrl+B is not handled', () => {
-    const handler = getHandler('modal.help')!
+    const handler = requireValue(getHandler('modal.help'), 'Missing help handler')
     const result = handler.handleKey(key('b', { ctrl: true }), ctx())
     expect(result).toBeNull()
   })
 
   test('terminal-input: all keys return null', () => {
-    const handler = getHandler('terminal-input')!
+    const handler = requireValue(getHandler('terminal-input'), 'Missing terminal-input handler')
     expect(handler.handleKey(key('z', { ctrl: true }), ctx())).toBeNull()
     expect(handler.handleKey(key('l', { ctrl: true }), ctx())).toBeNull()
     expect(handler.handleKey(key('w', { ctrl: true }), ctx())).toBeNull()
   })
 
   test('modal.session-picker: escape blocked without currentSessionId', () => {
-    const handler = getHandler('modal.session-picker')!
+    const handler = requireValue(
+      getHandler('modal.session-picker'),
+      'Missing session-picker handler'
+    )
     const result = handler.handleKey(key('escape'), ctx({ currentSessionId: null }))
     expect(result).toBeNull()
   })
 
   test('modal.session-picker: escape works with currentSessionId', () => {
-    const handler = getHandler('modal.session-picker')!
-    const result = handler.handleKey(key('escape'), ctx({ currentSessionId: 's-1' }))
-    expect(result).not.toBeNull()
-    expect(result!.transition).toBe('navigation')
+    const handler = requireValue(
+      getHandler('modal.session-picker'),
+      'Missing session-picker handler'
+    )
+    const result = requireValue(
+      handler.handleKey(key('escape'), ctx({ currentSessionId: 's-1' })),
+      'Expected session-picker escape result'
+    )
+    expect(result.transition).toBe('navigation')
   })
 
   test('modal.session-picker: n opens create-session', () => {
-    const handler = getHandler('modal.session-picker')!
-    const result = handler.handleKey(key('n'), ctx())
-    expect(result).not.toBeNull()
-    expect(result!.transition).toBe('modal.create-session')
+    const handler = requireValue(
+      getHandler('modal.session-picker'),
+      'Missing session-picker handler'
+    )
+    const result = requireValue(
+      handler.handleKey(key('n'), ctx()),
+      'Expected create-session transition'
+    )
+    expect(result.transition).toBe('modal.create-session')
   })
 
   test('modal.snippet-picker: n opens snippet-editor', () => {
-    const handler = getHandler('modal.snippet-picker')!
-    const result = handler.handleKey(key('n'), ctx())
-    expect(result).not.toBeNull()
-    expect(result!.transition).toBe('modal.snippet-editor')
+    const handler = requireValue(
+      getHandler('modal.snippet-picker'),
+      'Missing snippet-picker handler'
+    )
+    const result = requireValue(
+      handler.handleKey(key('n'), ctx()),
+      'Expected snippet-editor transition'
+    )
+    expect(result.transition).toBe('modal.snippet-editor')
   })
 
   test('modal.new-tab: e enters command edit', () => {
-    const handler = getHandler('modal.new-tab')!
-    const result = handler.handleKey(key('e'), ctx())
-    expect(result).not.toBeNull()
-    expect(result!.transition).toBe('modal.new-tab.command-edit')
+    const handler = requireValue(getHandler('modal.new-tab'), 'Missing new-tab handler')
+    const result = requireValue(
+      handler.handleKey(key('e'), ctx()),
+      'Expected command edit transition'
+    )
+    expect(result.transition).toBe('modal.new-tab.command-edit')
   })
 
   test('modal.theme-picker: return confirms theme', () => {
-    const handler = getHandler('modal.theme-picker')!
-    const result = handler.handleKey(key('return'), ctx())
-    expect(result).not.toBeNull()
-    expect(result!.effects[0]?.type).toBe('apply-theme')
-    expect(result!.transition).toBe('navigation')
+    const handler = requireValue(getHandler('modal.theme-picker'), 'Missing theme-picker handler')
+    const result = requireValue(
+      handler.handleKey(key('return'), ctx()),
+      'Expected theme confirmation result'
+    )
+    expect(result.effects[0]?.type).toBe('apply-theme')
+    expect(result.transition).toBe('navigation')
   })
 })

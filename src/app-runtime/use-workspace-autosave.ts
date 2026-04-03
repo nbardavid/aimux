@@ -6,6 +6,8 @@ import { saveCurrentWorkspace } from '../state/workspace-save'
 
 export function useWorkspaceAutosave(state: AppState, debounceMs: number): void {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const latestStateRef = useRef(state)
+  latestStateRef.current = state
 
   useEffect(() => {
     if (timeoutRef.current) {
@@ -13,7 +15,7 @@ export function useWorkspaceAutosave(state: AppState, debounceMs: number): void 
     }
 
     timeoutRef.current = setTimeout(() => {
-      saveCurrentWorkspace(state)
+      saveCurrentWorkspace(latestStateRef.current)
       timeoutRef.current = null
     }, debounceMs)
 
@@ -21,8 +23,17 @@ export function useWorkspaceAutosave(state: AppState, debounceMs: number): void 
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
         timeoutRef.current = null
-        saveCurrentWorkspace(state)
       }
     }
   }, [debounceMs, state])
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
+      saveCurrentWorkspace(latestStateRef.current)
+    }
+  }, [])
 }

@@ -19,11 +19,42 @@ interface UseMouseHandlersOptions {
   backend: SessionBackend
   renderer: {
     clearSelection(): void
+    hasSelection?: boolean
     startSelection(target: unknown, x: number, y: number): void
     updateSelection(target: unknown, x: number, y: number, opts: { finishDragging: boolean }): void
   }
   activeMouseForwardingEnabled: boolean
   activeLocalScrollbackEnabled: boolean
+}
+
+interface PositionedNode {
+  id?: string
+  parent?: unknown
+  selectable?: boolean
+  x: number
+  y: number
+}
+
+interface RenderableNode {
+  parent?: unknown
+  requestRender(): void
+}
+
+function isPositionedNode(value: unknown): value is PositionedNode {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof Reflect.get(value, 'x') === 'number' &&
+    typeof Reflect.get(value, 'y') === 'number'
+  )
+}
+
+function isRenderableNode(value: unknown): value is RenderableNode {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof Reflect.get(value, 'requestRender') === 'function'
+  )
 }
 
 export function useMouseHandlers({
@@ -133,22 +164,22 @@ export function useMouseHandlers({
     // Use actual layout positions from the DOM instead of computed paneOrigin.
     // contentOrigin.y double-counts the border for top panes in split mode.
     const lineBox = event.target.parent
-    if (!lineBox) {
+    if (!isPositionedNode(lineBox)) {
       return
     }
-    const contentBox = (lineBox as any).parent
-    if (!contentBox) {
+    const contentBox = lineBox.parent
+    if (!isPositionedNode(contentBox)) {
       return
     }
-    const col = event.x - (contentBox as any).x
-    const row = event.y - (contentBox as any).y
-    const baseX = (lineBox as any).x
+    const col = event.x - contentBox.x
+    const row = event.y - contentBox.y
+    const baseX = lineBox.x
 
     logInputDebug('click.detect', {
       eventX: event.x,
       eventY: event.y,
-      contentBoxX: (contentBox as any).x,
-      contentBoxY: (contentBox as any).y,
+      contentBoxX: contentBox.x,
+      contentBoxY: contentBox.y,
       col,
       row,
       clickCount,
@@ -228,14 +259,14 @@ export function useMouseHandlers({
     // Without this, selection highlight only appears on panes that receive
     // PTY updates (which independently trigger a render cycle).
     let dirtyNode: unknown = event.target
-    while (dirtyNode && typeof (dirtyNode as any).requestRender === 'function') {
-      ;(dirtyNode as any).requestRender()
-      dirtyNode = (dirtyNode as any).parent
+    while (isRenderableNode(dirtyNode)) {
+      dirtyNode.requestRender()
+      dirtyNode = dirtyNode.parent
     }
 
     logInputDebug('click.done', {
-      hasSelection: !!(renderer as any).hasSelection,
-      targetSelectable: !!(event.target as any).selectable,
+      hasSelection: !!renderer.hasSelection,
+      targetSelectable: isPositionedNode(event.target) ? !!event.target.selectable : false,
     })
 
     copyToSystemClipboard(selectedText)

@@ -29,6 +29,23 @@ function getStatusColor(status: TabSession['status']): string {
 }
 
 const BUSY_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+const BUSY_FRAME_INTERVAL_MS = 80
+
+function getIndicator(active: boolean, focused: boolean, inLayout: boolean): string {
+  if (active) {
+    return focused ? '▶' : '◆'
+  }
+
+  return inLayout ? '┃' : '│'
+}
+
+function getIndicatorColor(active: boolean, focused: boolean, inLayout: boolean): string {
+  if (active) {
+    return focused ? theme.accent : theme.accentAlt
+  }
+
+  return inLayout ? theme.accent : theme.dim
+}
 
 function BusyIndicator() {
   const [frame, setFrame] = useState(0)
@@ -36,7 +53,7 @@ function BusyIndicator() {
   useEffect(() => {
     const interval = setInterval(() => {
       setFrame((prev) => (prev + 1) % BUSY_FRAMES.length)
-    }, 80)
+    }, BUSY_FRAME_INTERVAL_MS)
     return () => clearInterval(interval)
   }, [])
 
@@ -73,14 +90,9 @@ function ActivityIndicator({ tab, isFocusedInput }: { tab: TabSession; isFocused
 
 export function TabItem({ id, tab, active, focused, isFocusedInput, inLayout }: TabItemProps) {
   const label = tab.assistant.charAt(0).toUpperCase() + tab.assistant.slice(1).toLowerCase()
-  const indicator = active ? (focused ? '▶' : '◆') : inLayout ? '┃' : '│'
-  const indicatorColor = active
-    ? focused
-      ? theme.accent
-      : theme.accentAlt
-    : inLayout
-      ? theme.accent
-      : theme.dim
+  const isInLayout = inLayout ?? false
+  const indicator = getIndicator(active, focused, isInLayout)
+  const indicatorColor = getIndicatorColor(active, focused, isInLayout)
 
   return (
     <box

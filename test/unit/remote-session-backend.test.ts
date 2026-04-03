@@ -144,20 +144,22 @@ describe('RemoteSessionBackend', () => {
         for (const message of decoder.push(chunk)) {
           requests.push(message)
 
-          const response: ServerResponse =
-            message.type === 'attach'
-              ? {
-                  id: message.id,
-                  type: 'attachResult',
-                  payload: {
-                    protocolVersion: IPC_PROTOCOL_VERSION,
-                    tabs: [],
-                    activeTabId: null,
-                  },
-                }
-              : message.type === 'write'
-                ? { id: message.id, type: 'error', payload: { message: 'write rejected' } }
-                : { id: message.id, type: 'ok', payload: {} }
+          let response: ServerResponse
+          if (message.type === 'attach') {
+            response = {
+              id: message.id,
+              type: 'attachResult',
+              payload: {
+                protocolVersion: IPC_PROTOCOL_VERSION,
+                tabs: [],
+                activeTabId: null,
+              },
+            }
+          } else if (message.type === 'write') {
+            response = { id: message.id, type: 'error', payload: { message: 'write rejected' } }
+          } else {
+            response = { id: message.id, type: 'ok', payload: {} }
+          }
           socket.write(encodeMessage(response))
         }
       })

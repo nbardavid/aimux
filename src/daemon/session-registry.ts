@@ -10,21 +10,12 @@ import type {
 import { logDebug } from '../debug/input-log'
 import { PtyManager } from '../pty/pty-manager'
 import { restoreTabsFromWorkspace } from '../state/session-persistence'
+import { createDefaultTerminalModes } from '../state/terminal-modes'
 
 type SessionRegistryEvents = {
   render: [tabId: string, viewport: TerminalSnapshot, terminalModes: TerminalModeState]
   exit: [tabId: string, exitCode: number]
   error: [tabId: string, message: string]
-}
-
-function defaultTerminalModes(): TerminalModeState {
-  return {
-    mouseTrackingMode: 'none',
-    sendFocusMode: false,
-    alternateScrollMode: false,
-    isAlternateBuffer: false,
-    bracketedPasteMode: false,
-  }
 }
 
 export class SessionRegistry extends EventEmitter<SessionRegistryEvents> {
@@ -133,7 +124,7 @@ export class SessionRegistry extends EventEmitter<SessionRegistryEvents> {
         status: 'starting',
         activity: 'idle',
         buffer: '',
-        terminalModes: defaultTerminalModes(),
+        terminalModes: createDefaultTerminalModes(),
         command: [options.command, ...(options.args ?? [])].join(' '),
       })
     } else {
@@ -142,7 +133,7 @@ export class SessionRegistry extends EventEmitter<SessionRegistryEvents> {
       existing.errorMessage = undefined
       existing.exitCode = undefined
       existing.viewport = undefined
-      existing.terminalModes = defaultTerminalModes()
+      existing.terminalModes = createDefaultTerminalModes()
       existing.assistant = options.assistant
       existing.title = options.title
       existing.command = [options.command, ...(options.args ?? [])].join(' ')

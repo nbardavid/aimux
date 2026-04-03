@@ -1,8 +1,33 @@
-import { homedir } from 'node:os'
-
 import type { DirectoryResult } from '../../state/types'
 
+import { abbreviatePath } from '../path-format'
 import { theme } from '../theme'
+
+const MODAL_WIDTH = '60%'
+
+function getDirectoryResultIcon(result: DirectoryResult): string {
+  if (result.type === 'worktree') {
+    return '\u{e728}'
+  }
+
+  if (result.type === 'workspace') {
+    return '\u{f07c}'
+  }
+
+  return '\u{e702}'
+}
+
+function getDirectoryResultColor(result: DirectoryResult): string {
+  if (result.type === 'worktree') {
+    return theme.warning
+  }
+
+  if (result.type === 'workspace') {
+    return theme.accentAlt
+  }
+
+  return theme.accent
+}
 
 interface CreateSessionModalProps {
   activeField: 'directory' | 'name'
@@ -11,11 +36,6 @@ interface CreateSessionModalProps {
   results: DirectoryResult[]
   selectedIndex: number
   pendingProjectPath: string | null
-}
-
-function abbreviatePath(path: string): string {
-  const home = homedir()
-  return path.startsWith(home) ? `~${path.slice(home.length)}` : path
 }
 
 export function CreateSessionModal({
@@ -40,7 +60,7 @@ export function CreateSessionModal({
       alignItems="center"
     >
       <box
-        width="60%"
+        width={MODAL_WIDTH}
         border
         borderColor={theme.borderActive}
         padding={1}
@@ -70,22 +90,12 @@ export function CreateSessionModal({
         {dirActive
           ? results.map((result, index) => {
               const active = index === selectedIndex
-              const icon =
-                result.type === 'worktree'
-                  ? '\u{e728}'
-                  : result.type === 'workspace'
-                    ? '\u{f07c}'
-                    : '\u{e702}'
-              const iconColor =
-                result.type === 'worktree'
-                  ? theme.warning
-                  : result.type === 'workspace'
-                    ? theme.accentAlt
-                    : theme.accent
               return (
                 <box key={result.path} flexDirection="row">
                   <text fg={active ? theme.text : theme.textMuted}>{active ? '>' : ' '} </text>
-                  <text fg={iconColor}>{icon} </text>
+                  <text fg={getDirectoryResultColor(result)}>
+                    {getDirectoryResultIcon(result)}{' '}
+                  </text>
                   <text fg={active ? theme.text : theme.textMuted}>
                     {abbreviatePath(result.path)}
                   </text>

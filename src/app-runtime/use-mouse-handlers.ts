@@ -138,11 +138,7 @@ export function useMouseHandlers({
     }
 
     const line = tab.viewport.lines[row]
-    const lineBox = event.target.parent
-    if (!lineBox) {
-      return
-    }
-    const baseX = lineBox.x
+    const baseX = origin.x
 
     const lineText = getLineText(line)
     let selectedText: string

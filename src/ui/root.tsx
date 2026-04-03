@@ -5,7 +5,7 @@ import type { SplitDirection } from '../state/layout-tree'
 import type { ThemeId } from './themes'
 
 import { useAppStore } from '../state/app-store'
-import { findLeaf } from '../state/layout-tree'
+import { getTreeForTab } from '../state/layout-tree'
 import { CreateSessionModal } from './components/create-session-modal'
 import { HelpModal } from './components/help-modal'
 import { NewTabModal } from './components/new-tab-modal'
@@ -60,7 +60,8 @@ export function RootView({
 }: RootViewProps) {
   const tabs = useAppStore((s) => s.tabs)
   const activeTabId = useAppStore((s) => s.activeTabId)
-  const layoutTree = useAppStore((s) => s.layoutTree)
+  const layoutTrees = useAppStore((s) => s.layoutTrees)
+  const tabGroupMap = useAppStore((s) => s.tabGroupMap)
   const focusMode = useAppStore((s) => s.focusMode)
   const modal = useAppStore((s) => s.modal)
   const snippets = useAppStore((s) => s.snippets)
@@ -69,14 +70,15 @@ export function RootView({
   const currentSessionId = useAppStore((s) => s.currentSessionId)
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId)
+  const activeTree = activeTabId ? getTreeForTab(layoutTrees, tabGroupMap, activeTabId) : null
 
   return (
     <box flexDirection="column" width="100%" height="100%" backgroundColor={theme.background}>
       <box flexDirection="row" gap={0} padding={0} flexGrow={1}>
         <Sidebar onTabActivate={onPaneActivate} />
-        {layoutTree && layoutTree.type === 'split' && findLeaf(layoutTree, activeTabId ?? '') ? (
+        {activeTree && activeTree.type === 'split' ? (
           <SplitLayout
-            node={layoutTree}
+            node={activeTree}
             tabs={tabs}
             activeTabId={activeTabId}
             focusMode={focusMode}

@@ -1,13 +1,48 @@
 import { describe, expect, test } from 'bun:test'
 
+import type { LayoutNode } from '../../src/state/layout-tree'
 import type { AppState, TabSession } from '../../src/state/types'
 
 import { deriveModeId } from '../../src/input/modes/bridge'
 import { registerAllModes } from '../../src/input/modes/handlers'
 import { layoutMode } from '../../src/input/modes/handlers/layout'
 import { getHandler, transitionTo } from '../../src/input/modes/registry'
-import { createLeaf, splitNode } from '../../src/state/layout-tree'
+import {
+  allLeafIds,
+  createGroupId,
+  createLeaf,
+  getTreeForTab,
+  splitNode,
+} from '../../src/state/layout-tree'
 import { appReducer, createInitialState } from '../../src/state/store'
+
+/** Helper: build layoutTrees + tabGroupMap from a single tree */
+function makeLayoutGroup(tree: LayoutNode): {
+  layoutTrees: Record<string, LayoutNode>
+  tabGroupMap: Record<string, string>
+} {
+  if (tree.type === 'leaf') {
+    return { layoutTrees: {}, tabGroupMap: {} }
+  }
+  const gId = 'test-group'
+  const tabGroupMap: Record<string, string> = {}
+  for (const id of allLeafIds(tree)) {
+    tabGroupMap[id] = gId
+  }
+  return { layoutTrees: { [gId]: tree }, tabGroupMap }
+}
+
+/** Helper: get the layout tree for the active tab */
+function getActiveTree(state: AppState): LayoutNode | null {
+  if (!state.activeTabId) return null
+  return getTreeForTab(state.layoutTrees, state.tabGroupMap, state.activeTabId)
+}
+
+/** Helper: get the first (and possibly only) layout tree */
+function getFirstTree(state: AppState): LayoutNode | null {
+  const trees = Object.values(state.layoutTrees)
+  return trees[0] ?? null
+}
 
 registerAllModes()
 
@@ -32,17 +67,18 @@ function createTab(id: string): TabSession {
 function stateWithSplit(): AppState {
   const tab1 = createTab('tab-1')
   const tab2 = createTab('tab-2')
+  const splitTree: LayoutNode = {
+    type: 'split',
+    direction: 'vertical',
+    ratio: 0.5,
+    first: createLeaf('tab-1'),
+    second: createLeaf('tab-2'),
+  }
   return {
     ...createInitialState(),
     tabs: [tab1, tab2],
     activeTabId: 'tab-1',
-    layoutTree: {
-      type: 'split',
-      direction: 'vertical',
-      ratio: 0.5,
-      first: createLeaf('tab-1'),
-      second: createLeaf('tab-2'),
-    },
+    ...makeLayoutGroup(splitTree),
     focusMode: 'layout',
   }
 }
@@ -182,7 +218,6 @@ describe('layout mode reducer integration', () => {
       ...createInitialState(),
       tabs: [tab1],
       activeTabId: 'tab-1',
-      layoutTree: createLeaf('tab-1'),
       focusMode: 'layout',
     }
 
@@ -195,7 +230,7 @@ describe('layout mode reducer integration', () => {
 
     expect(next.tabs).toHaveLength(2)
     expect(next.activeTabId).toBe('tab-2')
-    expect(next.layoutTree).toEqual({
+    expect(getFirstTree(next)).toEqual({
       type: 'split',
       direction: 'vertical',
       ratio: 0.5,
@@ -211,7 +246,8 @@ describe('layout mode reducer integration', () => {
     expect(next.tabs).toHaveLength(1)
     expect(next.tabs[0]?.id).toBe('tab-2')
     expect(next.activeTabId).toBe('tab-2')
-    expect(next.layoutTree).toEqual({ type: 'leaf', tabId: 'tab-2' })
+    // Group collapsed to single leaf → group removed
+    expect(Object.keys(next.layoutTrees)).toHaveLength(0)
   })
 
   test('focus-pane-direction changes activeTabId', () => {
@@ -230,9 +266,10 @@ describe('layout mode reducer integration', () => {
       axis: 'vertical',
     })
 
-    expect(next.layoutTree).not.toBe(state.layoutTree)
-    if (next.layoutTree?.type === 'split') {
-      expect(next.layoutTree.ratio).toBeCloseTo(0.55)
+    const tree = getActiveTree(next)
+    expect(tree).not.toBeNull()
+    if (tree?.type === 'split') {
+      expect(tree.ratio).toBeCloseTo(0.55)
     }
   })
 
@@ -249,38 +286,37 @@ describe('layout mode reducer integration', () => {
     expect(next).toBe(state)
   })
 
-  test('add-tab creates leaf when layoutTree is null', () => {
+  test('add-tab does not create layout group', () => {
     const state = createInitialState()
     const tab = createTab('tab-new')
     const next = appReducer(state, { type: 'add-tab', tab })
 
-    expect(next.layoutTree).toEqual({ type: 'leaf', tabId: 'tab-new' })
+    // Standalone tabs have no layout group
+    expect(Object.keys(next.layoutTrees)).toHaveLength(0)
   })
 
-  test('add-tab preserves existing layoutTree', () => {
+  test('add-tab preserves existing layout groups', () => {
     const state: AppState = {
       ...createInitialState(),
       tabs: [createTab('tab-1')],
       activeTabId: 'tab-1',
-      layoutTree: createLeaf('tab-1'),
     }
 
     const tab = createTab('tab-extra')
     const next = appReducer(state, { type: 'add-tab', tab })
 
-    // Tree should not change — new non-split tab added via sidebar, not via split
-    expect(next.layoutTree).toEqual(createLeaf('tab-1'))
+    // No layout groups should exist
+    expect(Object.keys(next.layoutTrees)).toHaveLength(0)
     expect(next.tabs).toHaveLength(2)
   })
 
-  test('split-pane creates leaf for orphaned activeTab before splitting', () => {
+  test('split-pane creates new group for orphaned activeTab', () => {
     const tab1 = createTab('tab-1')
     const tab2 = createTab('tab-2')
     const state: AppState = {
       ...createInitialState(),
       tabs: [tab1, tab2],
       activeTabId: 'tab-2',
-      layoutTree: createLeaf('tab-1'),
       focusMode: 'layout',
     }
 
@@ -293,7 +329,7 @@ describe('layout mode reducer integration', () => {
 
     expect(next.tabs).toHaveLength(3)
     expect(next.activeTabId).toBe('tab-3')
-    expect(next.layoutTree).toEqual({
+    expect(getActiveTree(next)).toEqual({
       type: 'split',
       direction: 'vertical',
       ratio: 0.5,
@@ -302,13 +338,12 @@ describe('layout mode reducer integration', () => {
     })
   })
 
-  test('split-pane creates tree from scratch when layoutTree is null', () => {
+  test('split-pane creates tree from scratch when no groups exist', () => {
     const tab1 = createTab('tab-1')
     const state: AppState = {
       ...createInitialState(),
       tabs: [tab1],
       activeTabId: 'tab-1',
-      layoutTree: null,
       focusMode: 'layout',
     }
 
@@ -321,7 +356,7 @@ describe('layout mode reducer integration', () => {
 
     expect(next.tabs).toHaveLength(2)
     expect(next.activeTabId).toBe('tab-2')
-    expect(next.layoutTree).toEqual({
+    expect(getActiveTree(next)).toEqual({
       type: 'split',
       direction: 'horizontal',
       ratio: 0.5,
@@ -339,14 +374,15 @@ describe('layout mode reducer integration', () => {
     state = appReducer(state, { type: 'add-tab', tab: tab2 })
 
     expect(state.activeTabId).toBe('tab-2')
-    expect(state.layoutTree).toEqual(createLeaf('tab-1'))
+    // No layout groups for standalone tabs
+    expect(Object.keys(state.layoutTrees)).toHaveLength(0)
 
     const tab3 = createTab('tab-3')
     state = appReducer(state, { type: 'split-pane', direction: 'vertical', newTab: tab3 })
 
     expect(state.tabs).toHaveLength(3)
     expect(state.activeTabId).toBe('tab-3')
-    expect(state.layoutTree).toEqual({
+    expect(getActiveTree(state)).toEqual({
       type: 'split',
       direction: 'vertical',
       ratio: 0.5,
@@ -357,7 +393,7 @@ describe('layout mode reducer integration', () => {
 })
 
 describe('hydrate-workspace layout restoration', () => {
-  test('hydrate-workspace restores layout tree with ratios', () => {
+  test('hydrate-workspace restores layout tree with ratios (legacy format)', () => {
     const tab1 = createTab('tab-1')
     const tab2 = createTab('tab-2')
     const savedTree = {
@@ -376,7 +412,7 @@ describe('hydrate-workspace layout restoration', () => {
       layoutTree: savedTree,
     })
 
-    expect(state.layoutTree).toEqual(savedTree)
+    expect(getActiveTree(state)).toEqual(savedTree)
     expect(state.tabs).toHaveLength(2)
     expect(state.activeTabId).toBe('tab-1')
   })
@@ -399,11 +435,11 @@ describe('hydrate-workspace layout restoration', () => {
       layoutTree: savedTree,
     })
 
-    // tab-gone pruned → split collapsed to leaf
-    expect(state.layoutTree).toEqual(createLeaf('tab-1'))
+    // tab-gone pruned → split collapsed to leaf → group removed
+    expect(Object.keys(state.layoutTrees)).toHaveLength(0)
   })
 
-  test('hydrate-workspace falls back to leaf when all tree tabs are gone', () => {
+  test('hydrate-workspace falls back to empty when all tree tabs are gone', () => {
     const tab1 = createTab('tab-new')
 
     let state = createInitialState()
@@ -420,7 +456,8 @@ describe('hydrate-workspace layout restoration', () => {
       },
     })
 
-    expect(state.layoutTree).toEqual(createLeaf('tab-new'))
+    // All tabs gone → no layout groups
+    expect(Object.keys(state.layoutTrees)).toHaveLength(0)
   })
 })
 
@@ -432,7 +469,6 @@ describe('full split flow simulation', () => {
       ...createInitialState(),
       tabs: [tab1],
       activeTabId: 'tab-1',
-      layoutTree: createLeaf('tab-1'),
       focusMode: 'terminal-input',
     }
 
@@ -463,7 +499,7 @@ describe('full split flow simulation', () => {
     // Verify final state
     expect(state.tabs).toHaveLength(2)
     expect(state.activeTabId).toBe('tab-2')
-    expect(state.layoutTree).toEqual({
+    expect(getActiveTree(state)).toEqual({
       type: 'split',
       direction: 'vertical',
       ratio: 0.5,
@@ -490,11 +526,11 @@ describe('full split flow simulation', () => {
       state = appReducer(state, action)
     }
 
-    // Verify: tab-1 removed, tree collapsed to leaf tab-2
+    // Verify: tab-1 removed, tree collapsed → group removed
     expect(state.tabs).toHaveLength(1)
     expect(state.tabs[0]?.id).toBe('tab-2')
     expect(state.activeTabId).toBe('tab-2')
-    expect(state.layoutTree).toEqual({ type: 'leaf', tabId: 'tab-2' })
+    expect(Object.keys(state.layoutTrees)).toHaveLength(0)
   })
 
   test('repeated Shift+H resize stays in layout mode and changes ratio', () => {
@@ -521,8 +557,9 @@ describe('full split flow simulation', () => {
     expect(state.focusMode).toBe('layout') // still in layout
 
     // Check ratio changed twice
-    if (state.layoutTree?.type === 'split') {
-      expect(state.layoutTree.ratio).toBeCloseTo(0.4)
+    const tree = getActiveTree(state)
+    if (tree?.type === 'split') {
+      expect(tree.ratio).toBeCloseTo(0.4)
     }
   })
 

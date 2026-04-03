@@ -1,6 +1,12 @@
 import type { AppState, TabSession, TabStatus, WorkspaceSnapshotV1 } from './types'
 
-import { createLeaf, pruneLayoutTree, type LayoutNode } from './layout-tree'
+import {
+  allLeafIds,
+  createGroupId,
+  createLeaf,
+  pruneLayoutTree,
+  type LayoutNode,
+} from './layout-tree'
 
 export function createEmptyWorkspaceSnapshot(): WorkspaceSnapshotV1 {
   return {
@@ -44,7 +50,9 @@ export function serializeWorkspace(state: AppState): WorkspaceSnapshotV1 {
       errorMessage: tab.errorMessage,
       exitCode: tab.exitCode,
     })),
-    layoutTree: state.layoutTree ?? undefined,
+    layoutTree: Object.values(state.layoutTrees)[0] ?? undefined,
+    layoutTrees: Object.keys(state.layoutTrees).length > 0 ? state.layoutTrees : undefined,
+    tabGroupMap: Object.keys(state.tabGroupMap).length > 0 ? state.tabGroupMap : undefined,
   }
 }
 
@@ -81,20 +89,60 @@ export function restoreLayoutTree(
   return tabs[0] ? createLeaf(tabs[0].id) : null
 }
 
+export function restoreLayoutTrees(
+  snapshot: WorkspaceSnapshotV1 | undefined,
+  tabs: TabSession[]
+): { layoutTrees: Record<string, LayoutNode>; tabGroupMap: Record<string, string> } {
+  const validTabIds = new Set(tabs.map((t) => t.id))
+  const layoutTrees: Record<string, LayoutNode> = {}
+  const tabGroupMap: Record<string, string> = {}
+
+  if (snapshot?.layoutTrees && snapshot?.tabGroupMap) {
+    // New format
+    for (const [gId, tree] of Object.entries(snapshot.layoutTrees)) {
+      const pruned = pruneLayoutTree(tree, validTabIds)
+      if (pruned && pruned.type === 'split') {
+        layoutTrees[gId] = pruned
+        for (const leafId of allLeafIds(pruned)) {
+          tabGroupMap[leafId] = gId
+        }
+      }
+    }
+  } else if (snapshot?.layoutTree) {
+    // Legacy migration
+    const pruned = pruneLayoutTree(snapshot.layoutTree, validTabIds)
+    if (pruned && pruned.type === 'split') {
+      const gId = createGroupId()
+      layoutTrees[gId] = pruned
+      for (const leafId of allLeafIds(pruned)) {
+        tabGroupMap[leafId] = gId
+      }
+    }
+  }
+
+  return { layoutTrees, tabGroupMap }
+}
+
 export function restoreWorkspaceState(
   state: AppState,
   workspaceSnapshot: WorkspaceSnapshotV1 | undefined
-): Pick<AppState, 'tabs' | 'activeTabId' | 'focusMode' | 'sidebar' | 'layoutTree'> {
+): Pick<
+  AppState,
+  'tabs' | 'activeTabId' | 'focusMode' | 'sidebar' | 'layoutTrees' | 'tabGroupMap'
+> {
   const tabs = restoreTabsFromWorkspace(workspaceSnapshot)
   const activeTabId =
     workspaceSnapshot?.activeTabId && tabs.some((tab) => tab.id === workspaceSnapshot.activeTabId)
       ? workspaceSnapshot.activeTabId
       : (tabs[0]?.id ?? null)
 
+  const { layoutTrees, tabGroupMap } = restoreLayoutTrees(workspaceSnapshot, tabs)
+
   return {
     tabs,
     activeTabId,
-    layoutTree: restoreLayoutTree(workspaceSnapshot, tabs),
+    layoutTrees,
+    tabGroupMap,
     focusMode: 'navigation',
     sidebar: {
       ...state.sidebar,

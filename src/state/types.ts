@@ -73,6 +73,8 @@ export interface WorkspaceSnapshotV1 {
   }
   tabs: PersistedTabSnapshot[]
   layoutTree?: import('./layout-tree').LayoutNode
+  layoutTrees?: Record<string, import('./layout-tree').LayoutNode>
+  tabGroupMap?: Record<string, string>
 }
 
 export interface SessionRecord {
@@ -199,7 +201,8 @@ export interface SnippetRecord {
 export interface AppState {
   tabs: TabSession[]
   activeTabId: string | null
-  layoutTree: import('./layout-tree').LayoutNode | null
+  layoutTrees: Record<string, import('./layout-tree').LayoutNode>
+  tabGroupMap: Record<string, string>
   sessions: SessionRecord[]
   currentSessionId: string | null
   snippets: SnippetRecord[]
@@ -250,6 +253,8 @@ export type TabAction =
       tabs: TabSession[]
       activeTabId: string | null
       layoutTree?: import('./layout-tree').LayoutNode | null
+      layoutTrees?: Record<string, import('./layout-tree').LayoutNode>
+      tabGroupMap?: Record<string, string>
     }
   | { type: 'close-tab'; tabId: string }
   | { type: 'close-active-tab' }

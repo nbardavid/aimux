@@ -185,7 +185,8 @@ function MouseHarness({
   appStore.setState({
     tabs: [tab],
     activeTabId: TEST_TAB_ID,
-    layoutTree: { type: 'leaf', tabId: TEST_TAB_ID },
+    layoutTrees: {},
+    tabGroupMap: {},
     sessions: [],
     currentSessionId: null,
     snippets: [],

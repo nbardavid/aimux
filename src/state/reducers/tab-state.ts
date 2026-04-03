@@ -2,9 +2,12 @@ import type { AppAction, AppState, TabSession } from '../types'
 
 import {
   allLeafIds,
+  createGroupId,
   createLeaf,
   findLeaf,
   getAdjacentLeaf,
+  getGroupIdForTab,
+  getTreeForTab,
   pruneLayoutTree,
   removeNode,
   resizeSplit,
@@ -40,29 +43,49 @@ function closeTabAtIndex(state: AppState, indexToClose: number): AppState {
   const closingTabId = state.tabs[indexToClose]?.id
   const tabs = state.tabs.filter((_, index) => index !== indexToClose)
 
+  // Find the tree for the closing tab's group
+  const groupId = closingTabId ? getGroupIdForTab(state.tabGroupMap, closingTabId) : null
+  const groupTree = groupId ? (state.layoutTrees[groupId] ?? null) : null
+
   let nextActiveTabId: string | null
   if (state.activeTabId === closingTabId) {
-    // Try to find adjacent pane in layout tree first
     const layoutNeighbor =
-      closingTabId && state.layoutTree
-        ? (getAdjacentLeaf(state.layoutTree, closingTabId, 'right') ??
-          getAdjacentLeaf(state.layoutTree, closingTabId, 'left') ??
-          getAdjacentLeaf(state.layoutTree, closingTabId, 'down') ??
-          getAdjacentLeaf(state.layoutTree, closingTabId, 'up'))
+      closingTabId && groupTree
+        ? (getAdjacentLeaf(groupTree, closingTabId, 'right') ??
+          getAdjacentLeaf(groupTree, closingTabId, 'left') ??
+          getAdjacentLeaf(groupTree, closingTabId, 'down') ??
+          getAdjacentLeaf(groupTree, closingTabId, 'up'))
         : null
     nextActiveTabId = layoutNeighbor ?? tabs[indexToClose]?.id ?? tabs[indexToClose - 1]?.id ?? null
   } else {
     nextActiveTabId = tabs.find((tab) => tab.id === state.activeTabId)?.id ?? null
   }
 
-  const newTree =
-    closingTabId && state.layoutTree ? removeNode(state.layoutTree, closingTabId) : state.layoutTree
+  // Update the group's tree and clean up if needed
+  let newLayoutTrees = state.layoutTrees
+  let newTabGroupMap = state.tabGroupMap
+  if (closingTabId && groupId && groupTree) {
+    const newTree = removeNode(groupTree, closingTabId)
+    newLayoutTrees = { ...state.layoutTrees }
+    newTabGroupMap = { ...state.tabGroupMap }
+    delete newTabGroupMap[closingTabId]
+    if (newTree === null || newTree.type === 'leaf') {
+      // Group collapsed to single leaf or empty — remove the group
+      delete newLayoutTrees[groupId]
+      if (newTree?.type === 'leaf') {
+        delete newTabGroupMap[newTree.tabId]
+      }
+    } else {
+      newLayoutTrees[groupId] = newTree
+    }
+  }
 
   return {
     ...state,
     tabs,
     activeTabId: nextActiveTabId,
-    layoutTree: newTree,
+    layoutTrees: newLayoutTrees,
+    tabGroupMap: newTabGroupMap,
     focusMode: tabs.length === 0 ? 'navigation' : state.focusMode,
   }
 }
@@ -75,7 +98,6 @@ export function reduceTabState(state: AppState, action: AppAction): AppState | n
         ...state,
         tabs: [...state.tabs, newTab],
         activeTabId: newTab.id,
-        layoutTree: state.layoutTree ? state.layoutTree : createLeaf(newTab.id),
         focusMode: 'navigation',
         modal: { type: null, selectedIndex: 0, editBuffer: null, sessionTargetId: null },
       }
@@ -86,14 +108,41 @@ export function reduceTabState(state: AppState, action: AppAction): AppState | n
           ? action.activeTabId
           : (action.tabs[0]?.id ?? null)
       const tabIds = new Set(action.tabs.map((t) => t.id))
-      const rawTree = action.layoutTree ?? (action.tabs[0] ? createLeaf(action.tabs[0].id) : null)
-      const prunedTree = rawTree ? pruneLayoutTree(rawTree, tabIds) : null
-      const hydratedTree = prunedTree ?? (action.tabs[0] ? createLeaf(action.tabs[0].id) : null)
+
+      // Restore from new multi-tree format or migrate from legacy single tree
+      let hydratedTrees: Record<string, import('../layout-tree').LayoutNode> = {}
+      let hydratedGroupMap: Record<string, string> = {}
+
+      if (action.layoutTrees && action.tabGroupMap) {
+        // New format: prune each group tree
+        for (const [gId, tree] of Object.entries(action.layoutTrees)) {
+          const pruned = pruneLayoutTree(tree, tabIds)
+          if (pruned && pruned.type === 'split') {
+            hydratedTrees[gId] = pruned
+            for (const leafId of allLeafIds(pruned)) {
+              hydratedGroupMap[leafId] = gId
+            }
+          }
+          // If pruned to a single leaf or null, discard the group
+        }
+      } else if (action.layoutTree) {
+        // Legacy migration: single tree → single group
+        const pruned = pruneLayoutTree(action.layoutTree, tabIds)
+        if (pruned && pruned.type === 'split') {
+          const gId = createGroupId()
+          hydratedTrees[gId] = pruned
+          for (const leafId of allLeafIds(pruned)) {
+            hydratedGroupMap[leafId] = gId
+          }
+        }
+      }
+
       return {
         ...state,
         tabs: action.tabs,
         activeTabId: hydratedActiveTabId,
-        layoutTree: hydratedTree,
+        layoutTrees: hydratedTrees,
+        tabGroupMap: hydratedGroupMap,
         focusMode: 'navigation',
       }
     }
@@ -125,7 +174,11 @@ export function reduceTabState(state: AppState, action: AppAction): AppState | n
       }
 
       // Group-aware reordering: move entire layout group together
-      const layoutIds = state.layoutTree ? allLeafIds(state.layoutTree) : []
+      const activeGroupId = state.activeTabId
+        ? getGroupIdForTab(state.tabGroupMap, state.activeTabId)
+        : null
+      const activeGroupTree = activeGroupId ? state.layoutTrees[activeGroupId] : null
+      const layoutIds = activeGroupTree ? allLeafIds(activeGroupTree) : []
       if (layoutIds.length > 1 && state.activeTabId && layoutIds.includes(state.activeTabId)) {
         const layoutSet = new Set(layoutIds)
         let groupStart = activeIndex
@@ -239,10 +292,18 @@ export function reduceTabState(state: AppState, action: AppAction): AppState | n
         return state
       }
       const newTab = { ...action.newTab, activity: action.newTab.activity ?? 'idle' }
-      const currentTree = state.layoutTree ?? createLeaf(state.activeTabId)
-      const tree = findLeaf(currentTree, state.activeTabId)
-        ? currentTree
-        : createLeaf(state.activeTabId)
+
+      // Find existing group for active tab, or create a new one
+      let groupId = getGroupIdForTab(state.tabGroupMap, state.activeTabId)
+      let tree: import('../layout-tree').LayoutNode
+      if (groupId && state.layoutTrees[groupId] !== undefined) {
+        tree = state.layoutTrees[groupId]!
+      } else {
+        groupId = createGroupId()
+        tree = createLeaf(state.activeTabId)
+      }
+
+      const newTree = splitNode(tree, state.activeTabId, action.direction, newTab.id)
 
       // Insert newTab right after the last layout group member
       const layoutIdSet = new Set(allLeafIds(tree))
@@ -259,7 +320,12 @@ export function reduceTabState(state: AppState, action: AppAction): AppState | n
         ...state,
         tabs,
         activeTabId: newTab.id,
-        layoutTree: splitNode(tree, state.activeTabId, action.direction, newTab.id),
+        layoutTrees: { ...state.layoutTrees, [groupId]: newTree },
+        tabGroupMap: {
+          ...state.tabGroupMap,
+          [state.activeTabId]: groupId,
+          [newTab.id]: groupId,
+        },
       }
     }
     case 'close-pane': {
@@ -267,34 +333,42 @@ export function reduceTabState(state: AppState, action: AppAction): AppState | n
       return closeTabAtIndex(state, idx)
     }
     case 'focus-pane-direction': {
-      if (!state.activeTabId || !state.layoutTree) {
+      if (!state.activeTabId) {
         return state
       }
-      const neighbor = getAdjacentLeaf(state.layoutTree, state.activeTabId, action.direction)
+      const focusTree = getTreeForTab(state.layoutTrees, state.tabGroupMap, state.activeTabId)
+      if (!focusTree) {
+        return state
+      }
+      const neighbor = getAdjacentLeaf(focusTree, state.activeTabId, action.direction)
       if (!neighbor) {
         return state
       }
       return { ...state, activeTabId: neighbor }
     }
     case 'resize-pane': {
-      if (!state.layoutTree) {
+      const resizeGroupId = getGroupIdForTab(state.tabGroupMap, action.tabId)
+      const resizeTree = resizeGroupId ? state.layoutTrees[resizeGroupId] : null
+      if (!resizeGroupId || !resizeTree) {
         return state
       }
-      const newTree = resizeSplit(state.layoutTree, action.tabId, action.delta, action.axis)
-      if (newTree === state.layoutTree) {
+      const newTree = resizeSplit(resizeTree, action.tabId, action.delta, action.axis)
+      if (newTree === resizeTree) {
         return state
       }
-      return { ...state, layoutTree: newTree }
+      return { ...state, layoutTrees: { ...state.layoutTrees, [resizeGroupId]: newTree } }
     }
     case 'set-split-ratio': {
-      if (!state.layoutTree) {
+      const ratioGroupId = getGroupIdForTab(state.tabGroupMap, action.tabId)
+      const ratioTree = ratioGroupId ? state.layoutTrees[ratioGroupId] : null
+      if (!ratioGroupId || !ratioTree) {
         return state
       }
-      const newTree = setSplitRatio(state.layoutTree, action.tabId, action.ratio, action.axis)
-      if (newTree === state.layoutTree) {
+      const newTree = setSplitRatio(ratioTree, action.tabId, action.ratio, action.axis)
+      if (newTree === ratioTree) {
         return state
       }
-      return { ...state, layoutTree: newTree }
+      return { ...state, layoutTrees: { ...state.layoutTrees, [ratioGroupId]: newTree } }
     }
     default:
       return null

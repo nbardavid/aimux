@@ -24,6 +24,28 @@ const MIN_RATIO = 0.15
 const MAX_RATIO = 0.85
 const RATIO_STEP = 0.05
 
+let groupCounter = 0
+export function createGroupId(): string {
+  return `group-${Date.now()}-${++groupCounter}`
+}
+
+export function getGroupIdForTab(
+  tabGroupMap: Record<string, string>,
+  tabId: string
+): string | null {
+  return tabGroupMap[tabId] ?? null
+}
+
+export function getTreeForTab(
+  layoutTrees: Record<string, LayoutNode>,
+  tabGroupMap: Record<string, string>,
+  tabId: string
+): LayoutNode | null {
+  const groupId = tabGroupMap[tabId]
+  if (!groupId) return null
+  return layoutTrees[groupId] ?? null
+}
+
 export function createLeaf(tabId: string): LayoutLeaf {
   return { type: 'leaf', tabId }
 }

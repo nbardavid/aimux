@@ -16,7 +16,7 @@ import {
   PANE_BORDER,
   computePaneRects,
   createLeaf,
-  findLeaf,
+  getTreeForTab,
   splitNode,
 } from '../state/layout-tree'
 import { filterSessions, filterSnippets } from '../state/selectors'
@@ -160,10 +160,8 @@ function executeSplitPane(
   tab: TabSession
 ): void {
   const { state, dispatch, backend, clearStartupGrace, startStartupGrace } = ctx
-  const currentTree = state.layoutTree ?? createLeaf(state.activeTabId!)
-  const baseTree = findLeaf(currentTree, state.activeTabId!)
-    ? currentTree
-    : createLeaf(state.activeTabId!)
+  const existingTree = getTreeForTab(state.layoutTrees, state.tabGroupMap, state.activeTabId!)
+  const baseTree = existingTree ?? createLeaf(state.activeTabId!)
   const newTree = splitNode(baseTree, state.activeTabId!, direction, tab.id)
   const bounds = {
     x: 0,

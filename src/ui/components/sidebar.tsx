@@ -25,7 +25,7 @@ export function Sidebar({ onTabActivate }: SidebarProps) {
   const focusMode = useAppStore((s) => s.focusMode)
   const currentSessionId = useAppStore((s) => s.currentSessionId)
   const sessions = useAppStore((s) => s.sessions)
-  const layoutTree = useAppStore((s) => s.layoutTree)
+  const layoutTrees = useAppStore((s) => s.layoutTrees)
 
   const scrollRef = useRef<ScrollBoxRenderable | null>(null)
   const previousActiveIndexRef = useRef(-1)
@@ -130,29 +130,36 @@ export function Sidebar({ onTabActivate }: SidebarProps) {
           </box>
         ) : (
           (() => {
-            const layoutIds = layoutTree ? allLeafIds(layoutTree) : []
-            const layoutSet = layoutIds.length > 1 ? new Set(layoutIds) : new Set<string>()
-            const hasGroup = layoutSet.size > 0
-
-            let groupStart = -1
-            let groupEnd = -1
-            if (hasGroup) {
-              groupStart = tabs.findIndex((t) => layoutSet.has(t.id))
-              for (let i = tabs.length - 1; i >= 0; i--) {
-                if (layoutSet.has(tabs[i]!.id)) {
-                  groupEnd = i
-                  break
+            // Build per-tab group info from all layout groups
+            const tabGroupInfo = new Map<
+              string,
+              { inLayout: boolean; groupStart: number; groupEnd: number }
+            >()
+            for (const tree of Object.values(layoutTrees)) {
+              const ids = allLeafIds(tree)
+              if (ids.length <= 1) continue
+              const idSet = new Set(ids)
+              let gStart = -1
+              let gEnd = -1
+              for (let i = 0; i < tabs.length; i++) {
+                if (idSet.has(tabs[i]!.id)) {
+                  if (gStart === -1) gStart = i
+                  gEnd = i
                 }
+              }
+              for (const id of ids) {
+                tabGroupInfo.set(id, { inLayout: true, groupStart: gStart, groupEnd: gEnd })
               }
             }
 
             return tabs.map((tab, index) => {
               const isActive = tab.id === activeTabId
-              const inLayout = layoutSet.has(tab.id)
-              const inGroup = hasGroup && index >= groupStart && index <= groupEnd
-              const isGroupStart = index === groupStart
-              const isGroupEnd = index === groupEnd
-              const isGroupMiddle = !isGroupStart && !isGroupEnd
+              const info = tabGroupInfo.get(tab.id)
+              const inLayout = !!info
+              const inGroup = info ? index >= info.groupStart && index <= info.groupEnd : false
+              const isGroupStart = info ? index === info.groupStart : false
+              const isGroupEnd = info ? index === info.groupEnd : false
+              const isGroupMiddle = inGroup && !isGroupStart && !isGroupEnd
 
               return (
                 <box

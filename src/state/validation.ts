@@ -88,6 +88,16 @@ function isLayoutNode(value: unknown): boolean {
   return false
 }
 
+function isLayoutTreesMap(value: unknown): boolean {
+  if (!isObjectRecord(value)) return false
+  return Object.values(value).every(isLayoutNode)
+}
+
+function isStringRecord(value: unknown): boolean {
+  if (!isObjectRecord(value)) return false
+  return Object.values(value).every(isString)
+}
+
 export function isWorkspaceSnapshotV1(value: unknown): value is WorkspaceSnapshotV1 {
   return (
     isObjectRecord(value) &&
@@ -116,7 +126,9 @@ export function isWorkspaceSnapshotV1(value: unknown): value is WorkspaceSnapsho
         (tab.errorMessage === undefined || isString(tab.errorMessage)) &&
         (tab.exitCode === undefined || isFiniteNumber(tab.exitCode))
     ) &&
-    (value.layoutTree === undefined || isLayoutNode(value.layoutTree))
+    (value.layoutTree === undefined || isLayoutNode(value.layoutTree)) &&
+    (value.layoutTrees === undefined || isLayoutTreesMap(value.layoutTrees)) &&
+    (value.tabGroupMap === undefined || isStringRecord(value.tabGroupMap))
   )
 }
 

@@ -70,12 +70,25 @@ export function useTerminalResize({
     if (resizingTimerRef.current) {
       clearTimeout(resizingTimerRef.current)
     }
-    if (state.layoutTree && state.layoutTree.type === 'split') {
+    const trees = Object.values(state.layoutTrees)
+    const hasSplits = trees.some((t) => t.type === 'split')
+    if (hasSplits) {
       const bounds = { x: 0, y: 0, cols: terminalSize.cols, rows: terminalSize.rows }
-      const rects = computePaneRects(state.layoutTree, bounds)
       const chrome = PANE_BORDER * 2
-      for (const [tabId, rect] of rects) {
-        backend.resizeTab(tabId, Math.max(1, rect.cols - chrome), Math.max(1, rect.rows - chrome))
+      const resizedTabIds = new Set<string>()
+      for (const tree of trees) {
+        if (tree.type !== 'split') continue
+        const rects = computePaneRects(tree, bounds)
+        for (const [tabId, rect] of rects) {
+          backend.resizeTab(tabId, Math.max(1, rect.cols - chrome), Math.max(1, rect.rows - chrome))
+          resizedTabIds.add(tabId)
+        }
+      }
+      // Resize standalone tabs (not in any split group) to full size
+      for (const tab of state.tabs) {
+        if (!resizedTabIds.has(tab.id)) {
+          backend.resizeTab(tab.id, terminalSize.cols, terminalSize.rows)
+        }
       }
     } else {
       backend.resizeAll(terminalSize.cols, terminalSize.rows)
@@ -84,7 +97,15 @@ export function useTerminalResize({
       resizingRef.current = false
       resizingTimerRef.current = null
     }, 500)
-  }, [backend, dispatch, resizingRef, terminalSize.cols, terminalSize.rows, state.layoutTree])
+  }, [
+    backend,
+    dispatch,
+    resizingRef,
+    terminalSize.cols,
+    terminalSize.rows,
+    state.layoutTrees,
+    state.tabs,
+  ])
 
   return terminalSize
 }

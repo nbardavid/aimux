@@ -5,7 +5,7 @@ import type { SessionBackend, SessionBackendEvents } from './types'
 
 import { SessionManager } from '../daemon/session-manager'
 import { logDebug } from '../debug/input-log'
-import { PANE_BORDER, computePaneRects } from '../state/layout-tree'
+import { PANE_BORDER, computePaneRects, type LayoutNode } from '../state/layout-tree'
 
 export class LocalSessionBackend
   extends EventEmitter<SessionBackendEvents>
@@ -46,21 +46,23 @@ export class LocalSessionBackend
       snapshotTabs: options.workspaceSnapshot?.tabs.length ?? 0,
     })
     this.currentSessionId = options.sessionId
-    const layoutTree = options.workspaceSnapshot?.layoutTree
-    if (layoutTree && layoutTree.type === 'split') {
-      const rects = computePaneRects(layoutTree, {
-        x: 0,
-        y: 0,
-        cols: options.cols,
-        rows: options.rows,
-      })
-      for (const [tabId, rect] of rects) {
-        this.sessionManager.resizeTab(
-          options.sessionId,
-          tabId,
-          Math.max(1, rect.cols - PANE_BORDER * 2),
-          Math.max(1, rect.rows - PANE_BORDER * 2)
-        )
+    const trees: LayoutNode[] = options.workspaceSnapshot?.layoutTrees
+      ? Object.values(options.workspaceSnapshot.layoutTrees)
+      : options.workspaceSnapshot?.layoutTree
+        ? [options.workspaceSnapshot.layoutTree]
+        : []
+    const splitTrees = trees.filter((t) => t.type === 'split')
+    if (splitTrees.length > 0) {
+      const bounds = { x: 0, y: 0, cols: options.cols, rows: options.rows }
+      for (const tree of splitTrees) {
+        for (const [tabId, rect] of computePaneRects(tree, bounds)) {
+          this.sessionManager.resizeTab(
+            options.sessionId,
+            tabId,
+            Math.max(1, rect.cols - PANE_BORDER * 2),
+            Math.max(1, rect.rows - PANE_BORDER * 2)
+          )
+        }
       }
     } else {
       this.sessionManager.resize(options.sessionId, options.cols, options.rows)

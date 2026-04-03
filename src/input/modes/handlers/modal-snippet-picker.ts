@@ -28,6 +28,14 @@ export const modalSnippetPickerMode: ModeHandler = {
       }
     }
 
+    if (key.name === 'a') {
+      return {
+        actions: [{ type: 'close-modal' }],
+        effects: [{ type: 'paste-snippet-to-group' }],
+        transition: 'navigation',
+      }
+    }
+
     if (key.name === 'n') {
       return {
         actions: [{ type: 'open-snippet-editor' }],

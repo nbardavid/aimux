@@ -30,6 +30,7 @@ export type SideEffect =
   | { type: 'close-tab'; tabId: string }
   | { type: 'restart-tab'; tab: TabSession }
   | { type: 'paste-selected-snippet' }
+  | { type: 'paste-snippet-to-group' }
   | { type: 'edit-selected-snippet' }
   | { type: 'delete-selected-snippet' }
   | { type: 'save-snippet-editor' }

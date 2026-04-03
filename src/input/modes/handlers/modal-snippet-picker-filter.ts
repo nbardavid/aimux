@@ -22,6 +22,14 @@ export const modalSnippetPickerFilterMode: ModeHandler = {
       }
     }
 
+    if (key.ctrl && key.name === 'a') {
+      return {
+        actions: [{ type: 'close-modal' }],
+        effects: [{ type: 'paste-snippet-to-group' }],
+        transition: 'navigation',
+      }
+    }
+
     return handleCtrlNavigation(key) ?? handleTextInput(key)
   },
 }

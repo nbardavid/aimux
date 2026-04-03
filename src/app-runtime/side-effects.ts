@@ -14,8 +14,10 @@ import {
 } from '../pty/command-registry'
 import {
   PANE_BORDER,
+  allLeafIds,
   computePaneRects,
   createLeaf,
+  getGroupIdForTab,
   getTreeForTab,
   splitNode,
 } from '../state/layout-tree'
@@ -283,6 +285,30 @@ export function executeSideEffect(effect: SideEffect, ctx: SideEffectContext): v
         ctx.activeTab,
         filtered[state.modal.selectedIndex]
       )
+      return
+    }
+    case 'paste-snippet-to-group': {
+      const filtered = filterSnippets(
+        state.snippets,
+        state.modal.type === 'snippet-picker' ? state.modal.editBuffer : null
+      )
+      const snippet = filtered[state.modal.selectedIndex]
+      if (!snippet || !state.activeTabId) return
+
+      const groupId = getGroupIdForTab(state.tabGroupMap, state.activeTabId)
+      const groupTree = groupId ? state.layoutTrees[groupId] : null
+      if (groupTree) {
+        const tabIds = allLeafIds(groupTree)
+        for (const tabId of tabIds) {
+          const tab = state.tabs.find((t) => t.id === tabId)
+          if (tab) {
+            pasteSnippetToTab(backend, tabId, tab, snippet)
+          }
+        }
+      } else {
+        // Fallback: paste to active tab only
+        pasteSnippetToTab(backend, state.activeTabId, ctx.activeTab, snippet)
+      }
       return
     }
     case 'edit-selected-snippet': {

@@ -2,21 +2,55 @@ import { getDaemonSocketPath } from './daemon/runtime-paths'
 import { findDaemonPid } from './platform/daemon-control'
 import { runRestartDaemon } from './restart-daemon'
 
-export async function runUpdate(): Promise<number> {
-  process.stdout.write('Updating aimux...\n')
+const REPO = 'BrimVeyn/aimux'
 
-  const proc = Bun.spawn(['bun', 'install', '-g', 'github:BrimVeyn/aimux'], {
+async function getLatestRelease(): Promise<string | null> {
+  const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`)
+  if (!res.ok) return null
+  const data = (await res.json()) as { tag_name: string }
+  return data.tag_name
+}
+
+async function getCurrentVersion(): Promise<string> {
+  const { version } = await import('../package.json')
+  return `v${version}`
+}
+
+export async function runUpdate(): Promise<number> {
+  process.stdout.write('Checking for updates...\n')
+
+  const latest = await getLatestRelease()
+  if (latest === null) {
+    process.stderr.write('Failed to fetch latest release from GitHub.\n')
+    return 1
+  }
+
+  const current = await getCurrentVersion()
+  if (latest === current) {
+    process.stdout.write(`Already up to date (${current}).\n`)
+    return 0
+  }
+
+  process.stdout.write(`Updating aimux ${current} → ${latest}...\n`)
+
+  const remove = Bun.spawn(['bun', 'remove', '-g', 'aimux'], {
+    stdout: 'inherit',
+    stderr: 'inherit',
+  })
+  await remove.exited
+
+  const install = Bun.spawn(['bun', 'install', '-g', `github:${REPO}#${latest}`], {
     stdout: 'inherit',
     stderr: 'inherit',
   })
 
-  const exitCode = await proc.exited
+  const exitCode = await install.exited
   if (exitCode !== 0) {
     process.stderr.write('Update failed.\n')
     return 1
   }
 
-  process.stdout.write('Updated successfully.\n')
+  process.stdout.write(`Updated to ${latest}.\n`)
 
   const pid = await findDaemonPid(getDaemonSocketPath())
   if (pid !== null) {

@@ -131,9 +131,7 @@ export function TerminalPane({
       <box
         border
         borderColor={
-          (isActive !== undefined ? isActive : focusMode === 'terminal-input')
-            ? theme.borderActive
-            : theme.border
+          (isActive ?? true) && focusMode === 'terminal-input' ? theme.borderActive : theme.border
         }
         title={getTitle(tab)}
         padding={0}

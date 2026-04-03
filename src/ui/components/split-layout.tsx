@@ -4,6 +4,7 @@ import type { TerminalContentOrigin } from '../../input/raw-input-handler'
 import type { LayoutNode, PaneRect, SplitDirection } from '../../state/layout-tree'
 import type { FocusMode, TabSession } from '../../state/types'
 
+import { logInputDebug } from '../../debug/input-log'
 import { PANE_BORDER, computePaneRects } from '../../state/layout-tree'
 import { theme } from '../theme'
 import { TerminalPane } from './terminal-pane'
@@ -61,6 +62,18 @@ export function SplitLayout({
       cols: Math.max(1, bounds.cols - PANE_CHROME * 2),
       rows: Math.max(1, bounds.rows - PANE_CHROME * 2),
     }
+    logInputDebug('split.paneOrigin', {
+      tabId: node.tabId,
+      contentOriginX: contentOrigin.x,
+      contentOriginY: contentOrigin.y,
+      boundsX: bounds.x,
+      boundsY: bounds.y,
+      boundsCols: bounds.cols,
+      boundsRows: bounds.rows,
+      paneChrome: PANE_CHROME,
+      paneOriginX: paneOrigin.x,
+      paneOriginY: paneOrigin.y,
+    })
     return (
       <TerminalPane
         tab={tab}

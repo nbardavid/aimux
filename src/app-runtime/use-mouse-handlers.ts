@@ -125,52 +125,49 @@ export function useMouseHandlers({
       return
     }
 
-    const col = event.x - origin.x
-    const row = event.y - origin.y
     const clickCount = multiClickRef.current.track(event.x, event.y)
-
-    logInputDebug('click.detect', {
-      eventX: event.x,
-      eventY: event.y,
-      originX: origin.x,
-      originY: origin.y,
-      col,
-      row,
-      clickCount,
-      targetId: event.target?.id,
-      targetX: (event.target as any)?.x,
-      targetY: (event.target as any)?.y,
-      targetW: (event.target as any)?.width,
-      targetCtor: event.target?.constructor?.name,
-    })
-
     if (clickCount < 2) {
       return
     }
 
+    // Use actual layout positions from the DOM instead of computed paneOrigin.
+    // contentOrigin.y double-counts the border for top panes in split mode.
+    const lineBox = event.target.parent
+    if (!lineBox) {
+      return
+    }
+    const contentBox = (lineBox as any).parent
+    if (!contentBox) {
+      return
+    }
+    const col = event.x - (contentBox as any).x
+    const row = event.y - (contentBox as any).y
+    const baseX = (lineBox as any).x
+
+    logInputDebug('click.detect', {
+      eventX: event.x,
+      eventY: event.y,
+      contentBoxX: (contentBox as any).x,
+      contentBoxY: (contentBox as any).y,
+      col,
+      row,
+      clickCount,
+      targetId: event.target?.id,
+    })
+
     const tab = state.tabs.find((t: TabSession) => t.id === targetTabId)
     if (!tab?.viewport?.lines[row]) {
+      logInputDebug('click.noViewportLine', {
+        targetTabId,
+        row,
+        tabFound: !!tab,
+        hasViewport: !!tab?.viewport,
+        lineCount: tab?.viewport?.lines.length ?? 0,
+      })
       return
     }
 
     const line = tab.viewport.lines[row]
-    const lineBox = event.target.parent
-    if (!lineBox) {
-      logInputDebug('click.noLineBox', { targetId: event.target?.id })
-      return
-    }
-    const baseX = lineBox.x
-
-    logInputDebug('click.lineBox', {
-      lineBoxId: lineBox?.id,
-      lineBoxX: (lineBox as any)?.x,
-      lineBoxY: (lineBox as any)?.y,
-      lineBoxW: (lineBox as any)?.width,
-      lineBoxCtor: lineBox?.constructor?.name,
-      grandParentId: (lineBox as any)?.parent?.id,
-      grandParentX: (lineBox as any)?.parent?.x,
-      grandParentCtor: (lineBox as any)?.parent?.constructor?.name,
-    })
 
     const lineText = getLineText(line)
     let selectedText: string
@@ -180,6 +177,12 @@ export function useMouseHandlers({
     if (clickCount === 2) {
       const word = getWordAtColumn(lineText, col)
       if (word.text.length === 0) {
+        logInputDebug('click.emptyWord', {
+          col,
+          row,
+          lineText,
+          charAtCol: lineText[col] ?? 'OOB',
+        })
         return
       }
       selectedText = word.text
@@ -210,27 +213,31 @@ export function useMouseHandlers({
       })),
     })
 
-    // Find the TextRenderables at start/end positions by walking the
-    // line box children.  This mimics native drag-selection where start
-    // and end can be different renderables, allowing multi-span selection.
-    const startScreenX = baseX + startCol
-    const endScreenX = baseX + endCol
-    const children = (lineBox as any).getChildren() as Array<{ x: number; width: number }>
-    const startTarget =
-      children.find((c: any) => c.x <= startScreenX && startScreenX < c.x + c.width) ??
-      children[0] ??
-      event.target
-    const endTarget =
-      children.find((c: any) => c.x < endScreenX && endScreenX <= c.x + c.width) ??
-      children[children.length - 1] ??
-      event.target
-
     event.preventDefault()
     renderer.clearSelection()
-    renderer.startSelection(startTarget, startScreenX, event.y)
-    renderer.updateSelection(endTarget, endScreenX, event.y, {
+    // event.target is always selectable (guaranteed by hit-test).
+    // startSelection uses event.target.parent (lineBox) as the selection
+    // container, so ALL TextRenderables on the line participate — the
+    // selection rectangle (anchor→focus) determines which ones highlight.
+    renderer.startSelection(event.target, baseX + startCol, event.y)
+    renderer.updateSelection(event.target, baseX + endCol, event.y, {
       finishDragging: true,
     })
+    // Walk up the parent chain marking each ancestor dirty so that
+    // overflow="hidden" frame buffers get refreshed during the next paint.
+    // Without this, selection highlight only appears on panes that receive
+    // PTY updates (which independently trigger a render cycle).
+    let dirtyNode: unknown = event.target
+    while (dirtyNode && typeof (dirtyNode as any).requestRender === 'function') {
+      ;(dirtyNode as any).requestRender()
+      dirtyNode = (dirtyNode as any).parent
+    }
+
+    logInputDebug('click.done', {
+      hasSelection: !!(renderer as any).hasSelection,
+      targetSelectable: !!(event.target as any).selectable,
+    })
+
     copyToSystemClipboard(selectedText)
   }
 

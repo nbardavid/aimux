@@ -1,15 +1,11 @@
 import type { KeyInput, KeyResult, ModeContext, ModeHandler } from '../types'
 
-import { handleTextInput } from './shared'
+import { handleTextInput, result } from './shared'
 
 export const modalRenameTabMode: ModeHandler = {
   handleKey(key: KeyInput, ctx: ModeContext): KeyResult | null {
     if (key.name === 'escape') {
-      return {
-        actions: [{ type: 'close-modal' }],
-        effects: [],
-        transition: 'navigation',
-      }
+      return result([{ type: 'close-modal' }], [], 'navigation')
     }
 
     if (key.name === 'return') {
@@ -20,7 +16,8 @@ export const modalRenameTabMode: ModeHandler = {
         actions.push({ tabId, title: trimmed, type: 'rename-tab' })
       }
       actions.push({ type: 'close-modal' })
-      return { actions, effects: [], transition: 'navigation' }
+
+      return result(actions, [], 'navigation')
     }
 
     return handleTextInput(key)

@@ -1,118 +1,94 @@
 import type { KeyInput, KeyResult, ModeContext, ModeHandler } from '../types'
 
-function exitToInput(): Pick<KeyResult, 'transition'> & { exitActions: KeyResult['actions'] } {
-  return {
-    exitActions: [{ focusMode: 'terminal-input', type: 'set-focus-mode' }],
-    transition: 'terminal-input',
+import { result } from './shared'
+
+function exitToInput(
+  actions: KeyResult['actions'] = [],
+  effects: KeyResult['effects'] = []
+): KeyResult {
+  return result(
+    [...actions, { focusMode: 'terminal-input', type: 'set-focus-mode' }],
+    effects,
+    'terminal-input'
+  )
+}
+
+function resizeActivePane(
+  ctx: ModeContext,
+  axis: 'horizontal' | 'vertical',
+  delta: -1 | 1
+): KeyResult | null {
+  const tabId = ctx.state.activeTabId
+  if (!tabId) {
+    return null
   }
+
+  return result([{ axis, delta, tabId, type: 'resize-pane' }])
+}
+
+function focusPane(direction: 'left' | 'down' | 'up' | 'right'): KeyResult {
+  return exitToInput([{ direction, type: 'focus-pane-direction' }])
+}
+
+function openSplitPicker(direction: 'vertical' | 'horizontal'): KeyResult {
+  return result([{ direction, type: 'open-split-picker' }], [], 'modal.split-picker')
 }
 
 export const layoutMode: ModeHandler = {
   handleKey(key: KeyInput, ctx: ModeContext): KeyResult | null {
     // Escape or Ctrl+W again → back to terminal-input
     if (key.name === 'escape' || (key.ctrl && key.name === 'w')) {
-      const exit = exitToInput()
-      return { actions: exit.exitActions, effects: [], transition: exit.transition }
+      return exitToInput()
     }
 
     // Resize: Shift+H/J/K/L — stays in layout mode for repeated adjustments
     if (key.shift && key.name === 'h') {
-      const tabId = ctx.state.activeTabId
-      if (tabId) {
-        return {
-          actions: [{ axis: 'vertical', delta: -1, tabId, type: 'resize-pane' }],
-          effects: [],
-        }
-      }
+      return resizeActivePane(ctx, 'vertical', -1)
     }
+
     if (key.shift && key.name === 'l') {
-      const tabId = ctx.state.activeTabId
-      if (tabId) {
-        return {
-          actions: [{ axis: 'vertical', delta: 1, tabId, type: 'resize-pane' }],
-          effects: [],
-        }
-      }
+      return resizeActivePane(ctx, 'vertical', 1)
     }
+
     if (key.shift && key.name === 'k') {
-      const tabId = ctx.state.activeTabId
-      if (tabId) {
-        return {
-          actions: [{ axis: 'horizontal', delta: -1, tabId, type: 'resize-pane' }],
-          effects: [],
-        }
-      }
+      return resizeActivePane(ctx, 'horizontal', -1)
     }
+
     if (key.shift && key.name === 'j') {
-      const tabId = ctx.state.activeTabId
-      if (tabId) {
-        return {
-          actions: [{ axis: 'horizontal', delta: 1, tabId, type: 'resize-pane' }],
-          effects: [],
-        }
-      }
+      return resizeActivePane(ctx, 'horizontal', 1)
     }
 
     // Pane navigation: h/j/k/l (must be after shift checks)
     if (key.name === 'h') {
-      const exit = exitToInput()
-      return {
-        actions: [{ direction: 'left', type: 'focus-pane-direction' }, ...exit.exitActions],
-        effects: [],
-        transition: exit.transition,
-      }
+      return focusPane('left')
     }
+
     if (key.name === 'j') {
-      const exit = exitToInput()
-      return {
-        actions: [{ direction: 'down', type: 'focus-pane-direction' }, ...exit.exitActions],
-        effects: [],
-        transition: exit.transition,
-      }
+      return focusPane('down')
     }
+
     if (key.name === 'k') {
-      const exit = exitToInput()
-      return {
-        actions: [{ direction: 'up', type: 'focus-pane-direction' }, ...exit.exitActions],
-        effects: [],
-        transition: exit.transition,
-      }
+      return focusPane('up')
     }
+
     if (key.name === 'l') {
-      const exit = exitToInput()
-      return {
-        actions: [{ direction: 'right', type: 'focus-pane-direction' }, ...exit.exitActions],
-        effects: [],
-        transition: exit.transition,
-      }
+      return focusPane('right')
     }
 
     // Split: | vertical, - horizontal → open picker modal
     if (key.sequence === '|') {
-      return {
-        actions: [{ direction: 'vertical', type: 'open-split-picker' }],
-        effects: [],
-        transition: 'modal.split-picker',
-      }
+      return openSplitPicker('vertical')
     }
+
     if (key.sequence === '-') {
-      return {
-        actions: [{ direction: 'horizontal', type: 'open-split-picker' }],
-        effects: [],
-        transition: 'modal.split-picker',
-      }
+      return openSplitPicker('horizontal')
     }
 
     // Close pane: q
     if (key.name === 'q') {
       const tabId = ctx.state.activeTabId
       if (tabId) {
-        const exit = exitToInput()
-        return {
-          actions: [{ tabId, type: 'close-pane' }, ...exit.exitActions],
-          effects: [{ tabId, type: 'close-tab' }],
-          transition: exit.transition,
-        }
+        return exitToInput([{ tabId, type: 'close-pane' }], [{ tabId, type: 'close-tab' }])
       }
     }
 

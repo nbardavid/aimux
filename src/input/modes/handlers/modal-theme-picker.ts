@@ -1,35 +1,22 @@
 import type { KeyInput, KeyResult, ModeContext, ModeHandler } from '../types'
 
+import { closeModalResult, handleModalSelectionKeys } from './shared'
+
 export const modalThemePickerMode: ModeHandler = {
   handleKey(key: KeyInput, _ctx: ModeContext): KeyResult | null {
     if (key.name === 'escape') {
-      return {
-        actions: [{ type: 'close-modal' }],
-        effects: [{ action: 'restore', type: 'apply-theme' }],
-        transition: 'navigation',
-      }
+      return closeModalResult([{ action: 'restore', type: 'apply-theme' }])
     }
 
-    if (key.name === 'j' || key.name === 'down') {
-      return {
-        actions: [{ delta: 1, type: 'move-modal-selection' }],
-        effects: [{ action: 'preview', delta: 1, type: 'apply-theme' }],
-      }
-    }
-
-    if (key.name === 'k' || key.name === 'up') {
-      return {
-        actions: [{ delta: -1, type: 'move-modal-selection' }],
-        effects: [{ action: 'preview', delta: -1, type: 'apply-theme' }],
-      }
+    const navigationResult = handleModalSelectionKeys(key, (delta) => [
+      { action: 'preview', delta, type: 'apply-theme' },
+    ])
+    if (navigationResult) {
+      return navigationResult
     }
 
     if (key.name === 'return') {
-      return {
-        actions: [{ type: 'close-modal' }],
-        effects: [{ action: 'confirm', type: 'apply-theme' }],
-        transition: 'navigation',
-      }
+      return closeModalResult([{ action: 'confirm', type: 'apply-theme' }])
     }
 
     return null

@@ -1,31 +1,19 @@
 import type { KeyInput, KeyResult, ModeContext, ModeHandler } from '../types'
 
-import { handleCtrlNavigation, handleTextInput } from './shared'
+import { closeModalResult, handleCtrlNavigation, handleTextInput, result } from './shared'
 
 export const modalSnippetPickerFilterMode: ModeHandler = {
   handleKey(key: KeyInput, _ctx: ModeContext): KeyResult | null {
     if (key.name === 'escape') {
-      return {
-        actions: [{ type: 'cancel-command-edit' }],
-        effects: [],
-        transition: 'modal.snippet-picker',
-      }
+      return result([{ type: 'cancel-command-edit' }], [], 'modal.snippet-picker')
     }
 
     if (key.name === 'return') {
-      return {
-        actions: [{ type: 'close-modal' }],
-        effects: [{ type: 'paste-selected-snippet' }],
-        transition: 'navigation',
-      }
+      return closeModalResult([{ type: 'paste-selected-snippet' }])
     }
 
     if (key.ctrl && key.name === 'a') {
-      return {
-        actions: [{ type: 'close-modal' }],
-        effects: [{ type: 'paste-snippet-to-group' }],
-        transition: 'navigation',
-      }
+      return closeModalResult([{ type: 'paste-snippet-to-group' }])
     }
 
     return handleCtrlNavigation(key) ?? handleTextInput(key)

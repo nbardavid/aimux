@@ -1,7 +1,7 @@
 import type { ModalCreateSession } from '../../../state/types'
 import type { KeyInput, KeyResult, ModeContext, ModeHandler } from '../types'
 
-import { handleCtrlNavigation, handleTextInput } from './shared'
+import { handleCtrlNavigation, handleTextInput, result } from './shared'
 
 function getDefaultSessionName(projectPath?: string): string {
   if (!projectPath) {
@@ -17,36 +17,30 @@ export const modalCreateSessionMode: ModeHandler = {
     const modal = ctx.state.modal as ModalCreateSession
 
     if (key.name === 'escape') {
-      return {
-        actions: [{ type: 'open-session-picker' }],
-        effects: [],
-        transition: 'modal.session-picker',
-      }
+      return result([{ type: 'open-session-picker' }], [], 'modal.session-picker')
     }
 
     if (key.name === 'tab') {
-      return { actions: [{ type: 'switch-create-session-field' }], effects: [] }
+      return result([{ type: 'switch-create-session-field' }])
     }
 
     if (key.name === 'return') {
       if (modal.activeField === 'directory') {
-        return { actions: [{ type: 'select-directory' }], effects: [] }
+        return result([{ type: 'select-directory' }])
       }
+
       const trimmed = (modal.editBuffer ?? '').trim()
       const projectPath = modal.pendingProjectPath ?? undefined
       const sessionName = trimmed || getDefaultSessionName(projectPath)
       if (sessionName) {
-        return {
-          actions: [{ type: 'close-modal' }],
-          effects: [{ name: sessionName, projectPath, type: 'create-session' }],
-          transition: 'navigation',
-        }
+        return result(
+          [{ type: 'close-modal' }],
+          [{ name: sessionName, projectPath, type: 'create-session' }],
+          'navigation'
+        )
       }
-      return {
-        actions: [{ type: 'close-modal' }],
-        effects: [],
-        transition: 'navigation',
-      }
+
+      return result([{ type: 'close-modal' }], [], 'navigation')
     }
 
     return handleCtrlNavigation(key) ?? handleTextInput(key)

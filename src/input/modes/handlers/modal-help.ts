@@ -1,13 +1,11 @@
 import type { KeyInput, KeyResult, ModeContext, ModeHandler } from '../types'
 
+import { closeModalResult } from './shared'
+
 export const modalHelpMode: ModeHandler = {
   handleKey(key: KeyInput, _ctx: ModeContext): KeyResult | null {
     if (key.name === 'escape') {
-      return {
-        actions: [{ type: 'close-modal' }],
-        effects: [],
-        transition: 'navigation',
-      }
+      return closeModalResult()
     }
 
     return null

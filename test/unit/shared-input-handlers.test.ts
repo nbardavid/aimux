@@ -2,7 +2,13 @@ import { describe, expect, test } from 'bun:test'
 
 import type { KeyInput } from '../../src/input/modes/types'
 
-import { handleCtrlNavigation, handleTextInput } from '../../src/input/modes/handlers/shared'
+import {
+  closeModalResult,
+  handleCtrlNavigation,
+  handleModalSelectionKeys,
+  handleTextInput,
+  result,
+} from '../../src/input/modes/handlers/shared'
 
 function key(overrides: Partial<KeyInput> & { name: string }): KeyInput {
   return { ctrl: false, meta: false, sequence: overrides.name, shift: false, ...overrides }
@@ -70,5 +76,50 @@ describe('handleCtrlNavigation', () => {
     expect(handleCtrlNavigation(key({ name: 'n' }))).toBeNull()
     expect(handleCtrlNavigation(key({ name: 'p' }))).toBeNull()
     expect(handleCtrlNavigation(key({ ctrl: true, name: 'j' }))).toBeNull()
+  })
+})
+
+describe('result helpers', () => {
+  test('result omits transition when not provided', () => {
+    expect(result([{ type: 'close-modal' }])).toEqual({
+      actions: [{ type: 'close-modal' }],
+      effects: [],
+    })
+  })
+
+  test('closeModalResult closes modal and transitions to navigation by default', () => {
+    expect(closeModalResult()).toEqual({
+      actions: [{ type: 'close-modal' }],
+      effects: [],
+      transition: 'navigation',
+    })
+  })
+})
+
+describe('handleModalSelectionKeys', () => {
+  test('j moves selection down', () => {
+    expect(handleModalSelectionKeys(key({ name: 'j' }))).toEqual({
+      actions: [{ delta: 1, type: 'move-modal-selection' }],
+      effects: [],
+    })
+  })
+
+  test('up moves selection up with derived effects', () => {
+    expect(
+      handleModalSelectionKeys(key({ name: 'up' }), (delta) => [
+        {
+          action: 'preview',
+          delta,
+          type: 'apply-theme',
+        },
+      ])
+    ).toEqual({
+      actions: [{ delta: -1, type: 'move-modal-selection' }],
+      effects: [{ action: 'preview', delta: -1, type: 'apply-theme' }],
+    })
+  })
+
+  test('other keys return null', () => {
+    expect(handleModalSelectionKeys(key({ name: 'return' }))).toBeNull()
   })
 })

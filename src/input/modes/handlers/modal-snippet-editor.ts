@@ -1,27 +1,19 @@
 import type { KeyInput, KeyResult, ModeContext, ModeHandler } from '../types'
 
-import { handleCtrlNavigation, handleTextInput } from './shared'
+import { handleCtrlNavigation, handleTextInput, result } from './shared'
 
 export const modalSnippetEditorMode: ModeHandler = {
   handleKey(key: KeyInput, _ctx: ModeContext): KeyResult | null {
     if (key.name === 'escape') {
-      return {
-        actions: [{ type: 'open-snippet-picker' }],
-        effects: [],
-        transition: 'modal.snippet-picker',
-      }
+      return result([{ type: 'open-snippet-picker' }], [], 'modal.snippet-picker')
     }
 
     if (key.name === 'tab') {
-      return { actions: [{ type: 'switch-create-session-field' }], effects: [] }
+      return result([{ type: 'switch-create-session-field' }])
     }
 
     if (key.name === 'return') {
-      return {
-        actions: [{ type: 'close-modal' }],
-        effects: [{ type: 'save-snippet-editor' }],
-        transition: 'navigation',
-      }
+      return result([{ type: 'close-modal' }], [{ type: 'save-snippet-editor' }], 'navigation')
     }
 
     return handleCtrlNavigation(key) ?? handleTextInput(key)

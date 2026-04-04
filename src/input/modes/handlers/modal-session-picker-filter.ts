@@ -1,22 +1,15 @@
 import type { KeyInput, KeyResult, ModeContext, ModeHandler } from '../types'
 
-import { handleCtrlNavigation, handleTextInput } from './shared'
+import { handleCtrlNavigation, handleTextInput, result } from './shared'
 
 export const modalSessionPickerFilterMode: ModeHandler = {
   handleKey(key: KeyInput, _ctx: ModeContext): KeyResult | null {
     if (key.name === 'escape') {
-      return {
-        actions: [{ type: 'cancel-command-edit' }],
-        effects: [],
-        transition: 'modal.session-picker',
-      }
+      return result([{ type: 'cancel-command-edit' }], [], 'modal.session-picker')
     }
 
     if (key.name === 'return') {
-      return {
-        actions: [],
-        effects: [{ type: 'confirm-selected-session' }],
-      }
+      return result([], [{ type: 'confirm-selected-session' }])
     }
 
     return handleCtrlNavigation(key) ?? handleTextInput(key)

@@ -1,59 +1,37 @@
 import type { KeyInput, KeyResult, ModeContext, ModeHandler } from '../types'
 
+import { closeModalResult, handleModalSelectionKeys, result } from './shared'
+
 export const modalSessionPickerMode: ModeHandler = {
   handleKey(key: KeyInput, ctx: ModeContext): KeyResult | null {
     if (key.name === 'escape') {
       if (!ctx.state.currentSessionId) return null
-      return {
-        actions: [{ type: 'close-modal' }],
-        effects: [],
-        transition: 'navigation',
-      }
+      return closeModalResult()
     }
 
-    if (key.name === 'j' || key.name === 'down') {
-      return { actions: [{ delta: 1, type: 'move-modal-selection' }], effects: [] }
-    }
-
-    if (key.name === 'k' || key.name === 'up') {
-      return { actions: [{ delta: -1, type: 'move-modal-selection' }], effects: [] }
+    const navigationResult = handleModalSelectionKeys(key)
+    if (navigationResult) {
+      return navigationResult
     }
 
     if (key.name === 'return') {
-      return {
-        actions: [],
-        effects: [{ type: 'confirm-selected-session' }],
-      }
+      return result([], [{ type: 'confirm-selected-session' }])
     }
 
     if (key.name === 'n') {
-      return {
-        actions: [{ type: 'open-create-session-modal' }],
-        effects: [],
-        transition: 'modal.create-session',
-      }
+      return result([{ type: 'open-create-session-modal' }], [], 'modal.create-session')
     }
 
     if (key.name === 'r') {
-      return {
-        actions: [],
-        effects: [{ type: 'open-rename-selected-session' }],
-      }
+      return result([], [{ type: 'open-rename-selected-session' }])
     }
 
     if (key.name === 'd') {
-      return {
-        actions: [],
-        effects: [{ type: 'delete-selected-session' }],
-      }
+      return result([], [{ type: 'delete-selected-session' }])
     }
 
     if (key.sequence === '/') {
-      return {
-        actions: [{ type: 'begin-session-filter' }],
-        effects: [],
-        transition: 'modal.session-picker.filtering',
-      }
+      return result([{ type: 'begin-session-filter' }], [], 'modal.session-picker.filtering')
     }
 
     return null

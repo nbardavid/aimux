@@ -1,28 +1,20 @@
 import type { KeyInput, KeyResult, ModeContext, ModeHandler } from '../types'
 
+import { closeModalResult, handleModalSelectionKeys, result } from './shared'
+
 export const modalSplitPickerMode: ModeHandler = {
   handleKey(key: KeyInput, _ctx: ModeContext): KeyResult | null {
     if (key.name === 'escape') {
-      return {
-        actions: [{ type: 'close-modal' }],
-        effects: [],
-        transition: 'navigation',
-      }
+      return closeModalResult()
     }
 
-    if (key.name === 'j' || key.name === 'down') {
-      return { actions: [{ delta: 1, type: 'move-modal-selection' }], effects: [] }
-    }
-
-    if (key.name === 'k' || key.name === 'up') {
-      return { actions: [{ delta: -1, type: 'move-modal-selection' }], effects: [] }
+    const navigationResult = handleModalSelectionKeys(key)
+    if (navigationResult) {
+      return navigationResult
     }
 
     if (key.name === 'return') {
-      return {
-        actions: [],
-        effects: [{ type: 'confirm-split' }],
-      }
+      return result([], [{ type: 'confirm-split' }])
     }
 
     return null

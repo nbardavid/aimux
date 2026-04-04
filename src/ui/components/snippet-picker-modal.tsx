@@ -42,14 +42,13 @@ export function SnippetPickerModal({ filter, selectedIndex, snippets }: SnippetP
           paddingLeft={1}
           paddingRight={1}
           paddingTop={1}
-          paddingBottom={0}
+          paddingBottom={1}
           flexDirection="column"
         >
           <text fg={theme.accent}>Snippets</text>
           <text fg={theme.textMuted}>
             j/k move, Enter send, n new, e edit, d delete, / filter, Esc cancel.
           </text>
-          {filter !== null ? <text fg={theme.text}>/{filter}_</text> : null}
         </box>
         {filtered.length === 0 ? (
           <box paddingLeft={1} paddingRight={1} paddingTop={1} paddingBottom={1}>
@@ -61,25 +60,24 @@ export function SnippetPickerModal({ filter, selectedIndex, snippets }: SnippetP
         {filtered.map((snippet, index) => {
           const active = index === selectedIndex
           return (
-            <box key={snippet.id} flexDirection="row" backgroundColor={theme.background}>
-              <box width={1} backgroundColor={active ? theme.borderActive : theme.border} />
-              <box
-                backgroundColor={active ? theme.panelMuted : theme.background}
-                flexDirection="column"
-                flexGrow={1}
-                paddingLeft={1}
-                paddingRight={1}
-                paddingTop={0}
-                paddingBottom={0}
-              >
-                <text fg={active ? theme.text : theme.textMuted}>
-                  <strong>{snippet.name}</strong>
-                </text>
-                <text fg={theme.textMuted}> {truncateContent(snippet.content)}</text>
-              </box>
+            <box
+              key={snippet.id}
+              border
+              borderColor={active ? theme.borderActive : theme.border}
+              backgroundColor={active ? theme.panelMuted : theme.background}
+              flexDirection="column"
+            >
+              <text fg={active ? theme.text : theme.textMuted}>
+                {active ? '> ' : '  '}
+                <strong>{snippet.name}</strong>
+              </text>
+              <text fg={theme.textMuted}> {truncateContent(snippet.content)}</text>
             </box>
           )
         })}
+        <box paddingLeft={1} paddingRight={1} paddingTop={1}>
+          {filter !== null ? <text fg={theme.text}>/{filter}_</text> : null}
+        </box>
       </box>
     </box>
   )

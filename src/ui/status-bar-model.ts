@@ -64,23 +64,23 @@ export function getStatusBarModel(state: AppState, activeTab?: TabSession): Stat
   switch (state.focusMode) {
     case 'terminal-input':
       return {
-        left: `INPUT  ${getActiveTabLabel(activeTab)}  ${sessionIcon}  ${sessionLabel}`,
+        left: `${getActiveTabLabel(activeTab)}  ${sessionIcon}  ${sessionLabel}`,
         right: getInputHint(activeTab),
       }
     case 'modal':
       return {
-        left: `MODAL  ${sessionIcon}  ${sessionLabel}`,
+        left: `${sessionIcon}  ${sessionLabel}`,
         right: 'j/k move  Enter confirm  n/r/d actions  Esc cancel',
       }
     case 'layout':
       return {
-        left: `LAYOUT  ${getActiveTabLabel(activeTab)}  ${sessionIcon}  ${sessionLabel}`,
+        left: `${getActiveTabLabel(activeTab)}  ${sessionIcon}  ${sessionLabel}`,
         right: 'h/j/k/l focus  |/- split  H/L resize  q close  Esc cancel',
       }
     case 'navigation':
     default:
       return {
-        left: `NAV  ${sessionIcon}  ${sessionLabel}  ${getActiveTabLabel(activeTab)}`,
+        left: `${sessionIcon}  ${sessionLabel}  ${getActiveTabLabel(activeTab)}`,
         right: getNavigationHint(activeTab),
       }
   }

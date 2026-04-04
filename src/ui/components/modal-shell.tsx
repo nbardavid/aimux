@@ -23,6 +23,15 @@ export function ModalShell({ children, footer, help, listGap = 1, title, width }
       justifyContent="center"
       alignItems="center"
     >
+      <box
+        position="absolute"
+        top={0}
+        left={0}
+        width="100%"
+        height="100%"
+        backgroundColor={theme.overlay}
+        opacity={0.7}
+      />
       <Surface tone="elevated" padding={1} gap={1} width={width}>
         <box width="100%" flexDirection="column" gap={listGap}>
           <box flexDirection="column">

@@ -3,6 +3,7 @@ export interface ThemeColors {
   panel: string
   panelMuted: string
   panelHighlight: string
+  overlay: string
   border: string
   borderActive: string
   text: string
@@ -37,6 +38,7 @@ export const THEMES: Record<ThemeId, { name: string; colors: ThemeColors }> = {
       borderActive: '#7cd1b8',
       danger: '#f38ba8',
       dim: '#243242',
+      overlay: '#0b1016',
       panel: '#16202b',
       panelHighlight: '#1f3344',
       panelMuted: '#1c2734',
@@ -56,6 +58,7 @@ export const THEMES: Record<ThemeId, { name: string; colors: ThemeColors }> = {
       borderActive: '#cba6f7',
       danger: '#f38ba8',
       dim: '#313244',
+      overlay: '#181825',
       panel: '#232334',
       panelHighlight: '#313244',
       panelMuted: '#2a2a3c',
@@ -75,6 +78,7 @@ export const THEMES: Record<ThemeId, { name: string; colors: ThemeColors }> = {
       borderActive: '#bd93f9',
       danger: '#ff5555',
       dim: '#383a4a',
+      overlay: '#1f2029',
       panel: '#2d2f3d',
       panelHighlight: '#3d4056',
       panelMuted: '#343746',
@@ -94,6 +98,7 @@ export const THEMES: Record<ThemeId, { name: string; colors: ThemeColors }> = {
       borderActive: '#bd93f9',
       danger: '#ff5555',
       dim: '#1e2630',
+      overlay: '#090d11',
       panel: '#131920',
       panelHighlight: '#222a33',
       panelMuted: '#1a2129',
@@ -113,6 +118,7 @@ export const THEMES: Record<ThemeId, { name: string; colors: ThemeColors }> = {
       borderActive: '#b8bb26',
       danger: '#fb4934',
       dim: '#3c3836',
+      overlay: '#1f1d1b',
       panel: '#2e2e2e',
       panelHighlight: '#504945',
       panelMuted: '#3c3836',
@@ -132,6 +138,7 @@ export const THEMES: Record<ThemeId, { name: string; colors: ThemeColors }> = {
       borderActive: '#7e9cd8',
       danger: '#e82424',
       dim: '#2a2a37',
+      overlay: '#171720',
       panel: '#24242e',
       panelHighlight: '#363646',
       panelMuted: '#2a2a37',
@@ -151,6 +158,7 @@ export const THEMES: Record<ThemeId, { name: string; colors: ThemeColors }> = {
       borderActive: '#88c0d0',
       danger: '#bf616a',
       dim: '#3b4252',
+      overlay: '#252a33',
       panel: '#333a47',
       panelHighlight: '#434c5e',
       panelMuted: '#3b4252',
@@ -170,6 +178,7 @@ export const THEMES: Record<ThemeId, { name: string; colors: ThemeColors }> = {
       borderActive: '#61afef',
       danger: '#e06c75',
       dim: '#3b4048',
+      overlay: '#1f2329',
       panel: '#2c313a',
       panelHighlight: '#3b4048',
       panelMuted: '#333842',
@@ -189,6 +198,7 @@ export const THEMES: Record<ThemeId, { name: string; colors: ThemeColors }> = {
       borderActive: '#268bd2',
       danger: '#dc322f',
       dim: '#073642',
+      overlay: '#00242c',
       panel: '#003340',
       panelHighlight: '#0a4050',
       panelMuted: '#073642',
@@ -208,6 +218,7 @@ export const THEMES: Record<ThemeId, { name: string; colors: ThemeColors }> = {
       borderActive: '#7aa2f7',
       danger: '#f7768e',
       dim: '#292e42',
+      overlay: '#141722',
       panel: '#1f2335',
       panelHighlight: '#292e42',
       panelMuted: '#24283b',

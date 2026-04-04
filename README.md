@@ -27,6 +27,7 @@ A terminal multiplexer for AI CLIs. Manage multiple AI assistant sessions (Claud
 - **Live activity indicators** -- Animated spinner for busy tabs, colored indicators for idle/focused states
 - **Snippets** -- Save and reuse prompt snippets across sessions with `Ctrl+S`
 - **Theme picker** -- Switch between themes on the fly with `Ctrl+T`
+- **Focused modal overlays** -- Modal dialogs dim the background so prompts and pickers stay visually clear without losing context
 - **Built-in help** -- Press `?` to see all keybindings at a glance
 - **Rich TUI** -- Sidebar with git info, status bar with session context, and modal dialogs built with OpenTUI + React
 

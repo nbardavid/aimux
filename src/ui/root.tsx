@@ -5,7 +5,7 @@ import type { ModalState, SessionRecord, SnippetRecord } from '../state/types'
 import type { ThemeId } from './themes'
 
 import { useAppStore } from '../state/app-store'
-import { getTreeForTab, type SplitDirection } from '../state/layout-tree'
+import { getTreeForTab, PANE_BORDER, type SplitDirection } from '../state/layout-tree'
 import { CreateSessionModal } from './components/create-session-modal'
 import { HelpModal } from './components/help-modal'
 import { NewTabModal } from './components/new-tab-modal'
@@ -192,6 +192,7 @@ export function RootView({
   const activeTree = activeTabId ? getTreeForTab(layoutTrees, tabGroupMap, activeTabId) : null
   const createSessionFields = getCreateSessionFields(modal)
   const snippetEditorFields = getSnippetEditorFields(modal)
+  const splitChrome = PANE_BORDER * 2
 
   return (
     <box flexDirection="column" width="100%" height="100%" backgroundColor={theme.background}>
@@ -203,7 +204,12 @@ export function RootView({
             tabs={tabs}
             activeTabId={activeTabId}
             focusMode={focusMode}
-            contentOrigin={contentOrigin}
+            contentOrigin={{
+              cols: terminalCols + splitChrome,
+              rows: terminalRows + splitChrome,
+              x: contentOrigin.x - PANE_BORDER,
+              y: contentOrigin.y - PANE_BORDER,
+            }}
             mouseForwardingEnabled={mouseForwardingEnabled}
             localScrollbackEnabled={localScrollbackEnabled}
             onTerminalMouseEvent={onTerminalMouseEvent}
@@ -214,7 +220,12 @@ export function RootView({
             onSeparatorDragStart={onSeparatorDragStart}
             onSeparatorDrag={onSeparatorDrag}
             onSeparatorDragEnd={onSeparatorDragEnd}
-            bounds={{ cols: terminalCols, rows: terminalRows, x: 0, y: 0 }}
+            bounds={{
+              cols: terminalCols + splitChrome,
+              rows: terminalRows + splitChrome,
+              x: 0,
+              y: 0,
+            }}
           />
         ) : (
           <TerminalPane

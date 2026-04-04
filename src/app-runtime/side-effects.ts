@@ -11,6 +11,7 @@ import {
   isCommandAvailable,
   parseCommand,
 } from '../pty/command-registry'
+import { createTerminalBounds } from '../state/layout-resize'
 import {
   allLeafIds,
   computePaneRects,
@@ -316,12 +317,7 @@ function executeSplitPane(
   const existingTree = getTreeForTab(state.layoutTrees, state.tabGroupMap, activeTabId)
   const baseTree = existingTree ?? createLeaf(activeTabId)
   const newTree = splitNode(baseTree, activeTabId, direction, tab.id)
-  const bounds = {
-    cols: state.layout.terminalCols,
-    rows: state.layout.terminalRows,
-    x: 0,
-    y: 0,
-  }
+  const bounds = createTerminalBounds(state.layout.terminalCols, state.layout.terminalRows)
   const paneRect = computePaneRects(newTree, bounds).get(tab.id)
 
   dispatch({ direction, newTab: tab, type: 'split-pane' })

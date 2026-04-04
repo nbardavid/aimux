@@ -1,4 +1,6 @@
 import { theme } from '../theme'
+import { uiTokens } from '../ui-tokens'
+import { ModalShell } from './modal-shell'
 
 const SECTIONS = [
   {
@@ -56,40 +58,20 @@ const SECTIONS = [
 
 export function HelpModal() {
   return (
-    <box
-      position="absolute"
-      top={0}
-      left={0}
-      width="100%"
-      height="100%"
-      justifyContent="center"
-      alignItems="center"
-    >
-      <box
-        width={50}
-        border
-        borderColor={theme.borderActive}
-        padding={1}
-        backgroundColor={theme.panel}
-        flexDirection="column"
-        gap={1}
-      >
-        <text fg={theme.accentAlt}>Keybindings</text>
-        {SECTIONS.map((section) => (
-          <box key={section.title} flexDirection="column">
-            <text fg={theme.text}>{section.title}</text>
-            {section.bindings.map(([key, desc]) => (
-              <box key={key} flexDirection="row">
-                <box width={18}>
-                  <text fg={theme.accentAlt}> {key}</text>
-                </box>
-                <text fg={theme.textMuted}>{desc}</text>
+    <ModalShell title="Keybindings" help="Press Esc to close." width={uiTokens.modalWidth.lg}>
+      {SECTIONS.map((section) => (
+        <box key={section.title} flexDirection="column">
+          <text fg={theme.text}>{section.title}</text>
+          {section.bindings.map(([key, desc]) => (
+            <box key={key} flexDirection="row">
+              <box width={18}>
+                <text fg={theme.accentAlt}> {key}</text>
               </box>
-            ))}
-          </box>
-        ))}
-        <text fg={theme.textMuted}>Press Esc to close</text>
-      </box>
-    </box>
+              <text fg={theme.textMuted}>{desc}</text>
+            </box>
+          ))}
+        </box>
+      ))}
+    </ModalShell>
   )
 }

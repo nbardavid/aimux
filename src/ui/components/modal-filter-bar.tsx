@@ -1,13 +1,18 @@
 import { theme } from '../theme'
+import { Surface } from './surface'
 
 interface ModalFilterBarProps {
   filter: string | null
 }
 
 export function ModalFilterBar({ filter }: ModalFilterBarProps) {
+  if (filter === null) {
+    return null
+  }
+
   return (
-    <box paddingLeft={1} paddingRight={1} paddingTop={1}>
-      {filter !== null ? <text fg={theme.text}>/{filter}_</text> : null}
-    </box>
+    <Surface tone="input" paddingLeft={1} paddingRight={1} paddingTop={1} paddingBottom={1}>
+      <text fg={theme.text}>/{filter}_</text>
+    </Surface>
   )
 }

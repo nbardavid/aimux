@@ -18,13 +18,21 @@ const GUTTER_MIDDLE = '├'
 const GUTTER_END = '╰'
 const GUTTER_PAD = '│'
 
-function renderGroupGutter(isGroupStart: boolean, isGroupMiddle: boolean, isGroupEnd: boolean) {
+function renderGroupGutter(
+  isGroupStart: boolean,
+  isGroupMiddle: boolean,
+  isGroupEnd: boolean,
+  isActive: boolean
+) {
   return (
     <box flexDirection="column" width={1} overflow="hidden">
-      <text fg={theme.accent}>{isGroupStart ? GUTTER_START : GUTTER_PAD}</text>
-      <text fg={theme.accent}>{GUTTER_PAD}</text>
-      <text fg={theme.accent}>{isGroupMiddle ? GUTTER_MIDDLE : GUTTER_PAD}</text>
-      <text fg={theme.accent}>{isGroupEnd ? GUTTER_END : GUTTER_PAD}</text>
+      <text fg={theme.accentAlt} bg={isActive ? theme.panelHighlight : undefined}>
+        {/* oxlint-disable-next-line no-nested-ternary */}
+        {isGroupStart ? GUTTER_START : isGroupMiddle ? GUTTER_MIDDLE : GUTTER_PAD}
+      </text>
+      <text fg={theme.accentAlt} bg={isActive ? theme.panelHighlight : undefined}>
+        {isGroupEnd ? GUTTER_END : GUTTER_PAD}
+      </text>
     </box>
   )
 }
@@ -65,7 +73,7 @@ export function Sidebar({ onTabActivate }: SidebarProps) {
       width={sidebar.width}
       padding={0}
       flexDirection="column"
-      backgroundColor={theme.panelMuted}
+      backgroundColor={theme.panel}
       gap={0}
     >
       <text fg={theme.accent}>
@@ -80,7 +88,7 @@ export function Sidebar({ onTabActivate }: SidebarProps) {
           <text fg={theme.textMuted}>{branch}</text>
         </box>
       ) : null}
-      <text fg={theme.dim}>{'─'.repeat(Math.max(0, sidebar.width - 2))}</text>
+      <text fg={theme.dim}>{'·'.repeat(Math.max(0, sidebar.width - 2))}</text>
       <scrollbox
         paddingTop={0}
         ref={scrollRef}
@@ -109,7 +117,9 @@ export function Sidebar({ onTabActivate }: SidebarProps) {
                 flexDirection="row"
                 onMouseDown={onTabActivate ? () => onTabActivate(tab.id) : undefined}
               >
-                {inGroup ? renderGroupGutter(isGroupStart, isGroupMiddle, isGroupEnd) : null}
+                {inGroup
+                  ? renderGroupGutter(isGroupStart, isGroupMiddle, isGroupEnd, isActive)
+                  : null}
                 <box flexGrow={1}>
                   <TabItem
                     id={`sidebar-tab-${tab.id}`}

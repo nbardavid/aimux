@@ -2,8 +2,10 @@ import type { DirectoryResult } from '../../state/types'
 
 import { abbreviatePath } from '../path-format'
 import { theme } from '../theme'
-
-const MODAL_WIDTH = '60%'
+import { uiTokens } from '../ui-tokens'
+import { InputField } from './input-field'
+import { ListItem } from './list-item'
+import { ModalShell } from './modal-shell'
 
 function getDirectoryResultIcon(result: DirectoryResult): string {
   if (result.type === 'worktree') {
@@ -50,73 +52,43 @@ export function CreateSessionModal({
   const nameActive = activeField === 'name'
 
   return (
-    <box
-      position="absolute"
-      top={0}
-      left={0}
-      width="100%"
-      height="100%"
-      justifyContent="center"
-      alignItems="center"
+    <ModalShell
+      title="Create session"
+      help="Tab switch field. Ctrl+n/p nav. Esc cancel."
+      width={uiTokens.modalWidth.xl}
     >
-      <box
-        width={MODAL_WIDTH}
-        border
-        borderColor={theme.borderActive}
-        padding={1}
-        backgroundColor={theme.panel}
-        flexDirection="column"
-        gap={1}
-      >
-        <text fg={theme.accentAlt}>Create session</text>
-        <text fg={theme.textMuted}>Tab switch field. Ctrl+n/p nav. Esc cancel.</text>
-
-        <text fg={dirActive ? theme.text : theme.textMuted}>Search projects:</text>
-        <box
-          border
-          borderColor={dirActive ? theme.borderActive : theme.border}
-          backgroundColor={dirActive ? theme.panelMuted : theme.background}
-          padding={1}
-        >
-          <text fg={dirActive ? theme.text : theme.textMuted}>
-            {pendingProjectPath && !dirActive ? abbreviatePath(pendingProjectPath) : directoryQuery}
-            {dirActive ? '_' : ''}
-          </text>
-        </box>
-
-        {dirActive && results.length === 0 && directoryQuery.length > 0 ? (
-          <text fg={theme.textMuted}>No matches</text>
-        ) : null}
-        {dirActive
-          ? results.map((result, index) => {
-              const active = index === selectedIndex
-              return (
-                <box key={result.path} flexDirection="row">
-                  <text fg={active ? theme.text : theme.textMuted}>{active ? '>' : ' '} </text>
-                  <text fg={getDirectoryResultColor(result)}>
-                    {getDirectoryResultIcon(result)}{' '}
-                  </text>
-                  <text fg={active ? theme.text : theme.textMuted}>
-                    {abbreviatePath(result.path)}
-                  </text>
-                </box>
-              )
-            })
-          : null}
-
-        <text fg={nameActive ? theme.text : theme.textMuted}>Session name:</text>
-        <box
-          border
-          borderColor={nameActive ? theme.borderActive : theme.border}
-          backgroundColor={nameActive ? theme.panelMuted : theme.background}
-          padding={1}
-        >
-          <text fg={nameActive ? theme.text : theme.textMuted}>
-            {sessionName}
-            {nameActive ? '_' : ''}
-          </text>
-        </box>
+      <box flexDirection="column">
+        <text fg={dirActive ? theme.text : theme.textMuted}>Search projects</text>
+        <InputField
+          active={dirActive}
+          value={pendingProjectPath && !dirActive ? abbreviatePath(pendingProjectPath) : directoryQuery}
+        />
       </box>
-    </box>
+
+      {dirActive && results.length === 0 && directoryQuery.length > 0 ? (
+        <text fg={theme.textMuted}>No matches</text>
+      ) : null}
+
+      {dirActive
+        ? results.map((result, index) => {
+            const active = index === selectedIndex
+            return (
+              <ListItem
+                key={result.path}
+                active={active}
+                leading={<text fg={getDirectoryResultColor(result)}>{getDirectoryResultIcon(result)}</text>}
+                title={
+                  <text fg={active ? theme.text : theme.textMuted}>{abbreviatePath(result.path)}</text>
+                }
+              />
+            )
+          })
+        : null}
+
+      <box flexDirection="column">
+        <text fg={nameActive ? theme.text : theme.textMuted}>Session name</text>
+        <InputField active={nameActive} value={sessionName} />
+      </box>
+    </ModalShell>
   )
 }

@@ -1,5 +1,8 @@
 import { theme } from '../theme'
 import { THEME_IDS, type ThemeId, THEMES } from '../themes'
+import { uiTokens } from '../ui-tokens'
+import { ListItem } from './list-item'
+import { ModalShell } from './modal-shell'
 
 interface ThemePickerModalProps {
   selectedIndex: number
@@ -8,40 +11,25 @@ interface ThemePickerModalProps {
 
 export function ThemePickerModal({ currentThemeId, selectedIndex }: ThemePickerModalProps) {
   return (
-    <box
-      position="absolute"
-      top={0}
-      left={0}
-      width="100%"
-      height="100%"
-      justifyContent="center"
-      alignItems="center"
+    <ModalShell
+      title="Select theme"
+      help="j/k move, Enter confirm, Esc cancel."
+      width={uiTokens.modalWidth.md}
+      listGap={0}
     >
-      <box
-        width={40}
-        border
-        borderColor={theme.borderActive}
-        padding={1}
-        backgroundColor={theme.panel}
-        flexDirection="column"
-        gap={1}
-      >
-        <text fg={theme.accent}>Select theme</text>
-        <text fg={theme.textMuted}>j/k move, Enter confirm, Esc cancel.</text>
-        {THEME_IDS.map((id, index) => {
-          const entry = THEMES[id]
-          const active = index === selectedIndex
-          const isCurrent = id === currentThemeId
-          return (
-            <box key={id} flexDirection="row">
-              <text fg={active ? theme.text : theme.textMuted}>
-                {active ? '>' : ' '} {entry.name}
-              </text>
-              {isCurrent ? <text fg={theme.accent}> *</text> : null}
-            </box>
-          )
-        })}
-      </box>
-    </box>
+      {THEME_IDS.map((id, index) => {
+        const entry = THEMES[id]
+        const active = index === selectedIndex
+        const isCurrent = id === currentThemeId
+        return (
+          <ListItem
+            key={id}
+            active={active}
+            title={<text fg={active ? theme.text : theme.textMuted}>{entry.name}</text>}
+            trailing={isCurrent ? <text fg={theme.accent}>current</text> : undefined}
+          />
+        )
+      })}
+    </ModalShell>
   )
 }

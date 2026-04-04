@@ -2,9 +2,11 @@ pre-commit:
   parallel: true
   commands:
     lint:
-      run: bun run lint
+      run: bunx oxlint {staged_files}
+      glob: '*.{ts,tsx}'
     format-check:
-      run: bun run format:check
+      run: bunx oxfmt --check {staged_files}
+      glob: '*.{ts,tsx,json}'
 
 pre-push:
   parallel: true

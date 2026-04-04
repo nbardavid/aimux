@@ -4,7 +4,7 @@ import { useAppStore } from '../../state/app-store'
 import { getStatusBarModel } from '../status-bar-model'
 import { theme } from '../theme'
 
-function getModeBorderColor(focusMode: AppState['focusMode']): string {
+function getModeColor(focusMode: AppState['focusMode']): string {
   switch (focusMode) {
     case 'terminal-input':
       return theme.accent
@@ -18,6 +18,20 @@ function getModeBorderColor(focusMode: AppState['focusMode']): string {
   }
 }
 
+function getModeLabel(focusMode: AppState['focusMode']): string {
+  switch (focusMode) {
+    case 'terminal-input':
+      return 'input'
+    case 'layout':
+      return 'layout'
+    case 'modal':
+      return 'modal'
+    case 'navigation':
+    default:
+      return 'nav'
+  }
+}
+
 export function StatusBar() {
   const state = useAppStore((s) => s)
   const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId)
@@ -25,17 +39,17 @@ export function StatusBar() {
 
   return (
     <box
-      minHeight={4}
-      border
-      borderColor={getModeBorderColor(state.focusMode)}
+      minHeight={2}
       paddingLeft={1}
       paddingRight={1}
       paddingTop={0}
       paddingBottom={0}
       flexDirection="column"
-      backgroundColor={theme.panel}
+      backgroundColor={theme.panelMuted}
     >
-      <box width="100%">
+      <box width="100%" flexDirection="row">
+        <text fg={getModeColor(state.focusMode)}>[{getModeLabel(state.focusMode)}]</text>
+        <text> </text>
         <text fg={theme.text}>{model.left}</text>
       </box>
       <box width="100%">

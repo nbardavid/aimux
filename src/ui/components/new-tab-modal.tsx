@@ -1,5 +1,9 @@
 import { getAllAssistantOptions } from '../../pty/command-registry'
 import { theme } from '../theme'
+import { uiTokens } from '../ui-tokens'
+import { InputField } from './input-field'
+import { ListItem } from './list-item'
+import { ModalShell } from './modal-shell'
 
 interface NewTabModalProps {
   selectedIndex: number
@@ -9,70 +13,40 @@ interface NewTabModalProps {
 
 export function NewTabModal({ customCommands, editBuffer, selectedIndex }: NewTabModalProps) {
   const options = getAllAssistantOptions(customCommands)
+  const selectedOption = options[selectedIndex]
 
   return (
-    <box
-      position="absolute"
-      top={0}
-      left={0}
-      width="100%"
-      height="100%"
-      justifyContent="center"
-      alignItems="center"
+    <ModalShell
+      title="New assistant tab"
+      help={
+        editBuffer !== null
+          ? `Editing command for ${selectedOption?.label}. Enter to confirm, Esc to cancel.`
+          : 'Use j/k or arrows, Enter to confirm, e to edit command, Esc to cancel.'
+      }
+      width={uiTokens.modalWidth.md}
     >
-      <box
-        width={48}
-        border
-        borderColor={theme.borderActive}
-        padding={1}
-        backgroundColor={theme.panel}
-        flexDirection="column"
-        gap={1}
-      >
-        <text fg={theme.accentAlt}>New assistant tab</text>
-        {editBuffer !== null ? (
-          <>
-            <text fg={theme.textMuted}>
-              Editing command for {options[selectedIndex]?.label}. Enter to confirm, Esc to cancel.
-            </text>
-            <box
-              border
-              borderColor={theme.borderActive}
-              backgroundColor={theme.panelMuted}
-              padding={1}
-            >
-              <text fg={theme.text}>{editBuffer}_</text>
-            </box>
-          </>
-        ) : (
-          <>
-            <text fg={theme.textMuted}>
-              Use j/k or arrows, Enter to confirm, e to edit command, Esc to cancel.
-            </text>
-            {options.map((option, index) => {
-              const active = index === selectedIndex
-              const customCmd = customCommands[option.id]
+      {editBuffer !== null ? (
+        <InputField active value={editBuffer} />
+      ) : (
+        options.map((option, index) => {
+          const active = index === selectedIndex
+          const customCmd = customCommands[option.id]
 
-              return (
-                <box
-                  key={option.id}
-                  border
-                  borderColor={active ? theme.borderActive : theme.border}
-                  backgroundColor={active ? theme.panelMuted : theme.background}
-                  padding={1}
-                  flexDirection="column"
-                >
-                  <text fg={active ? theme.text : theme.textMuted}>
-                    {active ? '>' : ' '} {option.label}
-                  </text>
+          return (
+            <ListItem
+              key={option.id}
+              active={active}
+              title={<text fg={active ? theme.text : theme.textMuted}>{option.label}</text>}
+              subtitle={
+                <box flexDirection="column">
                   <text fg={theme.textMuted}>{option.description}</text>
                   {customCmd ? <text fg={theme.accent}>{customCmd}</text> : null}
                 </box>
-              )
-            })}
-          </>
-        )}
-      </box>
-    </box>
+              }
+            />
+          )
+        })
+      )}
+    </ModalShell>
   )
 }

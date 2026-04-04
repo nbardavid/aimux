@@ -3,7 +3,10 @@ import type { SessionRecord } from '../../state/types'
 import { filterSessions } from '../../state/selectors'
 import { abbreviatePath } from '../path-format'
 import { theme } from '../theme'
+import { uiTokens } from '../ui-tokens'
+import { ListItem } from './list-item'
 import { ModalFilterBar } from './modal-filter-bar'
+import { ModalShell } from './modal-shell'
 
 interface SessionPickerModalProps {
   sessions: SessionRecord[]
@@ -46,77 +49,41 @@ export function SessionPickerModal({
   const showInitialEmptyState = filtered.length === 0 && sessions.length === 0
 
   return (
-    <box
-      position="absolute"
-      top={0}
-      left={0}
-      width="100%"
-      height="100%"
-      justifyContent="center"
-      alignItems="center"
+    <ModalShell
+      title="Sessions"
+      help="j/k move, Enter resume, n new, r rename, d delete, / filter, Esc cancel."
+      width={uiTokens.modalWidth.lg}
+      footer={<ModalFilterBar filter={filter} />}
     >
-      <box
-        width={56}
-        border
-        borderColor={theme.borderActive}
-        backgroundColor={theme.panel}
-        flexDirection="column"
-        gap={0}
-      >
-        <box
-          paddingLeft={1}
-          paddingRight={1}
-          paddingTop={1}
-          paddingBottom={1}
-          flexDirection="column"
-        >
-          <text fg={theme.accentAlt}>Sessions</text>
-          <text fg={theme.textMuted}>
-            j/k move, Enter resume, n new, r rename, d delete, / filter, Esc cancel.
-          </text>
-        </box>
-        {showFilteredEmptyState ? (
-          <box padding={1}>
-            <text fg={theme.textMuted}>{getEmptyStateMessage(hasFilter)}</text>
-          </box>
-        ) : null}
-        {showInitialEmptyState ? (
-          <box padding={1}>
-            <text fg={theme.textMuted}>{getEmptyStateMessage(false)}</text>
-          </box>
-        ) : null}
-        {filtered.map((session, index) => {
-          const active = index === selectedIndex
-          return (
-            <box
-              key={session.id}
-              border
-              borderColor={active ? theme.borderActive : theme.border}
-              backgroundColor={active ? theme.panelMuted : theme.background}
-              padding={1}
-              flexDirection="column"
-            >
+      {showFilteredEmptyState ? <text fg={theme.textMuted}>{getEmptyStateMessage(hasFilter)}</text> : null}
+      {showInitialEmptyState ? <text fg={theme.textMuted}>{getEmptyStateMessage(false)}</text> : null}
+      {filtered.map((session, index) => {
+        const active = index === selectedIndex
+        return (
+          <ListItem
+            key={session.id}
+            active={active}
+            title={
               <text fg={active ? theme.text : theme.textMuted}>
-                {active ? '>' : ' '} {formatSessionLine(session, currentSessionId, currentTabCount)}
+                {formatSessionLine(session, currentSessionId, currentTabCount)}
               </text>
-              {session.projectPath ? (
-                <text fg={theme.textMuted}> {abbreviatePath(session.projectPath)}</text>
-              ) : null}
-            </box>
-          )
-        })}
-        <box
-          border
-          borderColor={selectedIndex === filtered.length ? theme.borderActive : theme.border}
-          backgroundColor={selectedIndex === filtered.length ? theme.panelMuted : theme.background}
-          padding={1}
-        >
+            }
+            subtitle={
+              session.projectPath ? (
+                <text fg={theme.textMuted}>{abbreviatePath(session.projectPath)}</text>
+              ) : undefined
+            }
+          />
+        )
+      })}
+      <ListItem
+        active={selectedIndex === filtered.length}
+        title={
           <text fg={selectedIndex === filtered.length ? theme.text : theme.textMuted}>
-            {selectedIndex === filtered.length ? '>' : ' '} Create new session
+            Create new session
           </text>
-        </box>
-        <ModalFilterBar filter={filter} />
-      </box>
-    </box>
+        }
+      />
+    </ModalShell>
   )
 }

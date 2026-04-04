@@ -23,12 +23,24 @@ interface TerminalPaneProps {
   onSeparatorDragEnd?: () => void
 }
 
-function getTitle(tab?: TabSession): string {
+function getTitle(
+  tab: TabSession | undefined,
+  isActive: boolean,
+  focusMode: TerminalPaneProps['focusMode']
+): string {
   if (!tab) {
     return 'No active session'
   }
 
-  return `${tab.title} - ${tab.status}`
+  if (isActive && focusMode === 'terminal-input') {
+    return `● ${tab.title} · ${tab.status}`
+  }
+
+  if (isActive) {
+    return `▸ ${tab.title} · ${tab.status}`
+  }
+
+  return `${tab.title} · ${tab.status}`
 }
 
 function getBorderColor(isActive: boolean, focusMode: TerminalPaneProps['focusMode']): string {
@@ -36,11 +48,11 @@ function getBorderColor(isActive: boolean, focusMode: TerminalPaneProps['focusMo
     return theme.borderActive
   }
 
-  if (isActive && (focusMode === 'navigation' || focusMode === 'layout')) {
+  if (isActive) {
     return theme.accentAlt
   }
 
-  return theme.border
+  return theme.dim
 }
 
 function renderSpan(span: TerminalSpan, index: number): ReactNode {
@@ -156,7 +168,7 @@ export function TerminalPane({
       <box
         border
         borderColor={getBorderColor(paneIsActive, focusMode)}
-        title={getTitle(tab)}
+        title={getTitle(tab, paneIsActive, focusMode)}
         padding={0}
         flexDirection="column"
         flexGrow={1}

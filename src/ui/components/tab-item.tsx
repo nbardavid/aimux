@@ -33,10 +33,10 @@ const BUSY_FRAME_INTERVAL_MS = 80
 
 function getIndicator(active: boolean, focused: boolean, inLayout: boolean): string {
   if (active) {
-    return focused ? '▶' : '◆'
+    return focused ? '›' : '•'
   }
 
-  return inLayout ? '┃' : '│'
+  return inLayout ? '·' : ' '
 }
 
 function getIndicatorColor(active: boolean, focused: boolean, inLayout: boolean): string {
@@ -44,7 +44,7 @@ function getIndicatorColor(active: boolean, focused: boolean, inLayout: boolean)
     return focused ? theme.accent : theme.accentAlt
   }
 
-  return inLayout ? theme.accent : theme.dim
+  return inLayout ? theme.textMuted : theme.dim
 }
 
 function BusyIndicator() {
@@ -89,7 +89,7 @@ function ActivityIndicator({ isFocusedInput, tab }: { tab: TabSession; isFocused
 }
 
 export function TabItem({ active, focused, id, inLayout, isFocusedInput, tab }: TabItemProps) {
-  const label = tab.assistant.charAt(0).toUpperCase() + tab.assistant.slice(1).toLowerCase()
+  const label = tab.command.split(' ')[0]
   const isInLayout = inLayout ?? false
   const indicator = getIndicator(active, focused, isInLayout)
   const indicatorColor = getIndicatorColor(active, focused, isInLayout)
@@ -101,9 +101,7 @@ export function TabItem({ active, focused, id, inLayout, isFocusedInput, tab }: 
       paddingRight={1}
       paddingTop={0}
       paddingBottom={0}
-      border={active}
-      borderColor={active ? theme.borderActive : theme.border}
-      backgroundColor={active ? theme.panelHighlight : theme.panelMuted}
+      backgroundColor={active ? theme.panelHighlight : undefined}
       flexDirection="column"
       gap={0}
     >

@@ -2,7 +2,10 @@ import type { SnippetRecord } from '../../state/types'
 
 import { filterSnippets } from '../../state/selectors'
 import { theme } from '../theme'
+import { uiTokens } from '../ui-tokens'
+import { ListItem } from './list-item'
 import { ModalFilterBar } from './modal-filter-bar'
+import { ModalShell } from './modal-shell'
 
 interface SnippetPickerModalProps {
   snippets: SnippetRecord[]
@@ -22,62 +25,32 @@ export function SnippetPickerModal({ filter, selectedIndex, snippets }: SnippetP
   const filtered = filterSnippets(snippets, filter)
 
   return (
-    <box
-      position="absolute"
-      top={0}
-      left={0}
-      width="100%"
-      height="100%"
-      justifyContent="center"
-      alignItems="center"
+    <ModalShell
+      title="Snippets"
+      help="j/k move, Enter send, n new, e edit, d delete, / filter, Esc cancel."
+      width={uiTokens.modalWidth.xl}
+      footer={<ModalFilterBar filter={filter} />}
     >
-      <box
-        width="60%"
-        border
-        borderColor={theme.borderActive}
-        backgroundColor={theme.panel}
-        flexDirection="column"
-        gap={0}
-      >
-        <box
-          paddingLeft={1}
-          paddingRight={1}
-          paddingTop={1}
-          paddingBottom={1}
-          flexDirection="column"
-        >
-          <text fg={theme.accent}>Snippets</text>
-          <text fg={theme.textMuted}>
-            j/k move, Enter send, n new, e edit, d delete, / filter, Esc cancel.
-          </text>
-        </box>
-        {filtered.length === 0 ? (
-          <box paddingLeft={1} paddingRight={1} paddingTop={1} paddingBottom={1}>
-            <text fg={theme.textMuted}>
-              {filter ? 'No matching snippets.' : 'No snippets yet. Press n to create one.'}
-            </text>
-          </box>
-        ) : null}
-        {filtered.map((snippet, index) => {
-          const active = index === selectedIndex
-          return (
-            <box
-              key={snippet.id}
-              border
-              borderColor={active ? theme.borderActive : theme.border}
-              backgroundColor={active ? theme.panelMuted : theme.background}
-              flexDirection="column"
-            >
+      {filtered.length === 0 ? (
+        <text fg={theme.textMuted}>
+          {filter ? 'No matching snippets.' : 'No snippets yet. Press n to create one.'}
+        </text>
+      ) : null}
+      {filtered.map((snippet, index) => {
+        const active = index === selectedIndex
+        return (
+          <ListItem
+            key={snippet.id}
+            active={active}
+            title={
               <text fg={active ? theme.text : theme.textMuted}>
-                {active ? '> ' : '  '}
                 <strong>{snippet.name}</strong>
               </text>
-              <text fg={theme.textMuted}> {truncateContent(snippet.content)}</text>
-            </box>
-          )
-        })}
-        <ModalFilterBar filter={filter} />
-      </box>
-    </box>
+            }
+            subtitle={<text fg={theme.textMuted}>{truncateContent(snippet.content)}</text>}
+          />
+        )
+      })}
+    </ModalShell>
   )
 }

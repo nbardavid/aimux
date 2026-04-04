@@ -1,6 +1,6 @@
 import type { ModeId } from './types'
 
-const TRANSITIONS: Record<ModeId, ModeId[]> = {
+const TRANSITIONS: Record<ModeId, readonly ModeId[]> = {
   'layout': ['terminal-input', 'navigation', 'modal.split-picker'],
   'modal.create-session': ['navigation', 'modal.session-picker'],
   'modal.help': ['navigation'],
@@ -33,5 +33,5 @@ const TRANSITIONS: Record<ModeId, ModeId[]> = {
 }
 
 export function isValidTransition(from: ModeId, to: ModeId): boolean {
-  return TRANSITIONS[from]?.includes(to) ?? false
+  return TRANSITIONS[from].includes(to)
 }

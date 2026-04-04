@@ -1,49 +1,57 @@
-import type { AppState } from '../../state/types'
+import type { AppState, FocusMode, ModalType } from '../../state/types'
 import type { ModeId } from './types'
 
+type SupportedModalType = Exclude<ModalType, null>
+
+const DIRECT_FOCUS_MODE_IDS: Partial<Record<FocusMode, ModeId>> = {
+  'layout': 'layout',
+  'navigation': 'navigation',
+  'terminal-input': 'terminal-input',
+}
+
+const COMMAND_EDIT_MODE_IDS: Partial<Record<SupportedModalType, ModeId>> = {
+  'create-session': 'modal.create-session',
+  'new-tab': 'modal.new-tab.command-edit',
+  'rename-tab': 'modal.rename-tab',
+  'session-name': 'modal.session-name',
+  'session-picker': 'modal.session-picker.filtering',
+  'snippet-editor': 'modal.snippet-editor',
+  'snippet-picker': 'modal.snippet-picker.filtering',
+}
+
+const MODAL_MODE_IDS: Partial<Record<SupportedModalType, ModeId>> = {
+  'help': 'modal.help',
+  'new-tab': 'modal.new-tab',
+  'session-picker': 'modal.session-picker',
+  'snippet-picker': 'modal.snippet-picker',
+  'split-picker': 'modal.split-picker',
+  'theme-picker': 'modal.theme-picker',
+}
+
 export function deriveModeId(state: AppState): ModeId {
-  if (state.focusMode === 'navigation') return 'navigation'
-  if (state.focusMode === 'terminal-input') return 'terminal-input'
-  if (state.focusMode === 'layout') return 'layout'
+  const directMode = DIRECT_FOCUS_MODE_IDS[state.focusMode]
+  if (directMode) {
+    return directMode
+  }
 
   if (state.focusMode === 'command-edit') {
-    switch (state.modal.type) {
-      case 'new-tab':
-        return 'modal.new-tab.command-edit'
-      case 'session-picker':
-        return 'modal.session-picker.filtering'
-      case 'session-name':
-        return 'modal.session-name'
-      case 'create-session':
-        return 'modal.create-session'
-      case 'rename-tab':
-        return 'modal.rename-tab'
-      case 'snippet-picker':
-        return 'modal.snippet-picker.filtering'
-      case 'snippet-editor':
-        return 'modal.snippet-editor'
-      default:
-        return 'navigation'
+    const modalType = state.modal.type
+    const commandEditMode = modalType ? COMMAND_EDIT_MODE_IDS[modalType] : undefined
+    if (commandEditMode) {
+      return commandEditMode
     }
+
+    return 'navigation'
   }
 
   if (state.focusMode === 'modal') {
-    switch (state.modal.type) {
-      case 'new-tab':
-        return 'modal.new-tab'
-      case 'session-picker':
-        return 'modal.session-picker'
-      case 'theme-picker':
-        return 'modal.theme-picker'
-      case 'help':
-        return 'modal.help'
-      case 'snippet-picker':
-        return 'modal.snippet-picker'
-      case 'split-picker':
-        return 'modal.split-picker'
-      default:
-        return 'navigation'
+    const modalType = state.modal.type
+    const modalMode = modalType ? MODAL_MODE_IDS[modalType] : undefined
+    if (modalMode) {
+      return modalMode
     }
+
+    return 'navigation'
   }
 
   return 'navigation'

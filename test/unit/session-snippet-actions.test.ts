@@ -1,11 +1,16 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, mock, test } from 'bun:test'
 
 import {
   createSessionFromCurrentState,
   deleteSessionRecords,
 } from '../../src/app-runtime/session-actions'
-import { deleteSnippetState, saveSnippetEditorState } from '../../src/app-runtime/snippet-actions'
+import {
+  deleteSnippetState,
+  pasteSnippetToTab,
+  saveSnippetEditorState,
+} from '../../src/app-runtime/snippet-actions'
 import { createInitialState } from '../../src/state/store'
+import { createDefaultTerminalModes } from '../../src/state/terminal-modes'
 
 describe('session and snippet actions', () => {
   test('creates a new session from current state', () => {
@@ -105,5 +110,36 @@ describe('session and snippet actions', () => {
 
     const updated = saveSnippetEditorState(updateState)
     expect(updated).toEqual([{ content: 'New content', id: 'n1', name: 'New' }])
+  })
+
+  test('pastes snippet content through the backend using tab paste mode', () => {
+    const backend = {
+      scrollViewportToBottom: mock(() => {}),
+      write: mock(() => {}),
+    }
+    const activeTab = {
+      assistant: 'terminal' as const,
+      buffer: '',
+      command: 'zsh',
+      id: 'tab-1',
+      status: 'running' as const,
+      terminalModes: { ...createDefaultTerminalModes(), bracketedPasteMode: true },
+      title: 'Terminal',
+      viewport: {
+        baseY: 5,
+        cursorVisible: true,
+        lines: [],
+        viewportY: 1,
+      },
+    }
+
+    pasteSnippetToTab(backend as never, 'tab-1', activeTab, {
+      content: 'echo hello',
+      id: 'snip-1',
+      name: 'Example',
+    })
+
+    expect(backend.scrollViewportToBottom).toHaveBeenCalledWith('tab-1')
+    expect(backend.write).toHaveBeenCalledWith('tab-1', '\x1b[200~echo hello\x1b[201~')
   })
 })

@@ -25,15 +25,15 @@ export function StatusBar() {
 
   return (
     <box
+      borderColor={getModeBorderColor(state.focusMode)}
+      backgroundColor={theme.panel}
+      flexDirection="column"
+      paddingBottom={0}
+      paddingRight={1}
+      paddingLeft={1}
+      paddingTop={0}
       minHeight={4}
       border
-      borderColor={getModeBorderColor(state.focusMode)}
-      paddingLeft={1}
-      paddingRight={1}
-      paddingTop={0}
-      paddingBottom={0}
-      flexDirection="column"
-      backgroundColor={theme.panel}
     >
       <box width="100%">
         <text fg={theme.text}>{model.left}</text>

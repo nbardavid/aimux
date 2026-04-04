@@ -57,29 +57,29 @@ const SECTIONS = [
 export function HelpModal() {
   return (
     <box
-      position="absolute"
-      top={0}
-      left={0}
-      width="100%"
-      height="100%"
       justifyContent="center"
       alignItems="center"
+      position="absolute"
+      height="100%"
+      width="100%"
+      left={0}
+      top={0}
     >
       <box
-        width={50}
-        border
         borderColor={theme.borderActive}
-        padding={1}
         backgroundColor={theme.panel}
         flexDirection="column"
+        padding={1}
+        width={50}
         gap={1}
+        border
       >
         <text fg={theme.accentAlt}>Keybindings</text>
         {SECTIONS.map((section) => (
-          <box key={section.title} flexDirection="column">
+          <box flexDirection="column" key={section.title}>
             <text fg={theme.text}>{section.title}</text>
             {section.bindings.map(([key, desc]) => (
-              <box key={key} flexDirection="row">
+              <box flexDirection="row" key={key}>
                 <box width={18}>
                   <text fg={theme.accentAlt}> {key}</text>
                 </box>

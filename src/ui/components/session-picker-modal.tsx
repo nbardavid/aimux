@@ -46,22 +46,22 @@ export function SessionPickerModal({
 
   return (
     <box
-      position="absolute"
-      top={0}
-      left={0}
-      width="100%"
-      height="100%"
       justifyContent="center"
       alignItems="center"
+      position="absolute"
+      height="100%"
+      width="100%"
+      left={0}
+      top={0}
     >
       <box
-        width={56}
-        border
         borderColor={theme.borderActive}
-        padding={1}
         backgroundColor={theme.panel}
         flexDirection="column"
+        padding={1}
+        width={56}
         gap={1}
+        border
       >
         <text fg={theme.accentAlt}>Sessions</text>
         <text fg={theme.textMuted}>
@@ -69,10 +69,10 @@ export function SessionPickerModal({
         </text>
         {filter !== null ? (
           <box
-            border
-            borderColor={theme.borderActive}
             backgroundColor={theme.panelMuted}
+            borderColor={theme.borderActive}
             padding={1}
+            border
           >
             <text fg={theme.text}>/{filter}_</text>
           </box>
@@ -91,12 +91,12 @@ export function SessionPickerModal({
           const active = index === selectedIndex
           return (
             <box
-              key={session.id}
-              border
-              borderColor={active ? theme.borderActive : theme.border}
               backgroundColor={active ? theme.panelMuted : theme.background}
-              padding={1}
+              borderColor={active ? theme.borderActive : theme.border}
               flexDirection="column"
+              key={session.id}
+              padding={1}
+              border
             >
               <text fg={active ? theme.text : theme.textMuted}>
                 {active ? '>' : ' '} {formatSessionLine(session, currentSessionId, currentTabCount)}
@@ -108,10 +108,10 @@ export function SessionPickerModal({
           )
         })}
         <box
-          border
-          borderColor={selectedIndex === filtered.length ? theme.borderActive : theme.border}
           backgroundColor={selectedIndex === filtered.length ? theme.panelMuted : theme.background}
+          borderColor={selectedIndex === filtered.length ? theme.borderActive : theme.border}
           padding={1}
+          border
         >
           <text fg={selectedIndex === filtered.length ? theme.text : theme.textMuted}>
             {selectedIndex === filtered.length ? '>' : ' '} Create new session

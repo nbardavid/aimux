@@ -118,7 +118,6 @@ export function App({ backend }: { backend: SessionBackend }) {
     activeTabIdRef,
     activeTabRef,
     backend,
-    contentOriginRef,
     dispatch,
     focusMode: state.focusMode,
     focusModeRef,
@@ -184,20 +183,20 @@ export function App({ backend }: { backend: SessionBackend }) {
 
   return (
     <RootView
-      themeId={themeId}
-      contentOrigin={contentOriginRef.current}
-      mouseForwardingEnabled={activeMouseForwardingEnabled}
       localScrollbackEnabled={activeLocalScrollbackEnabled}
-      onTerminalMouseEvent={handleTerminalMouseEvent}
+      mouseForwardingEnabled={activeMouseForwardingEnabled}
       onTerminalScrollEvent={handleTerminalScrollEvent}
+      onSeparatorDragStart={handleSeparatorDragStart}
+      onTerminalMouseEvent={handleTerminalMouseEvent}
+      onSeparatorDragEnd={handleSeparatorDragEnd}
+      contentOrigin={contentOriginRef.current}
+      onSeparatorDrag={handleSeparatorDrag}
       onTerminalClick={handleTerminalClick}
       onPaneActivate={handlePaneActivate}
       onSplitResize={handleSplitResize}
-      onSeparatorDragStart={handleSeparatorDragStart}
-      onSeparatorDrag={handleSeparatorDrag}
-      onSeparatorDragEnd={handleSeparatorDragEnd}
       terminalCols={terminalSize.cols}
       terminalRows={terminalSize.rows}
+      themeId={themeId}
     />
   )
 }

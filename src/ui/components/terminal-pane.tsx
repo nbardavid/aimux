@@ -59,7 +59,7 @@ function renderSpan(span: TerminalSpan, index: number): ReactNode {
   }
 
   return (
-    <text key={`span-${index}`} fg={span.fg ?? theme.text} bg={span.bg}>
+    <text fg={span.fg ?? theme.text} key={`span-${index}`} bg={span.bg}>
       {node}
     </text>
   )
@@ -154,18 +154,18 @@ export function TerminalPane({
   return (
     <box flexDirection="column" flexGrow={1} gap={0}>
       <box
-        border
         borderColor={getBorderColor(paneIsActive, focusMode)}
-        title={getTitle(tab)}
-        padding={0}
-        flexDirection="column"
-        flexGrow={1}
         backgroundColor={theme.background}
         onMouseDrag={forwardMouseEvent}
         onMouseUp={forwardMouseEvent}
+        flexDirection="column"
+        title={getTitle(tab)}
+        flexGrow={1}
+        padding={0}
+        border
       >
         {!tab ? (
-          <box flexGrow={1} justifyContent="center" alignItems="center" flexDirection="column">
+          <box justifyContent="center" flexDirection="column" alignItems="center" flexGrow={1}>
             <text fg={theme.dim}>· · ·</text>
             <text fg={theme.textMuted}> </text>
             <box flexDirection="row">
@@ -176,12 +176,12 @@ export function TerminalPane({
           </box>
         ) : (
           <box
+            onMouseScroll={forwardScrollEvent}
+            onMouseDown={forwardMouseEvent}
+            onMouseDrag={forwardMouseEvent}
+            onMouseUp={forwardMouseEvent}
             flexDirection="column"
             flexGrow={1}
-            onMouseDown={forwardMouseEvent}
-            onMouseUp={forwardMouseEvent}
-            onMouseDrag={forwardMouseEvent}
-            onMouseScroll={forwardScrollEvent}
           >
             {renderViewport(tab)}
           </box>

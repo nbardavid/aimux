@@ -1,9 +1,9 @@
 import type { SessionBackend } from '../session-backend/types'
 import type { AppAction, AppState, SnippetRecord, TabSession } from '../state/types'
 
-import { buildPtyPastePayload } from '../input/paste'
 import { createPrefixedId } from '../platform/id'
 import { saveSnippetCatalog } from '../state/snippet-catalog'
+import { writePasteToTab } from './pty-write'
 
 function createSnippetId(): string {
   return createPrefixedId('snip')
@@ -63,8 +63,7 @@ export function pasteSnippetToTab(
     return
   }
 
-  const payload = buildPtyPastePayload(snippet.content, activeTab.terminalModes.bracketedPasteMode)
-  backend.write(activeTabId, payload)
+  writePasteToTab(backend, activeTabId, activeTab, snippet.content)
 }
 
 export function handleDeleteSnippetEffect(

@@ -21,22 +21,22 @@ export function SnippetPickerModal({ filter, selectedIndex, snippets }: SnippetP
 
   return (
     <box
-      position="absolute"
-      top={0}
-      left={0}
-      width="100%"
-      height="100%"
       justifyContent="center"
       alignItems="center"
+      position="absolute"
+      height="100%"
+      width="100%"
+      left={0}
+      top={0}
     >
       <box
-        width="60%"
-        border
         borderColor={theme.borderActive}
-        padding={1}
         backgroundColor={theme.panel}
         flexDirection="column"
+        padding={1}
+        width="60%"
         gap={1}
+        border
       >
         <text fg={theme.accent}>Snippets</text>
         <text fg={theme.textMuted}>
@@ -44,10 +44,10 @@ export function SnippetPickerModal({ filter, selectedIndex, snippets }: SnippetP
         </text>
         {filter !== null ? (
           <box
-            border
-            borderColor={theme.borderActive}
             backgroundColor={theme.panelMuted}
+            borderColor={theme.borderActive}
             padding={1}
+            border
           >
             <text fg={theme.text}>/{filter}_</text>
           </box>
@@ -63,12 +63,12 @@ export function SnippetPickerModal({ filter, selectedIndex, snippets }: SnippetP
           const active = index === selectedIndex
           return (
             <box
-              key={snippet.id}
-              border
-              borderColor={active ? theme.borderActive : theme.border}
               backgroundColor={active ? theme.panelMuted : theme.background}
-              padding={1}
+              borderColor={active ? theme.borderActive : theme.border}
               flexDirection="column"
+              key={snippet.id}
+              padding={1}
+              border
             >
               <text fg={active ? theme.text : theme.textMuted}>
                 {active ? '>' : ' '} {snippet.name}

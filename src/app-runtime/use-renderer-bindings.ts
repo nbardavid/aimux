@@ -5,9 +5,9 @@ import type { SessionBackend } from '../session-backend/types'
 import type { AppAction, FocusMode, TabSession } from '../state/types'
 
 import { INPUT_DEBUG_LOG_PATH, logInputDebug } from '../debug/input-log'
-import { buildPtyPastePayload } from '../input/paste'
-import { createRawInputHandler, type TerminalContentOrigin } from '../input/raw-input-handler'
+import { createRawInputHandler } from '../input/raw-input-handler'
 import { copyToSystemClipboard } from '../platform/clipboard'
+import { writePasteToTab, writeToTab } from './pty-write'
 
 const BRACKETED_PASTE_ENABLE_SEQUENCE = '\x1b[?2004h'
 const BRACKETED_PASTE_DISABLE_SEQUENCE = '\x1b[?2004l'
@@ -23,7 +23,6 @@ interface UseRendererBindingsOptions {
   focusModeRef: MutableRefObject<FocusMode>
   activeTabIdRef: MutableRefObject<string | null>
   activeTabRef: MutableRefObject<TabSession | undefined>
-  contentOriginRef: MutableRefObject<TerminalContentOrigin>
 }
 
 function decodeBytes(bytes: Uint8Array): string {
@@ -35,7 +34,6 @@ export function useRendererBindings({
   activeTabIdRef,
   activeTabRef,
   backend,
-  contentOriginRef,
   dispatch,
   focusMode,
   focusModeRef,
@@ -55,13 +53,7 @@ export function useRendererBindings({
       getFocusMode: () => focusModeRef.current,
       leaveTerminalInput: () => dispatch({ focusMode: 'navigation', type: 'set-focus-mode' }),
       toggleSidebar: () => dispatch({ type: 'toggle-sidebar' }),
-      writeToPty: (tabId, data) => {
-        const viewport = activeTabRef.current?.viewport
-        if (viewport && viewport.viewportY < viewport.baseY) {
-          backend.scrollViewportToBottom(tabId)
-        }
-        backend.write(tabId, data)
-      },
+      writeToPty: (tabId, data) => writeToTab(backend, tabId, activeTabRef.current, data),
     })
 
     const handlePasteEvent = (event: { bytes: Uint8Array; defaultPrevented?: boolean }) => {
@@ -91,11 +83,7 @@ export function useRendererBindings({
         return
       }
 
-      if (tab.viewport && tab.viewport.viewportY < tab.viewport.baseY) {
-        backend.scrollViewportToBottom(tabId)
-      }
-
-      backend.write(tabId, buildPtyPastePayload(payload, tab.terminalModes.bracketedPasteMode))
+      writePasteToTab(backend, tabId, tab, payload)
     }
 
     const handleSelection = (selection: { isDragging?: boolean; getSelectedText(): string }) => {
@@ -123,7 +111,7 @@ export function useRendererBindings({
       renderer.keyInput.off('paste', handlePasteEvent)
       renderer.off('selection', handleSelection)
     }
-  }, [activeTabIdRef, activeTabRef, backend, contentOriginRef, dispatch, focusModeRef, renderer])
+  }, [activeTabIdRef, activeTabRef, backend, dispatch, focusModeRef, renderer])
 
   useEffect(() => {
     const shouldEnableBracketedPaste = focusMode === 'terminal-input' && activeTabId !== null

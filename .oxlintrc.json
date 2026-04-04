@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "unicorn", "react"],
+  "plugins": ["typescript", "unicorn", "react", "import"],
   "categories": {
     "correctness": "error"
   },
@@ -19,7 +19,9 @@
     "typescript/no-misused-promises": "error",
     "typescript/promise-function-async": "error",
     "typescript/no-non-null-assertion": "error",
+    "typescript/strict-boolean-expressions": "error",
     "typescript/switch-exhaustiveness-check": "error",
+    "import/no-cycle": "error",
     "unicorn/filename-case": [
       "error",
       {

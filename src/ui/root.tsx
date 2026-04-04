@@ -2,6 +2,7 @@ import type { MouseEvent } from '@opentui/core'
 
 import type { TerminalContentOrigin } from '../input/raw-input-handler'
 import type { SplitDirection } from '../state/layout-tree'
+import type { ModalState, SessionRecord, SnippetRecord } from '../state/types'
 import type { ThemeId } from './themes'
 
 import { useAppStore } from '../state/app-store'
@@ -19,6 +20,125 @@ import { StatusBar } from './components/status-bar'
 import { TerminalPane } from './components/terminal-pane'
 import { ThemePickerModal } from './components/theme-picker-modal'
 import { theme } from './theme'
+
+function getCreateSessionFields(modal: ModalState) {
+  if (modal.type !== 'create-session') {
+    return { directoryQuery: '', sessionName: '' }
+  }
+
+  if (modal.activeField === 'directory') {
+    return {
+      directoryQuery: modal.editBuffer ?? '',
+      sessionName: modal.nameBuffer,
+    }
+  }
+
+  return {
+    directoryQuery: modal.nameBuffer,
+    sessionName: modal.editBuffer ?? '',
+  }
+}
+
+function getSnippetEditorFields(modal: ModalState) {
+  if (modal.type !== 'snippet-editor') {
+    return { snippetName: '', snippetContent: '' }
+  }
+
+  if (modal.activeField === 'name') {
+    return {
+      snippetName: modal.editBuffer ?? '',
+      snippetContent: modal.contentBuffer,
+    }
+  }
+
+  return {
+    snippetName: modal.contentBuffer,
+    snippetContent: modal.editBuffer ?? '',
+  }
+}
+
+function renderModal(
+  modal: ModalState,
+  options: {
+    customCommands: Record<string, string>
+    sessions: SessionRecord[]
+    currentSessionId: string | null
+    currentTabCount: number
+    snippets: SnippetRecord[]
+    themeId: ThemeId
+    createSessionFields: { directoryQuery: string; sessionName: string }
+    snippetEditorFields: { snippetName: string; snippetContent: string }
+  }
+) {
+  switch (modal.type) {
+    case 'new-tab':
+    case 'split-picker':
+      return (
+        <NewTabModal
+          selectedIndex={modal.selectedIndex}
+          customCommands={options.customCommands}
+          editBuffer={modal.editBuffer}
+        />
+      )
+    case 'session-picker':
+      return (
+        <SessionPickerModal
+          sessions={options.sessions}
+          selectedIndex={modal.selectedIndex}
+          currentSessionId={options.currentSessionId}
+          currentTabCount={options.currentTabCount}
+          filter={modal.editBuffer}
+        />
+      )
+    case 'session-name':
+      return (
+        <SessionNameModal
+          title={modal.sessionTargetId ? 'Rename session' : 'Create session'}
+          value={modal.editBuffer ?? ''}
+        />
+      )
+    case 'rename-tab':
+      return <SessionNameModal title="Rename tab" value={modal.editBuffer ?? ''} />
+    case 'create-session':
+      return (
+        <CreateSessionModal
+          activeField={modal.activeField}
+          directoryQuery={options.createSessionFields.directoryQuery}
+          sessionName={options.createSessionFields.sessionName}
+          results={modal.directoryResults}
+          selectedIndex={modal.selectedIndex}
+          pendingProjectPath={modal.pendingProjectPath}
+        />
+      )
+    case 'snippet-picker':
+      return (
+        <SnippetPickerModal
+          snippets={options.snippets}
+          selectedIndex={modal.selectedIndex}
+          filter={modal.editBuffer}
+        />
+      )
+    case 'snippet-editor':
+      return (
+        <SnippetEditorModal
+          activeField={modal.activeField}
+          snippetName={options.snippetEditorFields.snippetName}
+          snippetContent={options.snippetEditorFields.snippetContent}
+          isEditing={modal.sessionTargetId !== null}
+        />
+      )
+    case 'theme-picker':
+      return (
+        <ThemePickerModal selectedIndex={modal.selectedIndex} currentThemeId={options.themeId} />
+      )
+    case 'help':
+      return <HelpModal />
+    case null:
+      return null
+    default:
+      modal satisfies never
+  }
+}
 
 interface RootViewProps {
   themeId: ThemeId
@@ -71,29 +191,8 @@ export function RootView({
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId)
   const activeTree = activeTabId ? getTreeForTab(layoutTrees, tabGroupMap, activeTabId) : null
-  let createSessionDirectoryQuery = ''
-  let createSessionName = ''
-  if (modal.type === 'create-session') {
-    if (modal.activeField === 'directory') {
-      createSessionDirectoryQuery = modal.editBuffer ?? ''
-      createSessionName = modal.nameBuffer
-    } else {
-      createSessionDirectoryQuery = modal.nameBuffer
-      createSessionName = modal.editBuffer ?? ''
-    }
-  }
-
-  let snippetName = ''
-  let snippetContent = ''
-  if (modal.type === 'snippet-editor') {
-    if (modal.activeField === 'name') {
-      snippetName = modal.editBuffer ?? ''
-      snippetContent = modal.contentBuffer
-    } else {
-      snippetName = modal.contentBuffer
-      snippetContent = modal.editBuffer ?? ''
-    }
-  }
+  const createSessionFields = getCreateSessionFields(modal)
+  const snippetEditorFields = getSnippetEditorFields(modal)
 
   return (
     <box flexDirection="column" width="100%" height="100%" backgroundColor={theme.background}>
@@ -132,60 +231,16 @@ export function RootView({
         )}
       </box>
       <StatusBar />
-      {modal.type === 'new-tab' || modal.type === 'split-picker' ? (
-        <NewTabModal
-          selectedIndex={modal.selectedIndex}
-          customCommands={customCommands}
-          editBuffer={modal.editBuffer}
-        />
-      ) : null}
-      {modal.type === 'session-picker' ? (
-        <SessionPickerModal
-          sessions={sessions}
-          selectedIndex={modal.selectedIndex}
-          currentSessionId={currentSessionId}
-          currentTabCount={tabs.length}
-          filter={modal.editBuffer}
-        />
-      ) : null}
-      {modal.type === 'session-name' ? (
-        <SessionNameModal
-          title={modal.sessionTargetId ? 'Rename session' : 'Create session'}
-          value={modal.editBuffer ?? ''}
-        />
-      ) : null}
-      {modal.type === 'rename-tab' ? (
-        <SessionNameModal title="Rename tab" value={modal.editBuffer ?? ''} />
-      ) : null}
-      {modal.type === 'create-session' ? (
-        <CreateSessionModal
-          activeField={modal.activeField}
-          directoryQuery={createSessionDirectoryQuery}
-          sessionName={createSessionName}
-          results={modal.directoryResults}
-          selectedIndex={modal.selectedIndex}
-          pendingProjectPath={modal.pendingProjectPath}
-        />
-      ) : null}
-      {modal.type === 'snippet-picker' ? (
-        <SnippetPickerModal
-          snippets={snippets}
-          selectedIndex={modal.selectedIndex}
-          filter={modal.editBuffer}
-        />
-      ) : null}
-      {modal.type === 'snippet-editor' ? (
-        <SnippetEditorModal
-          activeField={modal.activeField}
-          snippetName={snippetName}
-          snippetContent={snippetContent}
-          isEditing={modal.sessionTargetId !== null}
-        />
-      ) : null}
-      {modal.type === 'theme-picker' ? (
-        <ThemePickerModal selectedIndex={modal.selectedIndex} currentThemeId={themeId} />
-      ) : null}
-      {modal.type === 'help' ? <HelpModal /> : null}
+      {renderModal(modal, {
+        customCommands,
+        sessions,
+        currentSessionId,
+        currentTabCount: tabs.length,
+        snippets,
+        themeId,
+        createSessionFields,
+        snippetEditorFields,
+      })}
     </box>
   )
 }

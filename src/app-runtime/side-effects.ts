@@ -56,6 +56,147 @@ export interface SideEffectContext {
   getCurrentSessionProjectPath: () => string | undefined
 }
 
+function getSelectedAssistantOption(state: AppState) {
+  return (
+    getAllAssistantOptions(state.customCommands)[state.modal.selectedIndex] ?? getAssistantOption(0)
+  )
+}
+
+function handleSessionSelection(ctx: SideEffectContext): void {
+  const { state, dispatch, backend } = ctx
+  const selectedSession = getSelectedSession(state)
+  logInputDebug('app.sessionPicker.confirm', {
+    selectedIndex: state.modal.selectedIndex,
+    selectedSessionId: selectedSession?.id ?? null,
+    creatingNew: !selectedSession,
+  })
+
+  if (selectedSession) {
+    handleSwitchSessionEffect(state, backend, dispatch, selectedSession)
+    return
+  }
+
+  dispatch({ type: 'open-create-session-modal' })
+}
+
+function handleSelectedSessionDelete(ctx: SideEffectContext): void {
+  const { state, dispatch, backend } = ctx
+  const selectedSession = getSelectedSession(state)
+  logInputDebug('app.sessionPicker.deleteSelected', {
+    selectedIndex: state.modal.selectedIndex,
+    selectedSessionId: selectedSession?.id ?? null,
+  })
+
+  if (selectedSession) {
+    handleDeleteSessionEffect(state, backend, dispatch, selectedSession.id)
+  }
+}
+
+function openSelectedSessionRename(ctx: SideEffectContext): void {
+  const { state, dispatch } = ctx
+  const selectedSession = getSelectedSession(state)
+  if (!selectedSession) {
+    return
+  }
+
+  logInputDebug('app.sessionPicker.openRenameModal', {
+    selectedIndex: state.modal.selectedIndex,
+    selectedSessionId: selectedSession.id,
+  })
+  dispatch({
+    type: 'open-session-name-modal',
+    sessionTargetId: selectedSession.id,
+    initialName: selectedSession.name,
+  })
+}
+
+function pasteSnippetToActiveGroup(ctx: SideEffectContext): void {
+  const { state, backend, activeTab } = ctx
+  const snippet = getSelectedSnippet(state)
+  if (!snippet || !state.activeTabId) {
+    return
+  }
+
+  const groupId = getGroupIdForTab(state.tabGroupMap, state.activeTabId)
+  const groupTree = groupId ? state.layoutTrees[groupId] : null
+  if (!groupTree) {
+    pasteSnippetToTab(backend, state.activeTabId, activeTab, snippet)
+    return
+  }
+
+  for (const tabId of allLeafIds(groupTree)) {
+    const tab = state.tabs.find((entry) => entry.id === tabId)
+    if (tab) {
+      pasteSnippetToTab(backend, tabId, tab, snippet)
+    }
+  }
+}
+
+function saveCustomCommandSelection(state: AppState): void {
+  const option = getAllAssistantOptions(state.customCommands)[state.modal.selectedIndex]
+  if (!option || state.modal.editBuffer === null) {
+    return
+  }
+
+  const trimmed = state.modal.editBuffer.trim()
+  const newCustomCommands = { ...state.customCommands }
+  if (trimmed) {
+    newCustomCommands[option.id] = trimmed
+  } else {
+    delete newCustomCommands[option.id]
+  }
+
+  saveConfig({
+    ...loadConfig(),
+    customCommands: newCustomCommands,
+  })
+}
+
+function applyThemeEffect(
+  effect: Extract<SideEffect, { type: 'apply-theme' }>,
+  ctx: SideEffectContext
+): void {
+  const { state } = ctx
+
+  switch (effect.action) {
+    case 'open':
+      applyTheme(THEME_IDS[0] ?? 'aimux')
+      return
+    case 'restore':
+      applyTheme(ctx.themeId)
+      return
+    case 'confirm': {
+      const selectedId = THEME_IDS[state.modal.selectedIndex]
+      if (selectedId) {
+        applyTheme(selectedId)
+        ctx.setThemeId(selectedId)
+        saveConfig({ ...loadConfig(), themeId: selectedId })
+      }
+      return
+    }
+    case 'preview': {
+      const count = THEME_IDS.length
+      const nextIndex = (state.modal.selectedIndex + effect.delta + count) % count
+      const previewId = THEME_IDS[nextIndex]
+      if (previewId) {
+        applyTheme(previewId)
+      }
+      return
+    }
+  }
+}
+
+function confirmSplitSelection(ctx: SideEffectContext): void {
+  const { state, dispatch } = ctx
+  const option = getSelectedAssistantOption(state)
+  const direction = state.modal.type === 'split-picker' ? state.modal.splitDirection : 'vertical'
+  const customCommand = state.customCommands[option.id]
+  const tab = createTabSession(option.id, customCommand, state.customCommands)
+  dispatch({ type: 'close-modal' })
+  executeSplitPane(ctx, direction, tab)
+  dispatch({ type: 'set-focus-mode', focusMode: 'terminal-input' })
+}
+
 function createTabId(): string {
   return createPrefixedId('tab')
 }
@@ -209,49 +350,20 @@ export function executeSideEffect(effect: SideEffect, ctx: SideEffectContext): v
       return
     }
     case 'launch-selected-assistant': {
-      const allOptions = getAllAssistantOptions(state.customCommands)
-      const option = allOptions[state.modal.selectedIndex] ?? getAssistantOption(0)
+      const option = getSelectedAssistantOption(state)
       launchAssistant(ctx, option.id)
       return
     }
     case 'confirm-selected-session': {
-      const selectedSession = getSelectedSession(state)
-      logInputDebug('app.sessionPicker.confirm', {
-        selectedIndex: state.modal.selectedIndex,
-        selectedSessionId: selectedSession?.id ?? null,
-        creatingNew: !selectedSession,
-      })
-      if (selectedSession) {
-        handleSwitchSessionEffect(state, backend, dispatch, selectedSession)
-      } else {
-        dispatch({ type: 'open-create-session-modal' })
-      }
+      handleSessionSelection(ctx)
       return
     }
     case 'delete-selected-session': {
-      const selectedSession = getSelectedSession(state)
-      logInputDebug('app.sessionPicker.deleteSelected', {
-        selectedIndex: state.modal.selectedIndex,
-        selectedSessionId: selectedSession?.id ?? null,
-      })
-      if (selectedSession) {
-        handleDeleteSessionEffect(state, backend, dispatch, selectedSession.id)
-      }
+      handleSelectedSessionDelete(ctx)
       return
     }
     case 'open-rename-selected-session': {
-      const selectedSession = getSelectedSession(state)
-      if (selectedSession) {
-        logInputDebug('app.sessionPicker.openRenameModal', {
-          selectedIndex: state.modal.selectedIndex,
-          selectedSessionId: selectedSession.id,
-        })
-        dispatch({
-          type: 'open-session-name-modal',
-          sessionTargetId: selectedSession.id,
-          initialName: selectedSession.name,
-        })
-      }
+      openSelectedSessionRename(ctx)
       return
     }
     case 'create-session':
@@ -278,23 +390,7 @@ export function executeSideEffect(effect: SideEffect, ctx: SideEffectContext): v
       return
     }
     case 'paste-snippet-to-group': {
-      const snippet = getSelectedSnippet(state)
-      if (!snippet || !state.activeTabId) return
-
-      const groupId = getGroupIdForTab(state.tabGroupMap, state.activeTabId)
-      const groupTree = groupId ? state.layoutTrees[groupId] : null
-      if (groupTree) {
-        const tabIds = allLeafIds(groupTree)
-        for (const tabId of tabIds) {
-          const tab = state.tabs.find((t) => t.id === tabId)
-          if (tab) {
-            pasteSnippetToTab(backend, tabId, tab, snippet)
-          }
-        }
-      } else {
-        // Fallback: paste to active tab only
-        pasteSnippetToTab(backend, state.activeTabId, ctx.activeTab, snippet)
-      }
+      pasteSnippetToActiveGroup(ctx)
       return
     }
     case 'edit-selected-snippet': {
@@ -316,50 +412,11 @@ export function executeSideEffect(effect: SideEffect, ctx: SideEffectContext): v
       return
     }
     case 'save-custom-command': {
-      const allOptions = getAllAssistantOptions(state.customCommands)
-      const option = allOptions[state.modal.selectedIndex]
-      if (option && state.modal.editBuffer !== null) {
-        const trimmed = state.modal.editBuffer.trim()
-        const newCustomCommands = { ...state.customCommands }
-        if (trimmed) {
-          newCustomCommands[option.id] = trimmed
-        } else {
-          delete newCustomCommands[option.id]
-        }
-        saveConfig({
-          ...loadConfig(),
-          customCommands: newCustomCommands,
-        })
-      }
+      saveCustomCommandSelection(state)
       return
     }
     case 'apply-theme': {
-      switch (effect.action) {
-        case 'open':
-          applyTheme(THEME_IDS[0] ?? 'aimux')
-          break
-        case 'restore':
-          applyTheme(ctx.themeId)
-          break
-        case 'confirm': {
-          const selectedId = THEME_IDS[state.modal.selectedIndex]
-          if (selectedId) {
-            applyTheme(selectedId)
-            ctx.setThemeId(selectedId)
-            saveConfig({ ...loadConfig(), themeId: selectedId })
-          }
-          break
-        }
-        case 'preview': {
-          const count = THEME_IDS.length
-          const nextIndex = (state.modal.selectedIndex + effect.delta + count) % count
-          const previewId = THEME_IDS[nextIndex]
-          if (previewId) {
-            applyTheme(previewId)
-          }
-          break
-        }
-      }
+      applyThemeEffect(effect, ctx)
       return
     }
     case 'rename-session': {
@@ -373,16 +430,10 @@ export function executeSideEffect(effect: SideEffect, ctx: SideEffectContext): v
       return
     }
     case 'confirm-split': {
-      const allOptions = getAllAssistantOptions(state.customCommands)
-      const option = allOptions[state.modal.selectedIndex] ?? getAssistantOption(0)
-      const direction =
-        state.modal.type === 'split-picker' ? state.modal.splitDirection : 'vertical'
-      const customCommand = state.customCommands[option.id]
-      const tab = createTabSession(option.id, customCommand, state.customCommands)
-      dispatch({ type: 'close-modal' })
-      executeSplitPane(ctx, direction, tab)
-      dispatch({ type: 'set-focus-mode', focusMode: 'terminal-input' })
+      confirmSplitSelection(ctx)
       return
     }
+    default:
+      effect satisfies never
   }
 }

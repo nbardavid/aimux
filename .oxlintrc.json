@@ -11,6 +11,7 @@
   },
   "rules": {
     "no-console": "error",
+    "no-duplicate-imports": "error",
     "no-nested-ternary": "error",
     "no-unused-vars": "error",
     "prefer-template": "error",
@@ -31,6 +32,7 @@
         }
       }
     ],
+    "react/rules-of-hooks": "error",
     "unicorn/prefer-module": "error",
     "react/no-unescaped-entities": "error"
   },

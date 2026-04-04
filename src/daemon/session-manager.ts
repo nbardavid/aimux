@@ -1,7 +1,6 @@
 import { EventEmitter } from 'node:events'
 
-import type { WorkspaceSnapshotV1 } from '../state/types'
-import type { TerminalModeState, TerminalSnapshot } from '../state/types'
+import type { TerminalModeState, TerminalSnapshot, WorkspaceSnapshotV1 } from '../state/types'
 
 import { logDebug } from '../debug/input-log'
 import { SessionRegistry } from './session-registry'

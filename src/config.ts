@@ -2,11 +2,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 import type { WorkspaceSnapshotV1 } from './state/types'
-import type { ThemeId } from './ui/themes'
 
 import { logDebug } from './debug/input-log'
 import { isWorkspaceSnapshotV1 } from './state/validation'
-import { THEME_IDS } from './ui/themes'
+import { THEME_IDS, type ThemeId } from './ui/themes'
 
 export const CONFIG_PATH = join(process.env.HOME ?? '~', '.config', 'aimux.json')
 

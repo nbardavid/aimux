@@ -1,11 +1,16 @@
 import type { MouseEvent as OtuiMouseEvent } from '@opentui/core'
 
 import type { TerminalContentOrigin } from '../../input/raw-input-handler'
-import type { LayoutNode, PaneRect, SplitDirection } from '../../state/layout-tree'
 import type { FocusMode, TabSession } from '../../state/types'
 
 import { logInputDebug } from '../../debug/input-log'
-import { PANE_BORDER, computePaneRects } from '../../state/layout-tree'
+import {
+  PANE_BORDER,
+  computePaneRects,
+  type LayoutNode,
+  type PaneRect,
+  type SplitDirection,
+} from '../../state/layout-tree'
 import { theme } from '../theme'
 import { TerminalPane } from './terminal-pane'
 

@@ -1,7 +1,6 @@
 import type { AppAction, AppState, SessionRecord, SnippetRecord } from './types'
 
-import { emptyModal } from './reducers/modal-state'
-import { reduceModalState } from './reducers/modal-state'
+import { emptyModal, reduceModalState } from './reducers/modal-state'
 import { reduceSessionState } from './reducers/session-state'
 import { reduceTabState } from './reducers/tab-state'
 import { reduceUIState } from './reducers/ui-state'

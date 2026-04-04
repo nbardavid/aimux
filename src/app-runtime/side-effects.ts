@@ -1,8 +1,6 @@
 import type { SideEffect } from '../input/modes/types'
 import type { SessionBackend } from '../session-backend/types'
-import type { SplitDirection } from '../state/layout-tree'
 import type { AppAction, AppState, AssistantId, TabSession } from '../state/types'
-import type { ThemeId } from '../ui/themes'
 
 import { loadConfig, saveConfig } from '../config'
 import { logInputDebug } from '../debug/input-log'
@@ -21,12 +19,13 @@ import {
   getGroupIdForTab,
   getTreeForTab,
   splitNode,
+  type SplitDirection,
 } from '../state/layout-tree'
 import { filterSessions, filterSnippets } from '../state/selectors'
 import { createDefaultTerminalModes } from '../state/terminal-modes'
 import { saveCurrentWorkspace } from '../state/workspace-save'
 import { applyTheme } from '../ui/theme'
-import { THEME_IDS } from '../ui/themes'
+import { THEME_IDS, type ThemeId } from '../ui/themes'
 import {
   handleCreateSessionEffect,
   handleDeleteSessionEffect,

@@ -1,13 +1,12 @@
 import { describe, expect, test } from 'bun:test'
 
-import type { LayoutNode } from '../../src/state/layout-tree'
 import type { AppState, TabSession } from '../../src/state/types'
 
 import { deriveModeId } from '../../src/input/modes/bridge'
 import { registerAllModes } from '../../src/input/modes/handlers'
 import { layoutMode } from '../../src/input/modes/handlers/layout'
 import { getHandler } from '../../src/input/modes/registry'
-import { allLeafIds, createLeaf, getTreeForTab } from '../../src/state/layout-tree'
+import { allLeafIds, createLeaf, getTreeForTab, type LayoutNode } from '../../src/state/layout-tree'
 import { appReducer, createInitialState } from '../../src/state/store'
 import { createDefaultTerminalModes } from '../../src/state/terminal-modes'
 

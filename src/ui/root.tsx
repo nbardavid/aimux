@@ -1,12 +1,11 @@
 import type { MouseEvent } from '@opentui/core'
 
 import type { TerminalContentOrigin } from '../input/raw-input-handler'
-import type { SplitDirection } from '../state/layout-tree'
 import type { ModalState, SessionRecord, SnippetRecord } from '../state/types'
 import type { ThemeId } from './themes'
 
 import { useAppStore } from '../state/app-store'
-import { getTreeForTab } from '../state/layout-tree'
+import { getTreeForTab, type SplitDirection } from '../state/layout-tree'
 import { CreateSessionModal } from './components/create-session-modal'
 import { HelpModal } from './components/help-modal'
 import { NewTabModal } from './components/new-tab-modal'

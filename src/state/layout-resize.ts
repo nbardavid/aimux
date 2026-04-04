@@ -1,7 +1,6 @@
-import type { LayoutNode, PaneRect } from './layout-tree'
 import type { WorkspaceSnapshotV1 } from './types'
 
-import { PANE_BORDER, computePaneRects } from './layout-tree'
+import { PANE_BORDER, computePaneRects, type LayoutNode, type PaneRect } from './layout-tree'
 
 export interface TerminalBounds {
   x: number

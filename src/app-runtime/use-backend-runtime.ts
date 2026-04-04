@@ -1,11 +1,13 @@
-import type { MutableRefObject } from 'react'
-
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, type MutableRefObject } from 'react'
 
 import type { SessionBackend } from '../session-backend/types'
-import type { AppAction, LayoutState, TerminalModeState } from '../state/types'
-import type { TabSession } from '../state/types'
-import type { WorkspaceSnapshotV1 } from '../state/types'
+import type {
+  AppAction,
+  LayoutState,
+  TabSession,
+  TerminalModeState,
+  WorkspaceSnapshotV1,
+} from '../state/types'
 
 import { logInputDebug } from '../debug/input-log'
 import {

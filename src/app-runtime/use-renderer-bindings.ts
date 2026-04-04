@@ -1,15 +1,12 @@
-import type { MutableRefObject } from 'react'
-
 import { useRenderer } from '@opentui/react'
-import { useEffect } from 'react'
+import { useEffect, type MutableRefObject } from 'react'
 
-import type { TerminalContentOrigin } from '../input/raw-input-handler'
 import type { SessionBackend } from '../session-backend/types'
 import type { AppAction, FocusMode, TabSession } from '../state/types'
 
 import { INPUT_DEBUG_LOG_PATH, logInputDebug } from '../debug/input-log'
 import { buildPtyPastePayload } from '../input/paste'
-import { createRawInputHandler } from '../input/raw-input-handler'
+import { createRawInputHandler, type TerminalContentOrigin } from '../input/raw-input-handler'
 import { copyToSystemClipboard } from '../platform/clipboard'
 
 const BRACKETED_PASTE_ENABLE_SEQUENCE = '\x1b[?2004h'

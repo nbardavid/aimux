@@ -1,5 +1,9 @@
-import type { TabSession, TerminalModeState, TerminalSnapshot } from '../state/types'
-import type { WorkspaceSnapshotV1 } from '../state/types'
+import type {
+  TabSession,
+  TerminalModeState,
+  TerminalSnapshot,
+  WorkspaceSnapshotV1,
+} from '../state/types'
 
 import { isWorkspaceSnapshotV1 } from '../state/validation'
 

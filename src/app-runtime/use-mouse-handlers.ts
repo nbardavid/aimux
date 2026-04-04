@@ -8,10 +8,16 @@ import type { SplitDirection } from '../state/layout-tree'
 import type { AppAction, AppState, TabSession } from '../state/types'
 
 import { logInputDebug } from '../debug/input-log'
-import { encodeMouseEventForPty } from '../input/mouse-forwarding'
 import { MultiClickDetector } from '../input/multi-click-detector'
-import { getLineText, getWordAtColumn } from '../input/terminal-text-extraction'
 import { copyToSystemClipboard } from '../platform/clipboard'
+import {
+  resolveClickSelection,
+  type ClickSelectionResult,
+  isPositionedNode,
+} from './click-selection-resolver'
+import { requestRenderUpTree } from './render-invalidation'
+import { getSplitRatioFromDrag, type SplitDragState } from './split-drag-controller'
+import { getForwardedMouseSequence, getScrollViewportDelta } from './terminal-mouse-adapter'
 
 interface UseMouseHandlersOptions {
   state: AppState
@@ -27,34 +33,31 @@ interface UseMouseHandlersOptions {
   activeLocalScrollbackEnabled: boolean
 }
 
-interface PositionedNode {
-  id?: string
-  parent?: unknown
-  selectable?: boolean
-  x: number
-  y: number
+const MIN_MULTI_CLICK_SELECTION_COUNT = 2
+
+function getTargetTerminalTabId(
+  focusMode: AppState['focusMode'],
+  activeTabId: string | null,
+  isEnabled: boolean
+): string | null {
+  if (focusMode !== 'terminal-input' || !activeTabId || !isEnabled) {
+    return null
+  }
+
+  return activeTabId
 }
 
-interface RenderableNode {
-  parent?: unknown
-  requestRender(): void
-}
-
-function isPositionedNode(value: unknown): value is PositionedNode {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof Reflect.get(value, 'x') === 'number' &&
-    typeof Reflect.get(value, 'y') === 'number'
-  )
-}
-
-function isRenderableNode(value: unknown): value is RenderableNode {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof Reflect.get(value, 'requestRender') === 'function'
-  )
+function applyResolvedSelection(
+  renderer: UseMouseHandlersOptions['renderer'],
+  selection: ClickSelectionResult
+): void {
+  renderer.clearSelection()
+  renderer.startSelection(selection.target, selection.baseX + selection.startCol, selection.eventY)
+  renderer.updateSelection(selection.target, selection.baseX + selection.endCol, selection.eventY, {
+    finishDragging: true,
+  })
+  requestRenderUpTree(selection.target)
+  copyToSystemClipboard(selection.selectedText)
 }
 
 export function useMouseHandlers({
@@ -65,50 +68,39 @@ export function useMouseHandlers({
   activeMouseForwardingEnabled,
   activeLocalScrollbackEnabled,
 }: UseMouseHandlersOptions) {
-  const separatorDragRef = useRef<{
-    tabId: string
-    direction: SplitDirection
-    screenStart: number
-    totalSize: number
-  } | null>(null)
+  const separatorDragRef = useRef<SplitDragState | null>(null)
   const multiClickRef = useRef(new MultiClickDetector())
 
   const handleTerminalMouseEvent = (event: OtuiMouseEvent, origin: TerminalContentOrigin) => {
-    if (
-      state.focusMode !== 'terminal-input' ||
-      !state.activeTabId ||
-      !activeMouseForwardingEnabled
-    ) {
+    const targetTabId = getTargetTerminalTabId(
+      state.focusMode,
+      state.activeTabId,
+      activeMouseForwardingEnabled
+    )
+    if (!targetTabId) {
       return
     }
 
-    const sequence = encodeMouseEventForPty(event, origin)
+    const sequence = getForwardedMouseSequence(event, origin)
     if (!sequence) {
       return
     }
 
-    backend.write(state.activeTabId, sequence)
+    backend.write(targetTabId, sequence)
   }
 
   const handleTerminalScrollEvent = (event: OtuiMouseEvent) => {
-    if (state.focusMode !== 'terminal-input' || !state.activeTabId) {
+    const targetTabId = getTargetTerminalTabId(state.focusMode, state.activeTabId, true)
+    if (!targetTabId || activeMouseForwardingEnabled || !activeLocalScrollbackEnabled) {
       return
     }
 
-    if (activeMouseForwardingEnabled) {
+    const delta = getScrollViewportDelta(event)
+    if (delta === null) {
       return
     }
 
-    if (!activeLocalScrollbackEnabled || event.type !== 'scroll') {
-      return
-    }
-
-    const direction = event.scroll?.direction
-    if (direction === 'up') {
-      backend.scrollViewport(state.activeTabId, -3)
-    } else if (direction === 'down') {
-      backend.scrollViewport(state.activeTabId, 3)
-    }
+    backend.scrollViewport(targetTabId, delta)
   }
 
   const handleSplitResize = (tabId: string, ratio: number, axis: SplitDirection) => {
@@ -126,9 +118,11 @@ export function useMouseHandlers({
 
   const handleSeparatorDrag = (event: OtuiMouseEvent): boolean => {
     const drag = separatorDragRef.current
-    if (!drag) return false
-    const pos = drag.direction === 'vertical' ? event.x : event.y
-    const newRatio = (pos - drag.screenStart) / drag.totalSize
+    if (!drag) {
+      return false
+    }
+
+    const newRatio = getSplitRatioFromDrag(event, drag)
     dispatch({ type: 'set-split-ratio', tabId: drag.tabId, ratio: newRatio, axis: drag.direction })
     return true
   }
@@ -148,7 +142,7 @@ export function useMouseHandlers({
 
   const handleTerminalClick = (
     event: OtuiMouseEvent,
-    origin: TerminalContentOrigin,
+    _origin: TerminalContentOrigin,
     tabId?: string
   ) => {
     const targetTabId = tabId ?? state.activeTabId
@@ -157,119 +151,23 @@ export function useMouseHandlers({
     }
 
     const clickCount = multiClickRef.current.track(event.x, event.y)
-    if (clickCount < 2) {
+    if (clickCount < MIN_MULTI_CLICK_SELECTION_COUNT) {
       return
     }
-
-    // Use actual layout positions from the DOM instead of computed paneOrigin.
-    // contentOrigin.y double-counts the border for top panes in split mode.
-    const lineBox = event.target.parent
-    if (!isPositionedNode(lineBox)) {
-      return
-    }
-    const contentBox = lineBox.parent
-    if (!isPositionedNode(contentBox)) {
-      return
-    }
-    const col = event.x - contentBox.x
-    const row = event.y - contentBox.y
-    const baseX = lineBox.x
-
-    logInputDebug('click.detect', {
-      eventX: event.x,
-      eventY: event.y,
-      contentBoxX: contentBox.x,
-      contentBoxY: contentBox.y,
-      col,
-      row,
-      clickCount,
-      targetId: event.target?.id,
-    })
 
     const tab = state.tabs.find((t: TabSession) => t.id === targetTabId)
-    if (!tab?.viewport?.lines[row]) {
-      logInputDebug('click.noViewportLine', {
-        targetTabId,
-        row,
-        tabFound: !!tab,
-        hasViewport: !!tab?.viewport,
-        lineCount: tab?.viewport?.lines.length ?? 0,
-      })
+    const selection = resolveClickSelection(event, targetTabId, tab, clickCount)
+    if (!selection) {
       return
     }
 
-    const line = tab.viewport.lines[row]
-
-    const lineText = getLineText(line)
-    let selectedText: string
-    let startCol: number
-    let endCol: number
-
-    if (clickCount === 2) {
-      const word = getWordAtColumn(lineText, col)
-      if (word.text.length === 0) {
-        logInputDebug('click.emptyWord', {
-          col,
-          row,
-          lineText,
-          charAtCol: lineText[col] ?? 'OOB',
-        })
-        return
-      }
-      selectedText = word.text
-      startCol = word.startCol
-      endCol = word.endCol
-    } else {
-      selectedText = lineText
-      startCol = 0
-      endCol = lineText.length
-    }
-
-    logInputDebug('click.selection', {
-      clickCount,
-      selectedText,
-      startCol,
-      endCol,
-      baseX,
-      startX: baseX + startCol,
-      endX: baseX + endCol,
-      y: event.y,
-      lineText,
-      spanCount: line.spans.length,
-      spanTexts: line.spans.map((s) => s.text),
-      spanStyles: line.spans.map((s) => ({
-        bold: s.bold,
-        italic: s.italic,
-        underline: s.underline,
-      })),
-    })
-
     event.preventDefault()
-    renderer.clearSelection()
-    // event.target is always selectable (guaranteed by hit-test).
-    // startSelection uses event.target.parent (lineBox) as the selection
-    // container, so ALL TextRenderables on the line participate — the
-    // selection rectangle (anchor→focus) determines which ones highlight.
-    renderer.startSelection(event.target, baseX + startCol, event.y)
-    renderer.updateSelection(event.target, baseX + endCol, event.y, {
-      finishDragging: true,
-    })
-    // Walk up the parent chain marking each ancestor dirty so that
-    // overflow="hidden" frame buffers get refreshed during the next paint.
-    // Without this, selection highlight only appears on panes that receive
-    // PTY updates (which independently trigger a render cycle).
-    let dirtyNode: unknown = event.target
-    while (isRenderableNode(dirtyNode)) {
-      dirtyNode.requestRender()
-      dirtyNode = dirtyNode.parent
-    }
+    applyResolvedSelection(renderer, selection)
 
     logInputDebug('click.done', {
       hasSelection: !!renderer.hasSelection,
       targetSelectable: isPositionedNode(event.target) ? !!event.target.selectable : false,
     })
-
-    copyToSystemClipboard(selectedText)
   }
 
   return {

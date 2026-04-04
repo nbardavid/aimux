@@ -1,6 +1,4 @@
-import type { MutableRefObject } from 'react'
-
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 
 import type { TerminalContentOrigin } from '../input/raw-input-handler'
 import type { SessionBackend } from '../session-backend/types'

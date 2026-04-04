@@ -74,8 +74,6 @@ export interface TerminalContentOrigin {
 export function createRawInputHandler(deps: {
   getFocusMode: () => FocusMode
   getActiveTabId: () => string | null
-  getContentOrigin: () => TerminalContentOrigin
-  getMousePassthroughEnabled: () => boolean
   getBracketedPasteModeEnabled: () => boolean
   writeToPty: (tabId: string, data: string) => void
   leaveTerminalInput: () => void
@@ -92,6 +90,25 @@ export function createRawInputHandler(deps: {
       tabId,
     })
     deps.writeToPty(tabId, buildPtyPastePayload(payload, deps.getBracketedPasteModeEnabled()))
+  }
+
+  function handleTerminalShortcut(sequence: string): boolean {
+    if (sequence === CTRL_Z_RAW || sequence === CTRL_Z_KITTY) {
+      deps.leaveTerminalInput()
+      return true
+    }
+
+    if (sequence === CTRL_W_RAW || sequence === CTRL_W_KITTY) {
+      deps.enterLayoutMode()
+      return true
+    }
+
+    if (sequence === CTRL_B_RAW || sequence === CTRL_B_KITTY) {
+      deps.toggleSidebar()
+      return true
+    }
+
+    return false
   }
 
   function handleSequence(tabId: string, sequence: string): boolean {
@@ -139,18 +156,7 @@ export function createRawInputHandler(deps: {
       return handleSequence(tabId, afterStart.slice(endIndex + BRACKETED_PASTE_END.length))
     }
 
-    if (bracketedPasteBuffer === null && (sequence === CTRL_Z_RAW || sequence === CTRL_Z_KITTY)) {
-      deps.leaveTerminalInput()
-      return true
-    }
-
-    if (bracketedPasteBuffer === null && (sequence === CTRL_W_RAW || sequence === CTRL_W_KITTY)) {
-      deps.enterLayoutMode()
-      return true
-    }
-
-    if (bracketedPasteBuffer === null && (sequence === CTRL_B_RAW || sequence === CTRL_B_KITTY)) {
-      deps.toggleSidebar()
+    if (handleTerminalShortcut(sequence)) {
       return true
     }
 
@@ -169,18 +175,7 @@ export function createRawInputHandler(deps: {
       sequencePreview: sequence.slice(0, 120),
     })
 
-    if (sequence === CTRL_Z_RAW || sequence === CTRL_Z_KITTY) {
-      deps.leaveTerminalInput()
-      return true
-    }
-
-    if (sequence === CTRL_W_RAW || sequence === CTRL_W_KITTY) {
-      deps.enterLayoutMode()
-      return true
-    }
-
-    if (sequence === CTRL_B_RAW || sequence === CTRL_B_KITTY) {
-      deps.toggleSidebar()
+    if (handleTerminalShortcut(sequence)) {
       return true
     }
 

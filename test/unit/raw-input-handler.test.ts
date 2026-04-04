@@ -23,9 +23,7 @@ function setup(overrides?: {
     enterLayoutMode,
     getActiveTabId: () => activeTabId,
     getBracketedPasteModeEnabled: () => bracketedPasteModeEnabled,
-    getContentOrigin: () => ({ cols: 80, rows: 24, x: 0, y: 0 }),
     getFocusMode: () => focusMode,
-    getMousePassthroughEnabled: () => true,
     leaveTerminalInput,
     toggleSidebar,
     writeToPty,
@@ -93,6 +91,20 @@ describe('createRawInputHandler', () => {
     expect(writeToPty).not.toHaveBeenCalled()
   })
 
+  test('enters layout mode on raw Ctrl+W in terminal-input', () => {
+    const { enterLayoutMode, handler, writeToPty } = setup()
+    expect(handler('\x17')).toBe(true)
+    expect(enterLayoutMode).toHaveBeenCalled()
+    expect(writeToPty).not.toHaveBeenCalled()
+  })
+
+  test('enters layout mode on Kitty Ctrl+W in terminal-input', () => {
+    const { enterLayoutMode, handler, writeToPty } = setup()
+    expect(handler('\x1b[119;5u')).toBe(true)
+    expect(enterLayoutMode).toHaveBeenCalled()
+    expect(writeToPty).not.toHaveBeenCalled()
+  })
+
   test('forwards printable characters', () => {
     const { handler, writeToPty } = setup()
     expect(handler('a')).toBe(true)
@@ -137,6 +149,13 @@ describe('createRawInputHandler', () => {
     expect(writeToPty).toHaveBeenCalledWith('tab-1', '\x02\x1a')
     expect(toggleSidebar).not.toHaveBeenCalled()
     expect(leaveTerminalInput).not.toHaveBeenCalled()
+  })
+
+  test('does not treat pasted Ctrl+W as a shortcut', () => {
+    const { enterLayoutMode, handler, writeToPty } = setup()
+    expect(handler('\x1b[200~\x17\x1b[201~')).toBe(true)
+    expect(writeToPty).toHaveBeenCalledWith('tab-1', '\x17')
+    expect(enterLayoutMode).not.toHaveBeenCalled()
   })
 
   test('collects split bracketed paste sequences across calls', () => {

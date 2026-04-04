@@ -52,9 +52,7 @@ export function useRendererBindings({
       getActiveTabId: () => activeTabIdRef.current,
       getBracketedPasteModeEnabled: () =>
         activeTabRef.current?.terminalModes.bracketedPasteMode ?? false,
-      getContentOrigin: () => contentOriginRef.current,
       getFocusMode: () => focusModeRef.current,
-      getMousePassthroughEnabled: () => activeTabRef.current !== undefined,
       leaveTerminalInput: () => dispatch({ focusMode: 'navigation', type: 'set-focus-mode' }),
       toggleSidebar: () => dispatch({ type: 'toggle-sidebar' }),
       writeToPty: (tabId, data) => {

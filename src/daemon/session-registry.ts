@@ -9,7 +9,11 @@ import type {
 
 import { logDebug } from '../debug/input-log'
 import { PtyManager } from '../pty/pty-manager'
-import { restoreTabsFromWorkspace } from '../state/session-persistence'
+import {
+  normalizeGroupedTabOrder,
+  restoreLayoutTrees,
+  restoreTabsFromWorkspace,
+} from '../state/session-persistence'
 import { createDefaultTerminalModes } from '../state/terminal-modes'
 
 type SessionRegistryEvents = {
@@ -91,7 +95,18 @@ export class SessionRegistry extends EventEmitter<SessionRegistryEvents> {
       }
     }
 
-    return { activeTabId: this.activeTabId, tabs: this.listTabs() }
+    const tabs = this.listTabs()
+    if (!snapshot) {
+      return { activeTabId: this.activeTabId, tabs }
+    }
+
+    const { layoutTrees, tabGroupMap } = restoreLayoutTrees(snapshot, tabs)
+    const orderedSnapshotTabs = snapshot.tabs
+      .map((persistedTab) => this.tabs.get(persistedTab.id))
+      .filter((tab): tab is TabSession => tab !== undefined)
+    const normalizedTabs = normalizeGroupedTabOrder(orderedSnapshotTabs, layoutTrees, tabGroupMap)
+
+    return { activeTabId: this.activeTabId, tabs: normalizedTabs }
   }
 
   listTabs(): TabSession[] {

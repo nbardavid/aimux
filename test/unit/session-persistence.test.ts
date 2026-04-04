@@ -107,9 +107,9 @@ describe('session persistence', () => {
       layoutTrees: {
         'group-1': {
           direction: 'vertical',
-          first: { tabId: 'tab-2', type: 'leaf' },
+          first: { tabId: 'tab-3', type: 'leaf' },
           ratio: 0.5,
-          second: { tabId: 'tab-3', type: 'leaf' },
+          second: { tabId: 'tab-2', type: 'leaf' },
           type: 'split',
         },
       },

@@ -123,14 +123,34 @@ export function restoreLayoutTrees(
   return { layoutTrees, tabGroupMap }
 }
 
-function normalizeRestoredTabOrder(
+export function normalizeGroupedTabOrder(
   tabs: TabSession[],
   layoutTrees: Record<string, LayoutNode>,
   tabGroupMap: Record<string, string>
 ): TabSession[] {
-  const tabsById = new Map(tabs.map((tab) => [tab.id, tab]))
+  const groupedTabsByGroupId = new Map<string, TabSession[]>()
   const emittedGroupIds = new Set<string>()
   const orderedTabs: TabSession[] = []
+
+  for (const tab of tabs) {
+    const groupId = tabGroupMap[tab.id]
+    if (!groupId) {
+      continue
+    }
+
+    const groupTree = layoutTrees[groupId]
+    if (!groupTree || groupTree.type !== 'split') {
+      continue
+    }
+
+    const groupedTabs = groupedTabsByGroupId.get(groupId)
+    if (groupedTabs) {
+      groupedTabs.push(tab)
+      continue
+    }
+
+    groupedTabsByGroupId.set(groupId, [tab])
+  }
 
   for (const tab of tabs) {
     const groupId = tabGroupMap[tab.id]
@@ -146,11 +166,13 @@ function normalizeRestoredTabOrder(
     }
 
     emittedGroupIds.add(groupId)
-    for (const leafId of allLeafIds(groupTree)) {
-      const groupTab = tabsById.get(leafId)
-      if (groupTab) {
-        orderedTabs.push(groupTab)
-      }
+    const groupedTabs = groupedTabsByGroupId.get(groupId)
+    if (!groupedTabs) {
+      continue
+    }
+
+    for (const groupTab of groupedTabs) {
+      orderedTabs.push(groupTab)
     }
   }
 
@@ -171,7 +193,7 @@ export function restoreWorkspaceState(
       : (tabs[0]?.id ?? null)
 
   const { layoutTrees, tabGroupMap } = restoreLayoutTrees(workspaceSnapshot, tabs)
-  const orderedTabs = normalizeRestoredTabOrder(tabs, layoutTrees, tabGroupMap)
+  const orderedTabs = normalizeGroupedTabOrder(tabs, layoutTrees, tabGroupMap)
 
   return {
     activeTabId,

@@ -13,6 +13,7 @@ import {
   setSplitRatio,
   splitNode,
 } from '../layout-tree'
+import { normalizeGroupedTabOrder } from '../session-persistence'
 import { createDefaultTerminalModes } from '../terminal-modes'
 
 const MAX_BUFFER_LENGTH = 50_000
@@ -296,7 +297,7 @@ export function reduceTabState(state: AppState, action: AppAction): AppState | n
         focusMode: 'navigation',
         layoutTrees: hydratedTrees,
         tabGroupMap: hydratedGroupMap,
-        tabs: action.tabs,
+        tabs: normalizeGroupedTabOrder(action.tabs, hydratedTrees, hydratedGroupMap),
       }
     }
     case 'close-tab':

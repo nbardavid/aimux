@@ -468,6 +468,35 @@ describe('hydrate-workspace layout restoration', () => {
     // All tabs gone → no layout groups
     expect(Object.keys(state.layoutTrees)).toHaveLength(0)
   })
+
+  test('hydrate-workspace keeps grouped tabs contiguous using incoming order', () => {
+    const tab1 = createTab('tab-1')
+    const tab2 = createTab('tab-2')
+    const tab3 = createTab('tab-3')
+    const tab4 = createTab('tab-4')
+
+    let state = createInitialState()
+    state = appReducer(state, {
+      activeTabId: 'tab-2',
+      layoutTrees: {
+        'group-1': {
+          direction: 'vertical',
+          first: { tabId: 'tab-2', type: 'leaf' },
+          ratio: 0.5,
+          second: { tabId: 'tab-3', type: 'leaf' },
+          type: 'split',
+        },
+      },
+      tabGroupMap: {
+        'tab-2': 'group-1',
+        'tab-3': 'group-1',
+      },
+      tabs: [tab1, tab2, tab4, tab3],
+      type: 'hydrate-workspace',
+    })
+
+    expect(state.tabs.map((tab) => tab.id)).toEqual(['tab-1', 'tab-2', 'tab-3', 'tab-4'])
+  })
 })
 
 describe('full split flow simulation', () => {

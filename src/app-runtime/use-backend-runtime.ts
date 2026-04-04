@@ -8,21 +8,14 @@ import type { TabSession } from '../state/types'
 import type { WorkspaceSnapshotV1 } from '../state/types'
 
 import { logInputDebug } from '../debug/input-log'
-import { PANE_BORDER, computePaneRects, type LayoutNode } from '../state/layout-tree'
+import {
+  createTerminalBounds,
+  forEachSplitPaneRect,
+  getSnapshotTrees,
+  toTerminalContentSize,
+} from '../state/layout-resize'
 
 const IDLE_ACTIVITY_TIMEOUT_MS = 2_000
-
-function getSnapshotTrees(snapshot: WorkspaceSnapshotV1 | undefined): LayoutNode[] {
-  if (snapshot?.layoutTrees) {
-    return Object.values(snapshot.layoutTrees)
-  }
-
-  if (snapshot?.layoutTree) {
-    return [snapshot.layoutTree]
-  }
-
-  return []
-}
 
 function clearTimeoutMap(timeouts: Map<string, ReturnType<typeof setTimeout>>): void {
   for (const timeout of timeouts.values()) {
@@ -38,22 +31,14 @@ function resizeSnapshotPanes(
 ): void {
   if (!snapshot) return
   const trees = getSnapshotTrees(snapshot)
-  const bounds = {
-    x: 0,
-    y: 0,
-    cols: layoutRef.current.terminalCols,
-    rows: layoutRef.current.terminalRows,
-  }
-  for (const tree of trees) {
-    if (tree.type !== 'split') continue
-    for (const [tabId, rect] of computePaneRects(tree, bounds)) {
-      backend.resizeTab(
-        tabId,
-        Math.max(1, rect.cols - PANE_BORDER * 2),
-        Math.max(1, rect.rows - PANE_BORDER * 2)
-      )
-    }
-  }
+  const bounds = createTerminalBounds(
+    layoutRef.current.terminalCols,
+    layoutRef.current.terminalRows
+  )
+  forEachSplitPaneRect(trees, bounds, (tabId, rect) => {
+    const size = toTerminalContentSize(rect)
+    backend.resizeTab(tabId, size.cols, size.rows)
+  })
 }
 
 function hydrateAttachedSession(

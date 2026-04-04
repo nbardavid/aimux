@@ -6,7 +6,11 @@ import type { TerminalContentOrigin } from '../input/raw-input-handler'
 import type { SessionBackend } from '../session-backend/types'
 import type { AppAction, AppState } from '../state/types'
 
-import { PANE_BORDER, computePaneRects } from '../state/layout-tree'
+import {
+  createTerminalBounds,
+  forEachSplitPaneRect,
+  toTerminalContentSize,
+} from '../state/layout-resize'
 
 const MAIN_AREA_HORIZONTAL_CHROME = 2
 const MAIN_AREA_VERTICAL_PADDING = 0
@@ -17,7 +21,7 @@ const MIN_TERMINAL_COLS = 20
 const RESIZE_ACTIVITY_SETTLE_MS = 500
 
 function getTerminalBounds(cols: number, rows: number) {
-  return { x: 0, y: 0, cols, rows }
+  return createTerminalBounds(cols, rows)
 }
 
 function resizeSplitTabs(
@@ -27,20 +31,14 @@ function resizeSplitTabs(
   cols: number,
   rows: number
 ): void {
-  const chrome = PANE_BORDER * 2
   const bounds = getTerminalBounds(cols, rows)
   const resizedTabIds = new Set<string>()
 
-  for (const tree of Object.values(layoutTrees)) {
-    if (tree.type !== 'split') {
-      continue
-    }
-
-    for (const [tabId, rect] of computePaneRects(tree, bounds)) {
-      backend.resizeTab(tabId, Math.max(1, rect.cols - chrome), Math.max(1, rect.rows - chrome))
-      resizedTabIds.add(tabId)
-    }
-  }
+  forEachSplitPaneRect(Object.values(layoutTrees), bounds, (tabId, rect) => {
+    const size = toTerminalContentSize(rect)
+    backend.resizeTab(tabId, size.cols, size.rows)
+    resizedTabIds.add(tabId)
+  })
 
   for (const tab of tabs) {
     if (!resizedTabIds.has(tab.id)) {

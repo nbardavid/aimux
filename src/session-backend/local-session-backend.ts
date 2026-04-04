@@ -5,19 +5,12 @@ import type { SessionBackend, SessionBackendEvents } from './types'
 
 import { SessionManager } from '../daemon/session-manager'
 import { logDebug } from '../debug/input-log'
-import { PANE_BORDER, computePaneRects, type LayoutNode } from '../state/layout-tree'
-
-function getSnapshotTrees(snapshot?: WorkspaceSnapshotV1): LayoutNode[] {
-  if (snapshot?.layoutTrees) {
-    return Object.values(snapshot.layoutTrees)
-  }
-
-  if (snapshot?.layoutTree) {
-    return [snapshot.layoutTree]
-  }
-
-  return []
-}
+import {
+  createTerminalBounds,
+  forEachSplitPaneRect,
+  getSnapshotTrees,
+  toTerminalContentSize,
+} from '../state/layout-resize'
 
 export class LocalSessionBackend
   extends EventEmitter<SessionBackendEvents>
@@ -61,17 +54,11 @@ export class LocalSessionBackend
     const trees = getSnapshotTrees(options.workspaceSnapshot)
     const splitTrees = trees.filter((t) => t.type === 'split')
     if (splitTrees.length > 0) {
-      const bounds = { x: 0, y: 0, cols: options.cols, rows: options.rows }
-      for (const tree of splitTrees) {
-        for (const [tabId, rect] of computePaneRects(tree, bounds)) {
-          this.sessionManager.resizeTab(
-            options.sessionId,
-            tabId,
-            Math.max(1, rect.cols - PANE_BORDER * 2),
-            Math.max(1, rect.rows - PANE_BORDER * 2)
-          )
-        }
-      }
+      const bounds = createTerminalBounds(options.cols, options.rows)
+      forEachSplitPaneRect(splitTrees, bounds, (tabId, rect) => {
+        const size = toTerminalContentSize(rect)
+        this.sessionManager.resizeTab(options.sessionId, tabId, size.cols, size.rows)
+      })
     } else {
       this.sessionManager.resize(options.sessionId, options.cols, options.rows)
     }

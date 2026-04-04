@@ -34,6 +34,14 @@ export function useBackendRuntime({
 }: BackendRuntimeOptions): TabRuntimeControls {
   const attachRequestIdRef = useRef(0)
   const timeouts = useTabRuntimeTimeouts(dispatch)
+  const {
+    clearAllTimers,
+    clearIdleTimer,
+    clearStartupGrace,
+    isStartupGraceActive,
+    scheduleIdle,
+    startStartupGrace,
+  } = timeouts
 
   useEffect(() => {
     if (!currentSessionId) {
@@ -64,13 +72,28 @@ export function useBackendRuntime({
       backend,
       dispatch,
       resizingRef,
-      timeouts,
+      timeouts: {
+        clearAllTimers,
+        clearIdleTimer,
+        clearStartupGrace,
+        isStartupGraceActive,
+        scheduleIdle,
+      },
     })
-  }, [backend, dispatch, resizingRef, timeouts])
+  }, [
+    backend,
+    clearAllTimers,
+    clearIdleTimer,
+    clearStartupGrace,
+    dispatch,
+    isStartupGraceActive,
+    resizingRef,
+    scheduleIdle,
+  ])
 
   return {
-    clearIdleTimer: timeouts.clearIdleTimer,
-    clearStartupGrace: timeouts.clearStartupGrace,
-    startStartupGrace: timeouts.startStartupGrace,
+    clearIdleTimer,
+    clearStartupGrace,
+    startStartupGrace,
   }
 }

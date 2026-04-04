@@ -51,32 +51,32 @@ export function CreateSessionModal({
 
   return (
     <box
+      position="absolute"
+      top={0}
+      left={0}
+      width="100%"
+      height="100%"
       justifyContent="center"
       alignItems="center"
-      position="absolute"
-      height="100%"
-      width="100%"
-      left={0}
-      top={0}
     >
       <box
+        width={MODAL_WIDTH}
+        border
         borderColor={theme.borderActive}
+        padding={1}
         backgroundColor={theme.panel}
         flexDirection="column"
-        width={MODAL_WIDTH}
-        padding={1}
         gap={1}
-        border
       >
         <text fg={theme.accentAlt}>Create session</text>
         <text fg={theme.textMuted}>Tab switch field. Ctrl+n/p nav. Esc cancel.</text>
 
         <text fg={dirActive ? theme.text : theme.textMuted}>Search projects:</text>
         <box
-          backgroundColor={dirActive ? theme.panelMuted : theme.background}
-          borderColor={dirActive ? theme.borderActive : theme.border}
-          padding={1}
           border
+          borderColor={dirActive ? theme.borderActive : theme.border}
+          backgroundColor={dirActive ? theme.panelMuted : theme.background}
+          padding={1}
         >
           <text fg={dirActive ? theme.text : theme.textMuted}>
             {pendingProjectPath && !dirActive ? abbreviatePath(pendingProjectPath) : directoryQuery}
@@ -91,7 +91,7 @@ export function CreateSessionModal({
           ? results.map((result, index) => {
               const active = index === selectedIndex
               return (
-                <box flexDirection="row" key={result.path}>
+                <box key={result.path} flexDirection="row">
                   <text fg={active ? theme.text : theme.textMuted}>{active ? '>' : ' '} </text>
                   <text fg={getDirectoryResultColor(result)}>
                     {getDirectoryResultIcon(result)}{' '}
@@ -106,10 +106,10 @@ export function CreateSessionModal({
 
         <text fg={nameActive ? theme.text : theme.textMuted}>Session name:</text>
         <box
-          backgroundColor={nameActive ? theme.panelMuted : theme.background}
-          borderColor={nameActive ? theme.borderActive : theme.border}
-          padding={1}
           border
+          borderColor={nameActive ? theme.borderActive : theme.border}
+          backgroundColor={nameActive ? theme.panelMuted : theme.background}
+          padding={1}
         >
           <text fg={nameActive ? theme.text : theme.textMuted}>
             {sessionName}

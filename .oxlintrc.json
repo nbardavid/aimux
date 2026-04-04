@@ -15,14 +15,6 @@
     "perfectionist/sort-objects": "error",
     "perfectionist/sort-named-imports": "error",
     "perfectionist/sort-named-exports": "error",
-    "perfectionist/sort-jsx-props": [
-      "error",
-      {
-        "type": "line-length",
-        "order": "desc",
-        "fallbackSort": { "type": "alphabetical", "order": "asc" }
-      }
-    ],
     "default-case-last": "error",
     "eqeqeq": "error",
     "no-console": "error",

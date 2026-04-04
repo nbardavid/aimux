@@ -9,22 +9,22 @@ interface ThemePickerModalProps {
 export function ThemePickerModal({ currentThemeId, selectedIndex }: ThemePickerModalProps) {
   return (
     <box
+      position="absolute"
+      top={0}
+      left={0}
+      width="100%"
+      height="100%"
       justifyContent="center"
       alignItems="center"
-      position="absolute"
-      height="100%"
-      width="100%"
-      left={0}
-      top={0}
     >
       <box
+        width={40}
+        border
         borderColor={theme.borderActive}
+        padding={1}
         backgroundColor={theme.panel}
         flexDirection="column"
-        padding={1}
-        width={40}
         gap={1}
-        border
       >
         <text fg={theme.accent}>Select theme</text>
         <text fg={theme.textMuted}>j/k move, Enter confirm, Esc cancel.</text>
@@ -33,7 +33,7 @@ export function ThemePickerModal({ currentThemeId, selectedIndex }: ThemePickerM
           const active = index === selectedIndex
           const isCurrent = id === currentThemeId
           return (
-            <box flexDirection="row" key={id}>
+            <box key={id} flexDirection="row">
               <text fg={active ? theme.text : theme.textMuted}>
                 {active ? '>' : ' '} {entry.name}
               </text>

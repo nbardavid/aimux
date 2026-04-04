@@ -12,22 +12,22 @@ export function NewTabModal({ customCommands, editBuffer, selectedIndex }: NewTa
 
   return (
     <box
+      position="absolute"
+      top={0}
+      left={0}
+      width="100%"
+      height="100%"
       justifyContent="center"
       alignItems="center"
-      position="absolute"
-      height="100%"
-      width="100%"
-      left={0}
-      top={0}
     >
       <box
+        width={48}
+        border
         borderColor={theme.borderActive}
+        padding={1}
         backgroundColor={theme.panel}
         flexDirection="column"
-        padding={1}
-        width={48}
         gap={1}
-        border
       >
         <text fg={theme.accentAlt}>New assistant tab</text>
         {editBuffer !== null ? (
@@ -36,10 +36,10 @@ export function NewTabModal({ customCommands, editBuffer, selectedIndex }: NewTa
               Editing command for {options[selectedIndex]?.label}. Enter to confirm, Esc to cancel.
             </text>
             <box
-              backgroundColor={theme.panelMuted}
-              borderColor={theme.borderActive}
-              padding={1}
               border
+              borderColor={theme.borderActive}
+              backgroundColor={theme.panelMuted}
+              padding={1}
             >
               <text fg={theme.text}>{editBuffer}_</text>
             </box>
@@ -55,12 +55,12 @@ export function NewTabModal({ customCommands, editBuffer, selectedIndex }: NewTa
 
               return (
                 <box
-                  backgroundColor={active ? theme.panelMuted : theme.background}
-                  borderColor={active ? theme.borderActive : theme.border}
-                  flexDirection="column"
                   key={option.id}
-                  padding={1}
                   border
+                  borderColor={active ? theme.borderActive : theme.border}
+                  backgroundColor={active ? theme.panelMuted : theme.background}
+                  padding={1}
+                  flexDirection="column"
                 >
                   <text fg={active ? theme.text : theme.textMuted}>
                     {active ? '>' : ' '} {option.label}

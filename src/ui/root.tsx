@@ -74,18 +74,18 @@ function renderModal(
     case 'split-picker':
       return (
         <NewTabModal
-          customCommands={options.customCommands}
           selectedIndex={modal.selectedIndex}
+          customCommands={options.customCommands}
           editBuffer={modal.editBuffer}
         />
       )
     case 'session-picker':
       return (
         <SessionPickerModal
+          sessions={options.sessions}
+          selectedIndex={modal.selectedIndex}
           currentSessionId={options.currentSessionId}
           currentTabCount={options.currentTabCount}
-          selectedIndex={modal.selectedIndex}
-          sessions={options.sessions}
           filter={modal.editBuffer}
         />
       )
@@ -97,33 +97,33 @@ function renderModal(
         />
       )
     case 'rename-tab':
-      return <SessionNameModal value={modal.editBuffer ?? ''} title="Rename tab" />
+      return <SessionNameModal title="Rename tab" value={modal.editBuffer ?? ''} />
     case 'create-session':
       return (
         <CreateSessionModal
+          activeField={modal.activeField}
           directoryQuery={options.createSessionFields.directoryQuery}
           sessionName={options.createSessionFields.sessionName}
-          pendingProjectPath={modal.pendingProjectPath}
-          selectedIndex={modal.selectedIndex}
           results={modal.directoryResults}
-          activeField={modal.activeField}
+          selectedIndex={modal.selectedIndex}
+          pendingProjectPath={modal.pendingProjectPath}
         />
       )
     case 'snippet-picker':
       return (
         <SnippetPickerModal
-          selectedIndex={modal.selectedIndex}
           snippets={options.snippets}
+          selectedIndex={modal.selectedIndex}
           filter={modal.editBuffer}
         />
       )
     case 'snippet-editor':
       return (
         <SnippetEditorModal
-          snippetContent={options.snippetEditorFields.snippetContent}
-          snippetName={options.snippetEditorFields.snippetName}
-          isEditing={modal.sessionTargetId !== null}
           activeField={modal.activeField}
+          snippetName={options.snippetEditorFields.snippetName}
+          snippetContent={options.snippetEditorFields.snippetContent}
+          isEditing={modal.sessionTargetId !== null}
         />
       )
     case 'theme-picker':
@@ -194,38 +194,38 @@ export function RootView({
   const snippetEditorFields = getSnippetEditorFields(modal)
 
   return (
-    <box backgroundColor={theme.background} flexDirection="column" height="100%" width="100%">
-      <box flexDirection="row" flexGrow={1} padding={0} gap={0}>
+    <box flexDirection="column" width="100%" height="100%" backgroundColor={theme.background}>
+      <box flexDirection="row" gap={0} padding={0} flexGrow={1}>
         <Sidebar onTabActivate={onPaneActivate} />
         {activeTree && activeTree.type === 'split' ? (
           <SplitLayout
-            bounds={{ cols: terminalCols, rows: terminalRows, x: 0, y: 0 }}
-            localScrollbackEnabled={localScrollbackEnabled}
-            mouseForwardingEnabled={mouseForwardingEnabled}
-            onTerminalScrollEvent={onTerminalScrollEvent}
-            onSeparatorDragStart={onSeparatorDragStart}
-            onTerminalMouseEvent={onTerminalMouseEvent}
-            onSeparatorDragEnd={onSeparatorDragEnd}
-            onSeparatorDrag={onSeparatorDrag}
-            onTerminalClick={onTerminalClick}
-            onPaneActivate={onPaneActivate}
-            contentOrigin={contentOrigin}
-            onSplitResize={onSplitResize}
-            activeTabId={activeTabId}
-            focusMode={focusMode}
             node={activeTree}
             tabs={tabs}
+            activeTabId={activeTabId}
+            focusMode={focusMode}
+            contentOrigin={contentOrigin}
+            mouseForwardingEnabled={mouseForwardingEnabled}
+            localScrollbackEnabled={localScrollbackEnabled}
+            onTerminalMouseEvent={onTerminalMouseEvent}
+            onTerminalScrollEvent={onTerminalScrollEvent}
+            onTerminalClick={onTerminalClick}
+            onPaneActivate={onPaneActivate}
+            onSplitResize={onSplitResize}
+            onSeparatorDragStart={onSeparatorDragStart}
+            onSeparatorDrag={onSeparatorDrag}
+            onSeparatorDragEnd={onSeparatorDragEnd}
+            bounds={{ cols: terminalCols, rows: terminalRows, x: 0, y: 0 }}
           />
         ) : (
           <TerminalPane
-            localScrollbackEnabled={localScrollbackEnabled}
-            mouseForwardingEnabled={mouseForwardingEnabled}
-            onTerminalScrollEvent={onTerminalScrollEvent}
-            onTerminalMouseEvent={onTerminalMouseEvent}
-            onTerminalClick={onTerminalClick}
-            contentOrigin={contentOrigin}
-            focusMode={focusMode}
             tab={activeTab}
+            focusMode={focusMode}
+            contentOrigin={contentOrigin}
+            mouseForwardingEnabled={mouseForwardingEnabled}
+            localScrollbackEnabled={localScrollbackEnabled}
+            onTerminalMouseEvent={onTerminalMouseEvent}
+            onTerminalScrollEvent={onTerminalScrollEvent}
+            onTerminalClick={onTerminalClick}
           />
         )}
       </box>

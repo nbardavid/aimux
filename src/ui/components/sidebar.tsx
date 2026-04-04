@@ -20,7 +20,7 @@ const GUTTER_PAD = '│'
 
 function renderGroupGutter(isGroupStart: boolean, isGroupMiddle: boolean, isGroupEnd: boolean) {
   return (
-    <box flexDirection="column" overflow="hidden" width={1}>
+    <box flexDirection="column" width={1} overflow="hidden">
       <text fg={theme.accent}>{isGroupStart ? GUTTER_START : GUTTER_PAD}</text>
       <text fg={theme.accent}>{GUTTER_PAD}</text>
       <text fg={theme.accent}>{isGroupMiddle ? GUTTER_MIDDLE : GUTTER_PAD}</text>
@@ -62,13 +62,13 @@ export function Sidebar({ onTabActivate }: SidebarProps) {
 
   return (
     <box
-      borderColor={focusMode === 'navigation' ? theme.borderActive : theme.border}
-      backgroundColor={theme.panelMuted}
-      flexDirection="column"
       width={sidebar.width}
-      padding={0}
-      gap={0}
       border
+      borderColor={focusMode === 'navigation' ? theme.borderActive : theme.border}
+      padding={0}
+      flexDirection="column"
+      backgroundColor={theme.panelMuted}
+      gap={0}
     >
       <text fg={theme.accent}>
         <strong>aimux</strong>
@@ -84,12 +84,12 @@ export function Sidebar({ onTabActivate }: SidebarProps) {
       ) : null}
       <text fg={theme.dim}>{'─'.repeat(Math.max(0, sidebar.width - 2))}</text>
       <scrollbox
-        contentOptions={{ flexDirection: 'column', gap: 0 }}
-        ref={scrollRef}
-        viewportCulling
         paddingTop={0}
+        ref={scrollRef}
         flexGrow={1}
         scrollY
+        viewportCulling
+        contentOptions={{ flexDirection: 'column', gap: 0 }}
       >
         {tabs.length === 0 ? (
           <box paddingTop={1}>
@@ -107,19 +107,19 @@ export function Sidebar({ onTabActivate }: SidebarProps) {
 
             return (
               <box
-                onMouseDown={onTabActivate ? () => onTabActivate(tab.id) : undefined}
-                flexDirection="row"
                 key={tab.id}
+                flexDirection="row"
+                onMouseDown={onTabActivate ? () => onTabActivate(tab.id) : undefined}
               >
                 {inGroup ? renderGroupGutter(isGroupStart, isGroupMiddle, isGroupEnd) : null}
                 <box flexGrow={1}>
                   <TabItem
-                    isFocusedInput={isActive && focusMode === 'terminal-input'}
-                    focused={focusMode === 'navigation'}
                     id={`sidebar-tab-${tab.id}`}
-                    inLayout={inLayout}
-                    active={isActive}
                     tab={tab}
+                    active={isActive}
+                    focused={focusMode === 'navigation'}
+                    isFocusedInput={isActive && focusMode === 'terminal-input'}
+                    inLayout={inLayout}
                   />
                 </box>
               </box>

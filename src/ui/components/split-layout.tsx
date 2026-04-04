@@ -81,19 +81,19 @@ export function SplitLayout({
     })
     return (
       <TerminalPane
-        localScrollbackEnabled={isActive && localScrollbackEnabled}
-        mouseForwardingEnabled={isActive && mouseForwardingEnabled}
-        onTerminalScrollEvent={onTerminalScrollEvent}
-        onTerminalMouseEvent={onTerminalMouseEvent}
-        onSeparatorDragEnd={onSeparatorDragEnd}
-        onSeparatorDrag={onSeparatorDrag}
-        onTerminalClick={onTerminalClick}
-        onPaneActivate={onPaneActivate}
-        contentOrigin={paneOrigin}
+        tab={tab}
+        tabId={node.tabId}
         focusMode={focusMode}
         isActive={isActive}
-        tabId={node.tabId}
-        tab={tab}
+        contentOrigin={paneOrigin}
+        mouseForwardingEnabled={isActive && mouseForwardingEnabled}
+        localScrollbackEnabled={isActive && localScrollbackEnabled}
+        onTerminalMouseEvent={onTerminalMouseEvent}
+        onTerminalScrollEvent={onTerminalScrollEvent}
+        onTerminalClick={onTerminalClick}
+        onPaneActivate={onPaneActivate}
+        onSeparatorDrag={onSeparatorDrag}
+        onSeparatorDragEnd={onSeparatorDragEnd}
       />
     )
   }
@@ -111,27 +111,30 @@ export function SplitLayout({
 
   return (
     <box flexDirection={flexDir} flexGrow={1} gap={0}>
-      <box flexDirection="column" flexGrow={firstGrow} overflow="hidden">
+      <box flexGrow={firstGrow} flexDirection="column" overflow="hidden">
         <SplitLayout
-          localScrollbackEnabled={localScrollbackEnabled}
-          mouseForwardingEnabled={mouseForwardingEnabled}
-          onTerminalScrollEvent={onTerminalScrollEvent}
-          onSeparatorDragStart={onSeparatorDragStart}
-          onTerminalMouseEvent={onTerminalMouseEvent}
-          onSeparatorDragEnd={onSeparatorDragEnd}
-          onSeparatorDrag={onSeparatorDrag}
-          onTerminalClick={onTerminalClick}
-          onPaneActivate={onPaneActivate}
-          contentOrigin={contentOrigin}
-          onSplitResize={onSplitResize}
-          activeTabId={activeTabId}
-          focusMode={focusMode}
-          bounds={firstBounds}
           node={node.first}
           tabs={tabs}
+          activeTabId={activeTabId}
+          focusMode={focusMode}
+          mouseForwardingEnabled={mouseForwardingEnabled}
+          localScrollbackEnabled={localScrollbackEnabled}
+          onTerminalMouseEvent={onTerminalMouseEvent}
+          onTerminalScrollEvent={onTerminalScrollEvent}
+          onTerminalClick={onTerminalClick}
+          onPaneActivate={onPaneActivate}
+          onSplitResize={onSplitResize}
+          onSeparatorDragStart={onSeparatorDragStart}
+          onSeparatorDrag={onSeparatorDrag}
+          onSeparatorDragEnd={onSeparatorDragEnd}
+          contentOrigin={contentOrigin}
+          bounds={firstBounds}
         />
       </box>
       <box
+        minWidth={node.direction === 'vertical' ? 1 : undefined}
+        minHeight={node.direction === 'horizontal' ? 1 : undefined}
+        backgroundColor={theme.border}
         onMouseDown={(e: OtuiMouseEvent) => {
           e.preventDefault()
           if (!onSeparatorDragStart) return
@@ -147,28 +150,25 @@ export function SplitLayout({
             totalSize: node.direction === 'vertical' ? bounds.cols : bounds.rows,
           })
         }}
-        minHeight={node.direction === 'horizontal' ? 1 : undefined}
-        minWidth={node.direction === 'vertical' ? 1 : undefined}
-        backgroundColor={theme.border}
       />
-      <box flexDirection="column" flexGrow={secondGrow} overflow="hidden">
+      <box flexGrow={secondGrow} flexDirection="column" overflow="hidden">
         <SplitLayout
-          localScrollbackEnabled={localScrollbackEnabled}
-          mouseForwardingEnabled={mouseForwardingEnabled}
-          onTerminalScrollEvent={onTerminalScrollEvent}
-          onSeparatorDragStart={onSeparatorDragStart}
-          onTerminalMouseEvent={onTerminalMouseEvent}
-          onSeparatorDragEnd={onSeparatorDragEnd}
-          onSeparatorDrag={onSeparatorDrag}
-          onTerminalClick={onTerminalClick}
-          onPaneActivate={onPaneActivate}
-          contentOrigin={contentOrigin}
-          onSplitResize={onSplitResize}
-          activeTabId={activeTabId}
-          bounds={secondBounds}
-          focusMode={focusMode}
           node={node.second}
           tabs={tabs}
+          activeTabId={activeTabId}
+          focusMode={focusMode}
+          mouseForwardingEnabled={mouseForwardingEnabled}
+          localScrollbackEnabled={localScrollbackEnabled}
+          onTerminalMouseEvent={onTerminalMouseEvent}
+          onTerminalScrollEvent={onTerminalScrollEvent}
+          onTerminalClick={onTerminalClick}
+          onPaneActivate={onPaneActivate}
+          onSplitResize={onSplitResize}
+          onSeparatorDragStart={onSeparatorDragStart}
+          onSeparatorDrag={onSeparatorDrag}
+          onSeparatorDragEnd={onSeparatorDragEnd}
+          contentOrigin={contentOrigin}
+          bounds={secondBounds}
         />
       </box>
     </box>

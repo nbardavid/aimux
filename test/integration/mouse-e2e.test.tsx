@@ -237,6 +237,18 @@ function MouseHarness({
 
   return (
     <RootView
+      themeId="aimux"
+      contentOrigin={contentOriginRef.current}
+      mouseForwardingEnabled={mouseForwardingEnabled}
+      localScrollbackEnabled={localScrollbackEnabled}
+      onTerminalMouseEvent={(event, origin) => {
+        const sequence = encodeMouseEventForPty(event, origin)
+        if (sequence) {
+          ptyManager.write(TEST_TAB_ID, sequence)
+        }
+      }}
+      terminalCols={terminalSize.cols}
+      terminalRows={terminalSize.rows}
       onTerminalScrollEvent={(event) => {
         if (event.type !== 'scroll') {
           return
@@ -249,18 +261,6 @@ function MouseHarness({
           ptyManager.scrollViewport(TEST_TAB_ID, LOCAL_SCROLL_DELTA)
         }
       }}
-      onTerminalMouseEvent={(event, origin) => {
-        const sequence = encodeMouseEventForPty(event, origin)
-        if (sequence) {
-          ptyManager.write(TEST_TAB_ID, sequence)
-        }
-      }}
-      localScrollbackEnabled={localScrollbackEnabled}
-      mouseForwardingEnabled={mouseForwardingEnabled}
-      contentOrigin={contentOriginRef.current}
-      terminalCols={terminalSize.cols}
-      terminalRows={terminalSize.rows}
-      themeId="aimux"
     />
   )
 }
@@ -281,9 +281,9 @@ async function mountMouseHarness(
   const root = createRoot(renderer)
   root.render(
     <MouseHarness
-      localScrollbackEnabled={options.localScrollbackEnabled}
-      mouseForwardingEnabled={options.mouseForwardingEnabled}
       command={command}
+      mouseForwardingEnabled={options.mouseForwardingEnabled}
+      localScrollbackEnabled={options.localScrollbackEnabled}
     />
   )
 

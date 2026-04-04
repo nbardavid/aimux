@@ -96,16 +96,16 @@ export function TabItem({ active, focused, id, inLayout, isFocusedInput, tab }: 
 
   return (
     <box
-      backgroundColor={active ? theme.panelHighlight : theme.panelMuted}
-      borderColor={active ? theme.borderActive : theme.border}
-      flexDirection="column"
-      paddingBottom={0}
-      paddingRight={1}
-      border={active}
-      paddingLeft={1}
-      paddingTop={0}
-      gap={0}
       id={id}
+      paddingLeft={1}
+      paddingRight={1}
+      paddingTop={0}
+      paddingBottom={0}
+      border={active}
+      borderColor={active ? theme.borderActive : theme.border}
+      backgroundColor={active ? theme.panelHighlight : theme.panelMuted}
+      flexDirection="column"
+      gap={0}
     >
       <box flexDirection="row">
         <text fg={indicatorColor}>{indicator} </text>
@@ -113,7 +113,7 @@ export function TabItem({ active, focused, id, inLayout, isFocusedInput, tab }: 
       </box>
       <box flexDirection="row">
         <text fg={theme.textMuted}> {label} </text>
-        <ActivityIndicator isFocusedInput={isFocusedInput} tab={tab} />
+        <ActivityIndicator tab={tab} isFocusedInput={isFocusedInput} />
       </box>
     </box>
   )

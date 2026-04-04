@@ -183,20 +183,20 @@ export function App({ backend }: { backend: SessionBackend }) {
 
   return (
     <RootView
-      localScrollbackEnabled={activeLocalScrollbackEnabled}
-      mouseForwardingEnabled={activeMouseForwardingEnabled}
-      onTerminalScrollEvent={handleTerminalScrollEvent}
-      onSeparatorDragStart={handleSeparatorDragStart}
-      onTerminalMouseEvent={handleTerminalMouseEvent}
-      onSeparatorDragEnd={handleSeparatorDragEnd}
+      themeId={themeId}
       contentOrigin={contentOriginRef.current}
-      onSeparatorDrag={handleSeparatorDrag}
+      mouseForwardingEnabled={activeMouseForwardingEnabled}
+      localScrollbackEnabled={activeLocalScrollbackEnabled}
+      onTerminalMouseEvent={handleTerminalMouseEvent}
+      onTerminalScrollEvent={handleTerminalScrollEvent}
       onTerminalClick={handleTerminalClick}
       onPaneActivate={handlePaneActivate}
       onSplitResize={handleSplitResize}
+      onSeparatorDragStart={handleSeparatorDragStart}
+      onSeparatorDrag={handleSeparatorDrag}
+      onSeparatorDragEnd={handleSeparatorDragEnd}
       terminalCols={terminalSize.cols}
       terminalRows={terminalSize.rows}
-      themeId={themeId}
     />
   )
 }

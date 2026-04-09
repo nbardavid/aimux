@@ -25,7 +25,7 @@ function getTerminalBounds(cols: number, rows: number) {
 function resizeSplitTabs(
   backend: SessionBackend,
   layoutTrees: AppState['layoutTrees'],
-  tabs: AppState['tabs'],
+  tabIds: string[],
   cols: number,
   rows: number
 ): void {
@@ -38,9 +38,9 @@ function resizeSplitTabs(
     resizedTabIds.add(tabId)
   })
 
-  for (const tab of tabs) {
-    if (!resizedTabIds.has(tab.id)) {
-      backend.resizeTab(tab.id, cols, rows)
+  for (const id of tabIds) {
+    if (!resizedTabIds.has(id)) {
+      backend.resizeTab(id, cols, rows)
     }
   }
 }
@@ -63,6 +63,16 @@ export function useTerminalResize({
   state,
 }: UseTerminalResizeOptions) {
   const resizingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const tabIdsRef = useRef<string[]>([])
+
+  const currentTabIds = state.tabs.map((t) => t.id)
+  const tabIdsChanged =
+    currentTabIds.length !== tabIdsRef.current.length ||
+    currentTabIds.some((id, i) => id !== tabIdsRef.current[i])
+  if (tabIdsChanged) {
+    tabIdsRef.current = currentTabIds
+  }
+  const stableTabIds = tabIdsRef.current
 
   const terminalSize = useMemo(() => {
     const sidebarWidth = state.sidebar.visible ? state.sidebar.width + 1 : 0
@@ -103,7 +113,7 @@ export function useTerminalResize({
     const trees = Object.values(state.layoutTrees)
     const hasSplits = trees.some((t) => t.type === 'split')
     if (hasSplits) {
-      resizeSplitTabs(backend, state.layoutTrees, state.tabs, terminalSize.cols, terminalSize.rows)
+      resizeSplitTabs(backend, state.layoutTrees, stableTabIds, terminalSize.cols, terminalSize.rows)
     } else {
       backend.resizeAll(terminalSize.cols, terminalSize.rows)
     }
@@ -118,7 +128,7 @@ export function useTerminalResize({
     terminalSize.cols,
     terminalSize.rows,
     state.layoutTrees,
-    state.tabs,
+    stableTabIds,
   ])
 
   return terminalSize

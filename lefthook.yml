@@ -2,10 +2,10 @@ pre-commit:
   parallel: true
   commands:
     lint:
-      run: bunx oxlint {staged_files}
+      run: bunx oxlint --fix {staged_files}
       glob: '*.{ts,tsx}'
     format-check:
-      run: bunx oxfmt {staged_files}
+      run: bunx oxfmt --write {staged_files}
       glob: '*.{ts,tsx,json}'
 
 pre-push:
@@ -13,6 +13,8 @@ pre-push:
   commands:
     lint:
       run: bun run lint
+    format:
+      run: bun run format
     typecheck:
       run: bun run check
     test:

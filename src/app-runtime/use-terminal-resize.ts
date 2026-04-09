@@ -113,7 +113,13 @@ export function useTerminalResize({
     const trees = Object.values(state.layoutTrees)
     const hasSplits = trees.some((t) => t.type === 'split')
     if (hasSplits) {
-      resizeSplitTabs(backend, state.layoutTrees, stableTabIds, terminalSize.cols, terminalSize.rows)
+      resizeSplitTabs(
+        backend,
+        state.layoutTrees,
+        stableTabIds,
+        terminalSize.cols,
+        terminalSize.rows
+      )
     } else {
       backend.resizeAll(terminalSize.cols, terminalSize.rows)
     }

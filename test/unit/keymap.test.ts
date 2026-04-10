@@ -41,14 +41,74 @@ describe('mode handlers', () => {
     expect(result.actions).toEqual([{ delta: 1, type: 'move-active-tab' }])
   })
 
-  test('navigation: Ctrl+W dispatches close-active-tab', () => {
+  test('navigation: Ctrl+W is no longer bound (avoids accidental tab close)', () => {
     const handler = requireValue(getHandler('navigation'), 'Missing navigation handler')
-    const result = requireValue(
-      handler.handleKey(key('w', { ctrl: true }), ctx({ activeTabId: 'tab-1' })),
-      'Expected close-active-tab result'
+    const result = handler.handleKey(key('w', { ctrl: true }), ctx({ activeTabId: 'tab-1' }))
+    expect(result).toBeNull()
+  })
+
+  test('navigation: dd chord dispatches close-active-tab', () => {
+    const handler = requireValue(getHandler('navigation'), 'Missing navigation handler')
+    const context = ctx({ activeTabId: 'tab-1' })
+    const first = requireValue(handler.handleKey(key('d'), context), 'Expected dd prefix result')
+    expect(first.actions).toEqual([])
+    const second = requireValue(handler.handleKey(key('d'), context), 'Expected dd close result')
+    expect(second.actions).toEqual([{ type: 'close-active-tab' }])
+    expect(second.effects).toEqual([{ tabId: 'tab-1', type: 'close-tab' }])
+  })
+
+  test('navigation: dd chord resets on non-d key', () => {
+    const handler = requireValue(getHandler('navigation'), 'Missing navigation handler')
+    const context = ctx({ activeTabId: 'tab-1' })
+    handler.handleKey(key('d'), context)
+    const interrupt = requireValue(handler.handleKey(key('j'), context), 'Expected j result')
+    expect(interrupt.actions).toEqual([{ delta: 1, type: 'move-active-tab' }])
+    // Now a single d should only arm the chord, not close
+    const armed = requireValue(handler.handleKey(key('d'), context), 'Expected armed result')
+    expect(armed.actions).toEqual([])
+  })
+
+  test('layout: Ctrl+Z exits to navigation and reveals sidebar if hidden', () => {
+    const handler = requireValue(getHandler('layout'), 'Missing layout handler')
+    const hiddenCtx = ctx()
+    hiddenCtx.state.sidebar = { ...hiddenCtx.state.sidebar, visible: false }
+    const hiddenResult = requireValue(
+      handler.handleKey(key('z', { ctrl: true }), hiddenCtx),
+      'Expected layout Ctrl+Z result'
     )
-    expect(result.actions).toEqual([{ type: 'close-active-tab' }])
-    expect(result.effects).toEqual([{ tabId: 'tab-1', type: 'close-tab' }])
+    expect(hiddenResult.transition).toBe('navigation')
+    expect(hiddenResult.actions).toEqual([
+      { focusMode: 'navigation', type: 'set-focus-mode' },
+      { type: 'toggle-sidebar' },
+    ])
+
+    const visibleCtx = ctx()
+    visibleCtx.state.sidebar = { ...visibleCtx.state.sidebar, visible: true }
+    const visibleResult = requireValue(
+      handler.handleKey(key('z', { ctrl: true }), visibleCtx),
+      'Expected layout Ctrl+Z result'
+    )
+    expect(visibleResult.transition).toBe('navigation')
+    expect(visibleResult.actions).toEqual([{ focusMode: 'navigation', type: 'set-focus-mode' }])
+  })
+
+  test('navigation: Ctrl+Z opens sidebar when hidden, no-op when visible', () => {
+    const handler = requireValue(getHandler('navigation'), 'Missing navigation handler')
+    const hiddenCtx = ctx()
+    hiddenCtx.state.sidebar = { ...hiddenCtx.state.sidebar, visible: false }
+    const openResult = requireValue(
+      handler.handleKey(key('z', { ctrl: true }), hiddenCtx),
+      'Expected Ctrl+Z result'
+    )
+    expect(openResult.actions).toEqual([{ type: 'toggle-sidebar' }])
+
+    const visibleCtx = ctx()
+    visibleCtx.state.sidebar = { ...visibleCtx.state.sidebar, visible: true }
+    const noopResult = requireValue(
+      handler.handleKey(key('z', { ctrl: true }), visibleCtx),
+      'Expected Ctrl+Z noop result'
+    )
+    expect(noopResult.actions).toEqual([])
   })
 
   test('navigation: Ctrl+R triggers restart-tab effect', () => {

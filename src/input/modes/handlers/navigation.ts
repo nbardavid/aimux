@@ -6,8 +6,26 @@ function findActiveTab(ctx: ModeContext) {
   return ctx.state.tabs.find((tab) => tab.id === ctx.state.activeTabId)
 }
 
+function isPlainD(key: KeyInput): boolean {
+  return key.name === 'd' && !key.ctrl && !key.shift && !key.meta
+}
+
+let awaitingSecondD = false
+
 export const navigationMode: ModeHandler = {
   handleKey(key: KeyInput, ctx: ModeContext): KeyResult | null {
+    if (awaitingSecondD) {
+      awaitingSecondD = false
+      if (isPlainD(key)) {
+        const tabId = ctx.state.activeTabId
+        if (tabId) {
+          return result([{ type: 'close-active-tab' }], [{ tabId, type: 'close-tab' }])
+        }
+        return null
+      }
+      // fall through so the second key gets its normal handling
+    }
+
     if (key.ctrl && key.name === 'c') {
       return result([], [{ state: ctx.state, type: 'quit' }])
     }
@@ -20,13 +38,16 @@ export const navigationMode: ModeHandler = {
       return result([{ type: 'open-session-picker' }], [], 'modal.session-picker')
     }
 
-    if (key.ctrl && key.name === 'w') {
-      const tabId = ctx.state.activeTabId
-      if (tabId) {
-        return result([{ type: 'close-active-tab' }], [{ tabId, type: 'close-tab' }])
+    if (key.ctrl && key.name === 'z') {
+      if (!ctx.state.sidebar.visible) {
+        return result([{ type: 'toggle-sidebar' }])
       }
+      return result([])
+    }
 
-      return null
+    if (isPlainD(key)) {
+      awaitingSecondD = true
+      return result([])
     }
 
     if (key.ctrl && key.name === 'b') {

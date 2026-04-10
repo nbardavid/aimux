@@ -230,6 +230,8 @@ export function RootView({
         ) : (
           <TerminalPane
             tab={activeTab}
+            tabId={activeTabId ?? undefined}
+            isActive
             focusMode={focusMode}
             contentOrigin={contentOrigin}
             mouseForwardingEnabled={mouseForwardingEnabled}
@@ -237,6 +239,7 @@ export function RootView({
             onTerminalMouseEvent={onTerminalMouseEvent}
             onTerminalScrollEvent={onTerminalScrollEvent}
             onTerminalClick={onTerminalClick}
+            onPaneActivate={onPaneActivate}
           />
         )}
       </box>

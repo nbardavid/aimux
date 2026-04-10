@@ -34,11 +34,24 @@ function openSplitPicker(direction: 'vertical' | 'horizontal'): KeyResult {
   return result([{ direction, type: 'open-split-picker' }], [], 'modal.split-picker')
 }
 
+function exitToNavigation(ctx: ModeContext): KeyResult {
+  const actions: KeyResult['actions'] = [{ focusMode: 'navigation', type: 'set-focus-mode' }]
+  if (!ctx.state.sidebar.visible) {
+    actions.push({ type: 'toggle-sidebar' })
+  }
+  return result(actions, [], 'navigation')
+}
+
 export const layoutMode: ModeHandler = {
   handleKey(key: KeyInput, ctx: ModeContext): KeyResult | null {
     // Escape or Ctrl+W again → back to terminal-input
     if (key.name === 'escape' || (key.ctrl && key.name === 'w')) {
       return exitToInput()
+    }
+
+    // Ctrl+Z → exit to navigation mode and reveal sidebar if hidden
+    if (key.ctrl && key.name === 'z') {
+      return exitToNavigation(ctx)
     }
 
     // Resize: Shift+H/J/K/L — stays in layout mode for repeated adjustments

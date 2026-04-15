@@ -138,9 +138,7 @@ test('extractStreamText rtrims trailing padding on multi-line join', () => {
     makeLine('  echo "b" && \\        '),
     makeLine('  echo "c"              '),
   ]
-  expect(extractStreamText(lines, 0, 0, 2, 24)).toBe(
-    'echo "a" && \\\n  echo "b" && \\\n  echo "c"'
-  )
+  expect(extractStreamText(lines, 0, 0, 2, 24)).toBe('echo "a" && \\\n  echo "b" && \\\n  echo "c"')
 })
 
 test('extractStreamText preserves single-line trailing spaces', () => {

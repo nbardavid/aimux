@@ -136,3 +136,51 @@ test('parsePorcelainEntries skips ignored and comments', () => {
   expect(entries).toHaveLength(1)
   expect(entries[0]?.path).toBe('real.txt')
 })
+
+test('parsePorcelainEntries handles ordinary path containing a space', () => {
+  const output = '1 .M N... 100644 100644 100644 abc abc src/my file.ts\n'
+  const numstat = new Map([['src/my file.ts', { added: 1, removed: 0 }]])
+  const entries = parsePorcelainEntries(output, new Map(), numstat)
+  expect(entries).toHaveLength(1)
+  expect(entries[0]).toMatchObject({
+    added: 1,
+    path: 'src/my file.ts',
+    removed: 0,
+    status: 'M',
+  })
+})
+
+test('parsePorcelainEntries handles rename whose paths contain spaces', () => {
+  const output = '2 R. N... 100644 100644 100644 abc def R100 new name.ts\told name.ts\n'
+  const entries = parsePorcelainEntries(output, new Map(), new Map())
+  expect(entries).toHaveLength(1)
+  expect(entries[0]).toMatchObject({
+    path: 'new name.ts',
+    renamedFrom: 'old name.ts',
+    section: 'staged',
+    status: 'R',
+  })
+})
+
+test('parsePorcelainEntries handles copied files (C)', () => {
+  const output = '2 C. N... 100644 100644 100644 abc def C100 copy.ts\torig.ts\n'
+  const entries = parsePorcelainEntries(output, new Map(), new Map())
+  expect(entries).toHaveLength(1)
+  expect(entries[0]).toMatchObject({
+    path: 'copy.ts',
+    renamedFrom: 'orig.ts',
+    section: 'staged',
+    status: 'C',
+  })
+})
+
+test('parsePorcelainEntries handles submodule ordinary entries', () => {
+  const output = '1 .M SCMU 160000 160000 160000 abc abc vendor/sub\n'
+  const entries = parsePorcelainEntries(output, new Map(), new Map())
+  expect(entries).toHaveLength(1)
+  expect(entries[0]).toMatchObject({
+    path: 'vendor/sub',
+    section: 'unstaged',
+    status: 'M',
+  })
+})

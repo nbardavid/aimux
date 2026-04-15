@@ -97,3 +97,52 @@ test('git-refresh-error clears files and stores kind', () => {
   expect(s1.gitPanel.error).toBe('not-a-repo')
   expect(s1.gitPanel.files).toHaveLength(0)
 })
+
+test('git-refresh-success produces new state when file order changes', () => {
+  const s0 = seedState()
+  const s1 = appReducer(s0, {
+    payload: {
+      ahead: 0,
+      behind: 0,
+      branch: 'main',
+      files: [entry({ path: 'a.ts' }), entry({ path: 'b.ts' })],
+    },
+    type: 'git-refresh-success',
+  })
+  const s2 = appReducer(s1, {
+    payload: {
+      ahead: 0,
+      behind: 0,
+      branch: 'main',
+      files: [entry({ path: 'b.ts' }), entry({ path: 'a.ts' })],
+    },
+    type: 'git-refresh-success',
+  })
+  expect(s2).not.toBe(s1)
+  expect(s2.gitPanel.files.map((f) => f.path)).toEqual(['b.ts', 'a.ts'])
+})
+
+test('git-panel-reset wipes gitPanel state', () => {
+  const s0 = seedState()
+  const s1 = appReducer(s0, {
+    payload: {
+      ahead: 2,
+      behind: 1,
+      branch: 'feature',
+      files: [entry({ path: 'a.ts' })],
+    },
+    type: 'git-refresh-success',
+  })
+  const s2 = appReducer(s1, { type: 'git-panel-reset' })
+  expect(s2.gitPanel.branch).toBeNull()
+  expect(s2.gitPanel.files).toHaveLength(0)
+  expect(s2.gitPanel.ahead).toBe(0)
+  expect(s2.gitPanel.behind).toBe(0)
+  expect(s2.gitPanel.error).toBeNull()
+})
+
+test('git-panel-reset is idempotent when already empty', () => {
+  const s0 = seedState()
+  const s1 = appReducer(s0, { type: 'git-panel-reset' })
+  expect(s1).toBe(s0)
+})

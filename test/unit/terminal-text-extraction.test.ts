@@ -131,3 +131,17 @@ test('extractStreamText clamps negative cols to zero', () => {
   const lines = [makeLine('hello')]
   expect(extractStreamText(lines, 0, -3, 0, 4)).toBe('hell')
 })
+
+test('extractStreamText rtrims trailing padding on multi-line join', () => {
+  const lines = [
+    makeLine('echo "a" && \\          '),
+    makeLine('  echo "b" && \\        '),
+    makeLine('  echo "c"              '),
+  ]
+  expect(extractStreamText(lines, 0, 0, 2, 24)).toBe('echo "a" && \\\n  echo "b" && \\\n  echo "c"')
+})
+
+test('extractStreamText preserves single-line trailing spaces', () => {
+  const lines = [makeLine('abc   ')]
+  expect(extractStreamText(lines, 0, 0, 0, 6)).toBe('abc   ')
+})

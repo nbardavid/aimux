@@ -31,7 +31,7 @@ export function parseBranchLines(output: string): {
   let branch: string | null = null
   let ahead = 0
   let behind = 0
-  for (const line of output.split('\n')) {
+  for (const line of output.split('\0')) {
     if (line.startsWith('# branch.head ')) {
       const head = line.slice('# branch.head '.length).trim()
       branch = head === '(detached)' ? null : head
@@ -97,52 +97,63 @@ export function parsePorcelainEntries(
   unstagedNumstat: Map<string, NumstatRow>
 ): GitFileEntry[] {
   const files: GitFileEntry[] = []
-  const lines = output.split('\n')
-  for (const line of lines) {
-    if (!line || line.startsWith('#') || line.startsWith('!')) continue
+  const records = output.split('\0')
+  let i = 0
+  while (i < records.length) {
+    const line = records[i] ?? ''
+    if (!line || line.startsWith('#') || line.startsWith('!')) {
+      i++
+      continue
+    }
 
     if (line.startsWith('? ')) {
-      const path = line.slice(2)
-      files.push(buildEntry('untracked', '?', path, unstagedNumstat))
+      files.push(buildEntry('untracked', '?', line.slice(2), unstagedNumstat))
+      i++
       continue
     }
 
     if (line.startsWith('1 ')) {
       const parts = line.split(' ')
-      if (parts.length < 9) continue
-      const xy = parts[1] ?? '..'
-      const path = parts.slice(8).join(' ')
-      const x = toStatus(xy[0] ?? '.')
-      const y = toStatus(xy[1] ?? '.')
-      if (x) files.push(buildEntry('staged', x, path, stagedNumstat))
-      if (y) files.push(buildEntry('unstaged', y, path, unstagedNumstat))
+      if (parts.length >= 9) {
+        const xy = parts[1] ?? '..'
+        const path = parts.slice(8).join(' ')
+        const x = toStatus(xy[0] ?? '.')
+        const y = toStatus(xy[1] ?? '.')
+        if (x) files.push(buildEntry('staged', x, path, stagedNumstat))
+        if (y) files.push(buildEntry('unstaged', y, path, unstagedNumstat))
+      }
+      i++
       continue
     }
 
     if (line.startsWith('2 ')) {
       const parts = line.split(' ')
-      if (parts.length < 10) continue
-      const xy = parts[1] ?? '..'
-      const trailer = parts.slice(9).join(' ')
-      const [newPath, origPath] = trailer.split('\t')
-      if (!newPath || !origPath) continue
-      const x = toStatus(xy[0] ?? '.')
-      const y = toStatus(xy[1] ?? '.')
-      if (x) {
-        files.push(buildEntry('staged', x, newPath, stagedNumstat, origPath))
+      const origPath = records[i + 1] ?? ''
+      if (parts.length >= 10 && origPath) {
+        const xy = parts[1] ?? '..'
+        const newPath = parts.slice(9).join(' ')
+        if (newPath) {
+          const x = toStatus(xy[0] ?? '.')
+          const y = toStatus(xy[1] ?? '.')
+          if (x) files.push(buildEntry('staged', x, newPath, stagedNumstat, origPath))
+          if (y) files.push(buildEntry('unstaged', y, newPath, unstagedNumstat, origPath))
+        }
       }
-      if (y) {
-        files.push(buildEntry('unstaged', y, newPath, unstagedNumstat, origPath))
-      }
+      i += 2
       continue
     }
 
     if (line.startsWith('u ')) {
       const parts = line.split(' ')
-      if (parts.length < 11) continue
-      const path = parts.slice(10).join(' ')
-      files.push(buildEntry('unstaged', 'U', path, unstagedNumstat))
+      if (parts.length >= 11) {
+        const path = parts.slice(10).join(' ')
+        files.push(buildEntry('unstaged', 'U', path, unstagedNumstat))
+      }
+      i++
+      continue
     }
+
+    i++
   }
   return files
 }
@@ -150,9 +161,7 @@ export function parsePorcelainEntries(
 export async function collectGitStatus(cwd: string): Promise<GitCollectResult> {
   try {
     const [statusResult, unstagedDiff, stagedDiff] = await Promise.all([
-      $`git -C ${cwd} -c core.quotePath=false status --porcelain=v2 -b --untracked-files=all`
-        .quiet()
-        .nothrow(),
+      $`git -C ${cwd} status --porcelain=v2 -b -z --untracked-files=all`.quiet().nothrow(),
       $`git -C ${cwd} -c core.quotePath=false diff --numstat`.quiet().nothrow(),
       $`git -C ${cwd} -c core.quotePath=false diff --cached --numstat`.quiet().nothrow(),
     ])

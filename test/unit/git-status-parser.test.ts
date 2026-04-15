@@ -8,17 +8,17 @@ test('parseBranchLines extracts branch + ahead/behind', () => {
     '# branch.head main',
     '# branch.upstream origin/main',
     '# branch.ab +2 -1',
-  ].join('\n')
+  ].join('\0')
   expect(parseBranchLines(output)).toEqual({ ahead: 2, behind: 1, branch: 'main' })
 })
 
 test('parseBranchLines handles detached head', () => {
-  const output = '# branch.head (detached)\n'
+  const output = '# branch.head (detached)\0'
   expect(parseBranchLines(output).branch).toBeNull()
 })
 
 test('parseBranchLines handles missing ab line', () => {
-  const output = '# branch.head feature/x\n'
+  const output = '# branch.head feature/x\0'
   expect(parseBranchLines(output)).toEqual({ ahead: 0, behind: 0, branch: 'feature/x' })
 })
 
@@ -37,7 +37,7 @@ test('parseNumstat skips rename notation paths', () => {
 })
 
 test('parsePorcelainEntries handles modified unstaged (ordinary)', () => {
-  const output = '1 .M N... 100644 100644 100644 abc abc src/a.ts\n'
+  const output = '1 .M N... 100644 100644 100644 abc abc src/a.ts\0'
   const numstat = new Map([['src/a.ts', { added: 5, removed: 2 }]])
   const entries = parsePorcelainEntries(output, new Map(), numstat)
   expect(entries).toHaveLength(1)
@@ -51,7 +51,7 @@ test('parsePorcelainEntries handles modified unstaged (ordinary)', () => {
 })
 
 test('parsePorcelainEntries handles staged + unstaged modification (MM)', () => {
-  const output = '1 MM N... 100644 100644 100644 abc def src/a.ts\n'
+  const output = '1 MM N... 100644 100644 100644 abc def src/a.ts\0'
   const staged = new Map([['src/a.ts', { added: 3, removed: 1 }]])
   const unstaged = new Map([['src/a.ts', { added: 2, removed: 0 }]])
   const entries = parsePorcelainEntries(output, staged, unstaged)
@@ -71,7 +71,7 @@ test('parsePorcelainEntries handles staged + unstaged modification (MM)', () => 
 })
 
 test('parsePorcelainEntries handles deletions with numstat', () => {
-  const output = '1 .D N... 100644 100644 000000 abc abc old.ts\n'
+  const output = '1 .D N... 100644 100644 000000 abc abc old.ts\0'
   const numstat = new Map([['old.ts', { added: 0, removed: 45 }]])
   const entries = parsePorcelainEntries(output, new Map(), numstat)
   expect(entries[0]).toMatchObject({
@@ -84,7 +84,7 @@ test('parsePorcelainEntries handles deletions with numstat', () => {
 })
 
 test('parsePorcelainEntries defaults missing numstat to zero (non-untracked)', () => {
-  const output = '1 .M N... 100644 100644 100644 abc abc mode-only.ts\n'
+  const output = '1 .M N... 100644 100644 100644 abc abc mode-only.ts\0'
   const entries = parsePorcelainEntries(output, new Map(), new Map())
   expect(entries[0]).toMatchObject({
     added: 0,
@@ -95,7 +95,7 @@ test('parsePorcelainEntries defaults missing numstat to zero (non-untracked)', (
 })
 
 test('parsePorcelainEntries handles rename entries', () => {
-  const output = '2 R. N... 100644 100644 100644 abc def R100 new.ts\told.ts\n'
+  const output = '2 R. N... 100644 100644 100644 abc def R100 new.ts\0old.ts\0'
   const entries = parsePorcelainEntries(output, new Map(), new Map())
   expect(entries).toHaveLength(1)
   expect(entries[0]).toEqual({
@@ -109,7 +109,7 @@ test('parsePorcelainEntries handles rename entries', () => {
 })
 
 test('parsePorcelainEntries handles untracked files', () => {
-  const output = '? tmp/draft.txt\n? another.md\n'
+  const output = '? tmp/draft.txt\0? another.md\0'
   const entries = parsePorcelainEntries(output, new Map(), new Map())
   expect(entries).toHaveLength(2)
   expect(entries[0]).toMatchObject({
@@ -121,7 +121,7 @@ test('parsePorcelainEntries handles untracked files', () => {
 })
 
 test('parsePorcelainEntries handles unmerged', () => {
-  const output = 'u UU N... 100644 100644 100644 100644 abc def ghi conflict.ts\n'
+  const output = 'u UU N... 100644 100644 100644 100644 abc def ghi conflict.ts\0'
   const entries = parsePorcelainEntries(output, new Map(), new Map())
   expect(entries[0]).toMatchObject({
     path: 'conflict.ts',
@@ -131,14 +131,14 @@ test('parsePorcelainEntries handles unmerged', () => {
 })
 
 test('parsePorcelainEntries skips ignored and comments', () => {
-  const output = '# branch.head main\n! ignored.log\n? real.txt\n'
+  const output = '# branch.head main\0! ignored.log\0? real.txt\0'
   const entries = parsePorcelainEntries(output, new Map(), new Map())
   expect(entries).toHaveLength(1)
   expect(entries[0]?.path).toBe('real.txt')
 })
 
 test('parsePorcelainEntries handles ordinary path containing a space', () => {
-  const output = '1 .M N... 100644 100644 100644 abc abc src/my file.ts\n'
+  const output = '1 .M N... 100644 100644 100644 abc abc src/my file.ts\0'
   const numstat = new Map([['src/my file.ts', { added: 1, removed: 0 }]])
   const entries = parsePorcelainEntries(output, new Map(), numstat)
   expect(entries).toHaveLength(1)
@@ -151,7 +151,7 @@ test('parsePorcelainEntries handles ordinary path containing a space', () => {
 })
 
 test('parsePorcelainEntries handles rename whose paths contain spaces', () => {
-  const output = '2 R. N... 100644 100644 100644 abc def R100 new name.ts\told name.ts\n'
+  const output = '2 R. N... 100644 100644 100644 abc def R100 new name.ts\0old name.ts\0'
   const entries = parsePorcelainEntries(output, new Map(), new Map())
   expect(entries).toHaveLength(1)
   expect(entries[0]).toMatchObject({
@@ -163,7 +163,7 @@ test('parsePorcelainEntries handles rename whose paths contain spaces', () => {
 })
 
 test('parsePorcelainEntries handles copied files (C)', () => {
-  const output = '2 C. N... 100644 100644 100644 abc def C100 copy.ts\torig.ts\n'
+  const output = '2 C. N... 100644 100644 100644 abc def C100 copy.ts\0orig.ts\0'
   const entries = parsePorcelainEntries(output, new Map(), new Map())
   expect(entries).toHaveLength(1)
   expect(entries[0]).toMatchObject({
@@ -175,12 +175,30 @@ test('parsePorcelainEntries handles copied files (C)', () => {
 })
 
 test('parsePorcelainEntries handles submodule ordinary entries', () => {
-  const output = '1 .M SCMU 160000 160000 160000 abc abc vendor/sub\n'
+  const output = '1 .M SCMU 160000 160000 160000 abc abc vendor/sub\0'
   const entries = parsePorcelainEntries(output, new Map(), new Map())
   expect(entries).toHaveLength(1)
   expect(entries[0]).toMatchObject({
     path: 'vendor/sub',
     section: 'unstaged',
     status: 'M',
+  })
+})
+
+test('parsePorcelainEntries handles path containing a newline (NUL delim)', () => {
+  const output = '1 .M N... 100644 100644 100644 abc abc weird\nname.ts\0'
+  const entries = parsePorcelainEntries(output, new Map(), new Map())
+  expect(entries).toHaveLength(1)
+  expect(entries[0]?.path).toBe('weird\nname.ts')
+})
+
+test('parsePorcelainEntries handles rename with newline in origPath', () => {
+  const output = '2 R. N... 100644 100644 100644 abc def R100 new.ts\0old\nname.ts\0'
+  const entries = parsePorcelainEntries(output, new Map(), new Map())
+  expect(entries).toHaveLength(1)
+  expect(entries[0]).toMatchObject({
+    path: 'new.ts',
+    renamedFrom: 'old\nname.ts',
+    status: 'R',
   })
 })

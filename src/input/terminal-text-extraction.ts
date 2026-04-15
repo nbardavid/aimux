@@ -4,6 +4,17 @@ export function getLineText(line: TerminalLine): string {
   return line.spans.map((span) => span.text).join('')
 }
 
+/**
+ * Extract text from a range of terminal lines as a single string.
+ *
+ * Multi-row selections are lossy: trailing `[ \t]+` is stripped from each
+ * joined segment to drop the viewport padding the snapshot layer fills blank
+ * cells with. Without this, shell line continuations (`\` followed by padding
+ * spaces then `\n`) paste as escaped-space sequences instead of continuations.
+ *
+ * Single-row selections are returned verbatim — trailing spaces the user
+ * explicitly dragged over are preserved.
+ */
 export function extractStreamText(
   lines: TerminalLine[],
   startRow: number,
@@ -25,15 +36,19 @@ export function extractStreamText(
     if (row === startRow && row === endRow) {
       parts.push(text.slice(Math.max(0, startCol), Math.max(0, endCol)))
     } else if (row === startRow) {
-      parts.push(text.slice(Math.max(0, startCol)))
+      parts.push(rtrim(text.slice(Math.max(0, startCol))))
     } else if (row === endRow) {
-      parts.push(text.slice(0, Math.max(0, endCol)))
+      parts.push(rtrim(text.slice(0, Math.max(0, endCol))))
     } else {
-      parts.push(text)
+      parts.push(rtrim(text))
     }
   }
 
   return parts.join('\n')
+}
+
+function rtrim(text: string): string {
+  return text.replace(/[ \t]+$/, '')
 }
 
 export function getWordAtColumn(

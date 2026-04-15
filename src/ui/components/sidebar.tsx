@@ -192,13 +192,25 @@ export function Sidebar({ onTabActivate }: SidebarProps) {
       gap={0}
     >
       <SidebarTop />
-      <box flexDirection="column" flexGrow={tabsGrow} overflow="hidden">
+      <box
+        flexDirection="column"
+        flexGrow={tabsGrow}
+        flexShrink={1}
+        flexBasis={0}
+        overflow="hidden"
+      >
         <TabsBody onTabActivate={onTabActivate} />
       </box>
       {gitPanelVisible ? (
         <>
           <text fg={theme.dim}>{'·'.repeat(Math.max(0, sidebarWidth - 2))}</text>
-          <box flexDirection="column" flexGrow={gitGrow} overflow="hidden">
+          <box
+            flexDirection="column"
+            flexGrow={gitGrow}
+            flexShrink={1}
+            flexBasis={0}
+            overflow="hidden"
+          >
             <GitBody />
           </box>
         </>

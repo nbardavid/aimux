@@ -20,6 +20,7 @@ export type ThemeId =
   | 'aimux'
   | 'dracula'
   | 'dracula-at-night'
+  | 'everforest'
   | 'tokyo-night'
   | 'gruvbox-dark'
   | 'catppuccin-mocha'
@@ -108,6 +109,26 @@ export const THEMES: Record<ThemeId, { name: string; colors: ThemeColors }> = {
       warning: '#f1fa8c',
     },
     name: 'Dracula At Night',
+  },
+  'everforest': {
+    colors: {
+      accent: '#a7c080',
+      accentAlt: '#d699b6',
+      background: '#2d353b',
+      border: '#4f585e',
+      borderActive: '#a7c080',
+      danger: '#e67e80',
+      dim: '#3d484d',
+      overlay: '#232a2e',
+      panel: '#343f44',
+      panelHighlight: '#475258',
+      panelMuted: '#3d484d',
+      success: '#a7c080',
+      text: '#d3c6aa',
+      textMuted: '#859289',
+      warning: '#dbbc7f',
+    },
+    name: 'Everforest',
   },
   'gruvbox-dark': {
     colors: {

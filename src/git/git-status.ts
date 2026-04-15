@@ -150,7 +150,9 @@ export function parsePorcelainEntries(
 export async function collectGitStatus(cwd: string): Promise<GitCollectResult> {
   try {
     const [statusResult, unstagedDiff, stagedDiff] = await Promise.all([
-      $`git -C ${cwd} -c core.quotePath=false status --porcelain=v2 -b --untracked-files=all`.quiet().nothrow(),
+      $`git -C ${cwd} -c core.quotePath=false status --porcelain=v2 -b --untracked-files=all`
+        .quiet()
+        .nothrow(),
       $`git -C ${cwd} -c core.quotePath=false diff --numstat`.quiet().nothrow(),
       $`git -C ${cwd} -c core.quotePath=false diff --cached --numstat`.quiet().nothrow(),
     ])

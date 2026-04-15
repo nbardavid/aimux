@@ -52,9 +52,6 @@ export function reduceGitPanelState(state: AppState, action: AppAction): AppStat
       if (nextRatio === state.sidebar.gitPanelRatio) return state
       return { ...state, sidebar: { ...state.sidebar, gitPanelRatio: nextRatio } }
     }
-    case 'git-refresh-start':
-      if (!state.gitPanel.loading) return state
-      return state
     case 'git-refresh-success': {
       const prev = state.gitPanel
       const next = action.payload

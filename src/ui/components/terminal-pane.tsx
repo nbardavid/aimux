@@ -55,7 +55,7 @@ function getBorderColor(isActive: boolean, focusMode: TerminalPaneProps['focusMo
   return theme.dim
 }
 
-function renderSpan(span: TerminalSpan, index: number): ReactNode {
+function renderSpan(span: TerminalSpan, key: string): ReactNode {
   let node: ReactNode = span.text
 
   if (span.underline) {
@@ -71,23 +71,25 @@ function renderSpan(span: TerminalSpan, index: number): ReactNode {
   }
 
   return (
-    <text key={`span-${index}`} fg={span.fg ?? theme.text} bg={span.bg}>
+    <span key={key} fg={span.fg ?? theme.text} bg={span.bg}>
       {node}
-    </text>
+    </span>
   )
 }
 
 function renderViewport(tab: TabSession): ReactNode {
   if (tab.viewport && tab.viewport.lines.length > 0) {
-    return tab.viewport.lines.map((line, lineIndex) => (
-      <box key={`line-${lineIndex}`} flexDirection="row" minHeight={1} width="100%">
-        {line.spans.length > 0 ? (
-          line.spans.map((span, spanIndex) => renderSpan(span, spanIndex))
-        ) : (
-          <text> </text>
-        )}
-      </box>
-    ))
+    const lines = tab.viewport.lines
+    return (
+      <text fg={theme.text}>
+        {lines.map((line, lineIndex) => (
+          <span key={`line-${lineIndex}`}>
+            {line.spans.map((span, spanIndex) => renderSpan(span, `s-${spanIndex}`))}
+            {lineIndex < lines.length - 1 ? '\n' : ''}
+          </span>
+        ))}
+      </text>
+    )
   }
 
   return (

@@ -8,6 +8,7 @@ import { INPUT_DEBUG_LOG_PATH, logInputDebug } from '../debug/input-log'
 import { createRawInputHandler } from '../input/raw-input-handler'
 import { copyToSystemClipboard } from '../platform/clipboard'
 import { writePasteToTab, writeToTab } from './pty-write'
+import { type OtuiSelection, resolveSelectionClipboardText } from './selection-clipboard'
 
 const BRACKETED_PASTE_ENABLE_SEQUENCE = '\x1b[?2004h'
 const BRACKETED_PASTE_DISABLE_SEQUENCE = '\x1b[?2004l'
@@ -86,11 +87,17 @@ export function useRendererBindings({
       writePasteToTab(backend, tabId, tab, payload)
     }
 
-    const handleSelection = (selection: { isDragging?: boolean; getSelectedText(): string }) => {
-      const selectedText = selection.getSelectedText()
+    const handleSelection = (selection: OtuiSelection) => {
+      const { fallbackLength, selectedText, streamLength } = resolveSelectionClipboardText(
+        selection,
+        activeTabRef.current
+      )
+
       logInputDebug('app.selection', {
+        fallbackLength,
         isDragging: selection.isDragging ?? false,
         osc52Supported: renderer.isOsc52Supported(),
+        streamLength,
         textLength: selectedText.length,
       })
 

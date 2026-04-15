@@ -2,7 +2,11 @@ import { expect, test } from 'bun:test'
 
 import type { TerminalLine } from '../../src/state/types'
 
-import { getLineText, getWordAtColumn } from '../../src/input/terminal-text-extraction'
+import {
+  extractStreamText,
+  getLineText,
+  getWordAtColumn,
+} from '../../src/input/terminal-text-extraction'
 
 function makeLine(text: string): TerminalLine {
   return { spans: [{ text }] }
@@ -79,4 +83,51 @@ test('getWordAtColumn with URL-like text', () => {
     startCol: 6,
     text: 'https://example.com/path',
   })
+})
+
+test('extractStreamText single line slice', () => {
+  const lines = [makeLine('hello world')]
+  expect(extractStreamText(lines, 0, 6, 0, 11)).toBe('world')
+})
+
+test('extractStreamText multi-line stream anchor to focus', () => {
+  const lines = [
+    makeLine('first line here'),
+    makeLine('middle full line'),
+    makeLine('last line end'),
+  ]
+  expect(extractStreamText(lines, 0, 6, 2, 4)).toBe('line here\nmiddle full line\nlast')
+})
+
+test('extractStreamText reversed selection is normalized', () => {
+  const lines = [makeLine('alpha'), makeLine('beta'), makeLine('gamma')]
+  const forward = extractStreamText(lines, 0, 2, 2, 3)
+  const reverse = extractStreamText(lines, 2, 3, 0, 2)
+  expect(forward).toBe('pha\nbeta\ngam')
+  expect(reverse).toBe(forward)
+})
+
+test('extractStreamText same row reversed cols is normalized', () => {
+  const lines = [makeLine('abcdef')]
+  expect(extractStreamText(lines, 0, 4, 0, 1)).toBe('bcd')
+})
+
+test('extractStreamText empty middle line yields empty segment', () => {
+  const lines = [makeLine('top'), makeLine(''), makeLine('bottom')]
+  expect(extractStreamText(lines, 0, 1, 2, 3)).toBe('op\n\nbot')
+})
+
+test('extractStreamText concatenates multi-span lines', () => {
+  const lines = [makeMultiSpanLine('foo', ' ', 'bar'), makeMultiSpanLine('baz')]
+  expect(extractStreamText(lines, 0, 4, 1, 3)).toBe('bar\nbaz')
+})
+
+test('extractStreamText clamps rows out of bounds', () => {
+  const lines = [makeLine('only')]
+  expect(extractStreamText(lines, -5, 0, 10, 4)).toBe('only')
+})
+
+test('extractStreamText clamps negative cols to zero', () => {
+  const lines = [makeLine('hello')]
+  expect(extractStreamText(lines, 0, -3, 0, 4)).toBe('hell')
 })

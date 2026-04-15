@@ -17,7 +17,6 @@ export function useGitPanelPolling({ enabled, projectPath }: Options): void {
     let cancelled = false
 
     const refresh = async () => {
-      appStore.getState().dispatch({ type: 'git-refresh-start' })
       const result = await collectGitStatus(projectPath)
       if (cancelled) return
       if (result.kind === 'ok') {

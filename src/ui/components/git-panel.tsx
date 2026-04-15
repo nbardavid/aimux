@@ -48,8 +48,7 @@ function maxDigitWidth(files: GitFileEntry[]): { added: number; removed: number 
 }
 
 function padRight(value: number | null, width: number): string {
-  if (value === null) return ' '.repeat(width)
-  return String(value).padStart(width, ' ')
+  return String(value ?? 0).padStart(width, ' ')
 }
 
 export function splitPath(path: string): { prefix: string; basename: string } {
@@ -102,19 +101,15 @@ function renderFileRow(
         {renderPath(file)}
       </box>
       {hasNumstat ? (
-        <box flexDirection="row">
-          <text fg={theme.success}>
-            {'+'}
-            {padRight(file.added, addedW)}
-          </text>
-          <text fg={theme.dim}> </text>
-          <text fg={theme.danger}>
-            {'−'}
-            {padRight(file.removed, removedW)}
-          </text>
+        <box flexDirection="row" flexShrink={0}>
+          <text fg={theme.success}>{`+${padRight(file.added, addedW)}`}</text>
+          <text fg={theme.dim}>{' '}</text>
+          <text fg={theme.danger}>{`−${padRight(file.removed, removedW)}`}</text>
         </box>
       ) : (
-        <text fg={theme.textMuted}>—</text>
+        <text fg={theme.textMuted} flexShrink={0}>
+          —
+        </text>
       )}
     </box>
   )
@@ -129,7 +124,7 @@ function renderSection(
 ): ReactNode {
   if (files.length === 0) return null
   return (
-    <box key={section} flexDirection="column" paddingTop={1}>
+    <box key={section} flexDirection="column">
       <text fg={theme.accentAlt}>
         <strong>
           {title} ({files.length})
@@ -175,22 +170,17 @@ export function GitPanel({ gitPanel, projectPath }: GitPanelProps) {
 
   const statusNode = renderStatus(gitPanel, !!projectPath)
 
+  const hasRemoteTracking = gitPanel.ahead > 0 || gitPanel.behind > 0
+
   return (
     <box flexDirection="column" flexGrow={1} gap={0}>
-      <box flexDirection="row" gap={1}>
-        <text fg={theme.accent}>{'\u{e702}'}</text>
-        <text fg={theme.text}>
-          <strong>{gitPanel.branch ?? '—'}</strong>
+      {hasRemoteTracking ? (
+        <text fg={theme.textMuted}>
+          ↑{gitPanel.ahead} ↓{gitPanel.behind}
         </text>
-        {gitPanel.ahead > 0 || gitPanel.behind > 0 ? (
-          <text fg={theme.textMuted}>
-            ↑{gitPanel.ahead} ↓{gitPanel.behind}
-          </text>
-        ) : null}
-      </box>
-      <text fg={theme.dim}>────────────</text>
+      ) : null}
       {statusNode ? (
-        <box paddingTop={1}>{statusNode}</box>
+        <box>{statusNode}</box>
       ) : (
         <scrollbox
           ref={scrollRef}

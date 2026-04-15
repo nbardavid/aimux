@@ -74,13 +74,19 @@ function buildEntry(
   renamedFrom?: string
 ): GitFileEntry {
   const stats = numstat.get(path)
-  const entry: GitFileEntry = {
-    added: status === '?' || status === 'D' ? null : (stats?.added ?? null),
-    path,
-    removed: status === '?' ? null : (stats?.removed ?? null),
-    section,
-    status,
+  let added: number | null
+  let removed: number | null
+  if (status === '?') {
+    added = null
+    removed = null
+  } else if (stats) {
+    added = stats.added
+    removed = stats.removed
+  } else {
+    added = 0
+    removed = 0
   }
+  const entry: GitFileEntry = { added, path, removed, section, status }
   if (renamedFrom) entry.renamedFrom = renamedFrom
   return entry
 }

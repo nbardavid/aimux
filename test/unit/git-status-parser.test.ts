@@ -70,15 +70,27 @@ test('parsePorcelainEntries handles staged + unstaged modification (MM)', () => 
   })
 })
 
-test('parsePorcelainEntries handles deletions', () => {
+test('parsePorcelainEntries handles deletions with numstat', () => {
   const output = '1 .D N... 100644 100644 000000 abc abc old.ts\n'
-  const entries = parsePorcelainEntries(output, new Map(), new Map())
+  const numstat = new Map([['old.ts', { added: 0, removed: 45 }]])
+  const entries = parsePorcelainEntries(output, new Map(), numstat)
   expect(entries[0]).toMatchObject({
-    added: null,
+    added: 0,
     path: 'old.ts',
-    removed: null,
+    removed: 45,
     section: 'unstaged',
     status: 'D',
+  })
+})
+
+test('parsePorcelainEntries defaults missing numstat to zero (non-untracked)', () => {
+  const output = '1 .M N... 100644 100644 100644 abc abc mode-only.ts\n'
+  const entries = parsePorcelainEntries(output, new Map(), new Map())
+  expect(entries[0]).toMatchObject({
+    added: 0,
+    path: 'mode-only.ts',
+    removed: 0,
+    status: 'M',
   })
 })
 
@@ -87,9 +99,9 @@ test('parsePorcelainEntries handles rename entries', () => {
   const entries = parsePorcelainEntries(output, new Map(), new Map())
   expect(entries).toHaveLength(1)
   expect(entries[0]).toEqual({
-    added: null,
+    added: 0,
     path: 'new.ts',
-    removed: null,
+    removed: 0,
     renamedFrom: 'old.ts',
     section: 'staged',
     status: 'R',

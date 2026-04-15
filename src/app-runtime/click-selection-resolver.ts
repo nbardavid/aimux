@@ -41,29 +41,24 @@ export function resolveClickSelection(
     return null
   }
 
-  const lineBox = event.target.parent
-  if (!isPositionedNode(lineBox)) {
+  const viewportText = event.target
+  if (!isPositionedNode(viewportText)) {
     return null
   }
 
-  const contentBox = lineBox.parent
-  if (!isPositionedNode(contentBox)) {
-    return null
-  }
-
-  const col = event.x - contentBox.x
-  const row = event.y - contentBox.y
-  const baseX = lineBox.x
+  const col = event.x - viewportText.x
+  const row = event.y - viewportText.y
+  const baseX = viewportText.x
 
   logInputDebug('click.detect', {
     clickCount,
     col,
-    contentBoxX: contentBox.x,
-    contentBoxY: contentBox.y,
     eventX: event.x,
     eventY: event.y,
     row,
     targetId: event.target.id,
+    viewportX: viewportText.x,
+    viewportY: viewportText.y,
   })
 
   if (!tab?.viewport?.lines[row]) {

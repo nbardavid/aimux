@@ -40,15 +40,11 @@ function computeStreamSelectedText(
   const touched = selection.touchedRenderables
   if (!touched || touched.length === 0) return null
 
-  const firstSpan = touched[0]
-  if (!isPositionedNode(firstSpan)) return null
-  const lineBox = firstSpan.parent
-  if (!isPositionedNode(lineBox)) return null
-  const contentBox = lineBox.parent
-  if (!isPositionedNode(contentBox)) return null
+  const viewportText = touched[0]
+  if (!isPositionedNode(viewportText)) return null
 
-  const originX = contentBox.x
-  const originY = contentBox.y
+  const originX = viewportText.x
+  const originY = viewportText.y
 
   const anchorRow = selection.anchor.y - originY
   const anchorCol = selection.anchor.x - originX

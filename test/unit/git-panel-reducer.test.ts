@@ -20,19 +20,45 @@ function entry(overrides: Partial<GitFileEntry> = {}): GitFileEntry {
   }
 }
 
-test('toggle-sidebar-view swaps views', () => {
+test('toggle-git-panel flips visibility', () => {
   const s0 = seedState()
-  const s1 = appReducer(s0, { type: 'toggle-sidebar-view' })
-  expect(s1.sidebar.view).toBe('git')
-  const s2 = appReducer(s1, { type: 'toggle-sidebar-view' })
-  expect(s2.sidebar.view).toBe('tabs')
+  const s1 = appReducer(s0, { type: 'toggle-git-panel' })
+  expect(s1.sidebar.gitPanelVisible).toBe(false)
+  const s2 = appReducer(s1, { type: 'toggle-git-panel' })
+  expect(s2.sidebar.gitPanelVisible).toBe(true)
 })
 
-test('toggle-sidebar-view reveals hidden sidebar when switching to git', () => {
-  const s0 = { ...seedState(), sidebar: { ...seedState().sidebar, visible: false } }
-  const s1 = appReducer(s0, { type: 'toggle-sidebar-view' })
+test('toggle-git-panel reveals hidden sidebar when enabling', () => {
+  const s0 = seedState()
+  const hidden = {
+    ...s0,
+    sidebar: { ...s0.sidebar, gitPanelVisible: false, visible: false },
+  }
+  const s1 = appReducer(hidden, { type: 'toggle-git-panel' })
   expect(s1.sidebar.visible).toBe(true)
-  expect(s1.sidebar.view).toBe('git')
+  expect(s1.sidebar.gitPanelVisible).toBe(true)
+})
+
+test('resize-git-panel adjusts ratio', () => {
+  const s0 = seedState()
+  expect(s0.sidebar.gitPanelRatio).toBe(0.5)
+  const s1 = appReducer(s0, { delta: 0.1, type: 'resize-git-panel' })
+  expect(s1.sidebar.gitPanelRatio).toBeCloseTo(0.6)
+})
+
+test('resize-git-panel clamps at bounds', () => {
+  const s0 = seedState()
+  const up = appReducer(s0, { delta: 2, type: 'resize-git-panel' })
+  expect(up.sidebar.gitPanelRatio).toBe(0.8)
+  const down = appReducer(s0, { delta: -2, type: 'resize-git-panel' })
+  expect(down.sidebar.gitPanelRatio).toBe(0.2)
+})
+
+test('resize-git-panel returns same state at bound', () => {
+  const s0 = seedState()
+  const maxed = appReducer(s0, { delta: 2, type: 'resize-git-panel' })
+  const again = appReducer(maxed, { delta: 1, type: 'resize-git-panel' })
+  expect(again).toBe(maxed)
 })
 
 test('git-refresh-success replaces files + branch state', () => {
@@ -49,6 +75,20 @@ test('git-refresh-success replaces files + branch state', () => {
   expect(s1.gitPanel.error).toBeNull()
 })
 
+test('git-refresh-success is idempotent on unchanged payload', () => {
+  const s0 = seedState()
+  const files = [entry({ path: 'a.ts' })]
+  const s1 = appReducer(s0, {
+    payload: { ahead: 0, behind: 0, branch: 'main', files },
+    type: 'git-refresh-success',
+  })
+  const s2 = appReducer(s1, {
+    payload: { ahead: 0, behind: 0, branch: 'main', files: [entry({ path: 'a.ts' })] },
+    type: 'git-refresh-success',
+  })
+  expect(s2).toBe(s1)
+})
+
 test('git-refresh-error clears files and stores kind', () => {
   const preloaded = {
     ...seedState(),
@@ -57,14 +97,4 @@ test('git-refresh-error clears files and stores kind', () => {
   const s1 = appReducer(preloaded, { kind: 'not-a-repo', type: 'git-refresh-error' })
   expect(s1.gitPanel.error).toBe('not-a-repo')
   expect(s1.gitPanel.files).toHaveLength(0)
-})
-
-test('scroll-git-panel clamps between 0 and maxOffset', () => {
-  const s0 = seedState()
-  const up = appReducer(s0, { delta: -5, maxOffset: 10, type: 'scroll-git-panel' })
-  expect(up.gitPanel.scrollOffset).toBe(0)
-  const down = appReducer(s0, { delta: 20, maxOffset: 10, type: 'scroll-git-panel' })
-  expect(down.gitPanel.scrollOffset).toBe(10)
-  const partial = appReducer(s0, { delta: 3, maxOffset: 10, type: 'scroll-git-panel' })
-  expect(partial.gitPanel.scrollOffset).toBe(3)
 })

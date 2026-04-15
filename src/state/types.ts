@@ -70,6 +70,8 @@ export interface WorkspaceSnapshotV1 {
   sidebar: {
     visible: boolean
     width: number
+    gitPanelVisible?: boolean
+    gitPanelRatio?: number
   }
   tabs: PersistedTabSnapshot[]
   layoutTree?: import('./layout-tree').LayoutNode
@@ -101,14 +103,13 @@ export interface TabSession {
   exitCode?: number
 }
 
-export type SidebarView = 'tabs' | 'git'
-
 export interface SidebarState {
   visible: boolean
   width: number
   minWidth: number
   maxWidth: number
-  view: SidebarView
+  gitPanelVisible: boolean
+  gitPanelRatio: number
 }
 
 export type GitFileStatus = 'M' | 'A' | 'D' | 'R' | 'C' | 'U' | '?'
@@ -133,7 +134,6 @@ export interface GitPanelState {
   files: GitFileEntry[]
   loading: boolean
   error: GitPanelError | null
-  scrollOffset: number
 }
 
 interface ModalBase {
@@ -334,7 +334,8 @@ export type UIAction =
   | { type: 'resize-sidebar'; delta: number }
   | { type: 'set-focus-mode'; focusMode: FocusMode }
   | { type: 'set-terminal-size'; cols: number; rows: number }
-  | { type: 'toggle-sidebar-view' }
+  | { type: 'toggle-git-panel' }
+  | { type: 'resize-git-panel'; delta: number }
 
 // -- Git panel actions --
 export interface GitRefreshPayload {
@@ -348,7 +349,6 @@ export type GitPanelAction =
   | { type: 'git-refresh-start' }
   | { type: 'git-refresh-success'; payload: GitRefreshPayload }
   | { type: 'git-refresh-error'; kind: GitPanelError }
-  | { type: 'scroll-git-panel'; delta: number; maxOffset: number }
 
 // -- Data actions --
 export type DataAction =

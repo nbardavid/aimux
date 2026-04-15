@@ -84,15 +84,15 @@ export const navigationMode: ModeHandler = {
     }
 
     if (key.shift && key.name === 'g') {
-      return result([{ type: 'toggle-sidebar-view' }])
+      return result([{ type: 'toggle-git-panel' }])
     }
 
-    if (ctx.state.sidebar.view === 'git' && key.name === 'j' && !key.shift) {
-      return result([{ delta: 1, maxOffset: Number.MAX_SAFE_INTEGER, type: 'scroll-git-panel' }])
+    if (key.ctrl && key.name === 'j') {
+      return result([{ delta: 0.05, type: 'resize-git-panel' }])
     }
 
-    if (ctx.state.sidebar.view === 'git' && key.name === 'k' && !key.shift) {
-      return result([{ delta: -1, maxOffset: Number.MAX_SAFE_INTEGER, type: 'scroll-git-panel' }])
+    if (key.ctrl && key.name === 'k') {
+      return result([{ delta: -0.05, type: 'resize-git-panel' }])
     }
 
     if (key.shift && key.name === 'j') {

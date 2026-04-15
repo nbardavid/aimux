@@ -35,9 +35,10 @@ export function createInitialState(
       : emptyModal(),
     sessions,
     sidebar: {
+      gitPanelRatio: 0.5,
+      gitPanelVisible: true,
       maxWidth: DEFAULT_SIDEBAR_MAX_WIDTH,
       minWidth: DEFAULT_SIDEBAR_MIN_WIDTH,
-      view: 'tabs',
       visible: true,
       width: DEFAULT_SIDEBAR_WIDTH,
     },

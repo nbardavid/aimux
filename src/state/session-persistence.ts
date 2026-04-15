@@ -36,6 +36,8 @@ export function serializeWorkspace(state: AppState): WorkspaceSnapshotV1 {
     layoutTrees: Object.keys(state.layoutTrees).length > 0 ? state.layoutTrees : undefined,
     savedAt: new Date().toISOString(),
     sidebar: {
+      gitPanelRatio: state.sidebar.gitPanelRatio,
+      gitPanelVisible: state.sidebar.gitPanelVisible,
       visible: state.sidebar.visible,
       width: state.sidebar.width,
     },
@@ -201,6 +203,8 @@ export function restoreWorkspaceState(
     layoutTrees,
     sidebar: {
       ...state.sidebar,
+      gitPanelRatio: workspaceSnapshot?.sidebar.gitPanelRatio ?? state.sidebar.gitPanelRatio,
+      gitPanelVisible: workspaceSnapshot?.sidebar.gitPanelVisible ?? state.sidebar.gitPanelVisible,
       visible: workspaceSnapshot?.sidebar.visible ?? state.sidebar.visible,
       width: workspaceSnapshot?.sidebar.width ?? state.sidebar.width,
     },

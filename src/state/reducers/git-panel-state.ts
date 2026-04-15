@@ -1,5 +1,12 @@
 import type { AppAction, AppState, GitFileEntry, GitPanelState } from '../types'
 
+export const GIT_PANEL_MIN_RATIO = 0.2
+export const GIT_PANEL_MAX_RATIO = 0.8
+
+function clampRatio(value: number): number {
+  return Math.max(GIT_PANEL_MIN_RATIO, Math.min(GIT_PANEL_MAX_RATIO, value))
+}
+
 export function emptyGitPanel(): GitPanelState {
   return {
     ahead: 0,
@@ -8,7 +15,6 @@ export function emptyGitPanel(): GitPanelState {
     error: null,
     files: [],
     loading: true,
-    scrollOffset: 0,
   }
 }
 
@@ -33,13 +39,18 @@ function sameFiles(a: GitFileEntry[], b: GitFileEntry[]): boolean {
 
 export function reduceGitPanelState(state: AppState, action: AppAction): AppState | null {
   switch (action.type) {
-    case 'toggle-sidebar-view': {
-      const nextView = state.sidebar.view === 'git' ? 'tabs' : 'git'
-      const nextVisible = state.sidebar.visible || nextView === 'git'
+    case 'toggle-git-panel': {
+      const nextGitVisible = !state.sidebar.gitPanelVisible
+      const nextVisible = state.sidebar.visible || nextGitVisible
       return {
         ...state,
-        sidebar: { ...state.sidebar, view: nextView, visible: nextVisible },
+        sidebar: { ...state.sidebar, gitPanelVisible: nextGitVisible, visible: nextVisible },
       }
+    }
+    case 'resize-git-panel': {
+      const nextRatio = clampRatio(state.sidebar.gitPanelRatio + action.delta)
+      if (nextRatio === state.sidebar.gitPanelRatio) return state
+      return { ...state, sidebar: { ...state.sidebar, gitPanelRatio: nextRatio } }
     }
     case 'git-refresh-start':
       if (!state.gitPanel.loading) return state
@@ -77,12 +88,6 @@ export function reduceGitPanelState(state: AppState, action: AppAction): AppStat
         ...state,
         gitPanel: { ...prev, error: action.kind, files: [], loading: false },
       }
-    }
-    case 'scroll-git-panel': {
-      const maxOffset = Math.max(0, action.maxOffset)
-      const next = Math.max(0, Math.min(maxOffset, state.gitPanel.scrollOffset + action.delta))
-      if (next === state.gitPanel.scrollOffset) return state
-      return { ...state, gitPanel: { ...state.gitPanel, scrollOffset: next } }
     }
     default:
       return null

@@ -1,6 +1,4 @@
-import type { ScrollBoxRenderable } from '@opentui/core'
-
-import { type ReactNode, useEffect, useMemo, useRef } from 'react'
+import { memo, type ReactNode, useMemo } from 'react'
 
 import type { GitFileEntry, GitFileSection, GitPanelState } from '../../state/types'
 
@@ -154,19 +152,12 @@ function renderStatus(gitPanel: GitPanelState, hasProjectPath: boolean): ReactNo
   return null
 }
 
-export function GitPanel({ gitPanel, projectPath }: GitPanelProps) {
-  const scrollRef = useRef<ScrollBoxRenderable | null>(null)
+export const GitPanel = memo(function GitPanel({ gitPanel, projectPath }: GitPanelProps) {
   const groups = useMemo(() => groupBySection(gitPanel.files), [gitPanel.files])
   const { added: addedW, removed: removedW } = useMemo(
     () => maxDigitWidth(gitPanel.files),
     [gitPanel.files]
   )
-
-  useEffect(() => {
-    const box = scrollRef.current
-    if (!box) return
-    box.scrollTo({ x: 0, y: gitPanel.scrollOffset })
-  }, [gitPanel.scrollOffset])
 
   const statusNode = renderStatus(gitPanel, !!projectPath)
 
@@ -183,7 +174,6 @@ export function GitPanel({ gitPanel, projectPath }: GitPanelProps) {
         <box>{statusNode}</box>
       ) : (
         <scrollbox
-          ref={scrollRef}
           flexGrow={1}
           scrollY
           viewportCulling
@@ -194,4 +184,4 @@ export function GitPanel({ gitPanel, projectPath }: GitPanelProps) {
       )}
     </box>
   )
-}
+})

@@ -83,6 +83,19 @@ export function reduceGitPanelState(state: AppState, action: AppAction): AppStat
         gitPanel: { ...prev, error: action.kind, files: [] },
       }
     }
+    case 'git-panel-reset': {
+      const prev = state.gitPanel
+      if (
+        prev.branch === null &&
+        prev.error === null &&
+        prev.files.length === 0 &&
+        prev.ahead === 0 &&
+        prev.behind === 0
+      ) {
+        return state
+      }
+      return { ...state, gitPanel: emptyGitPanel() }
+    }
     default:
       return null
   }

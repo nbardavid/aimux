@@ -347,6 +347,7 @@ export interface GitRefreshPayload {
 export type GitPanelAction =
   | { type: 'git-refresh-success'; payload: GitRefreshPayload }
   | { type: 'git-refresh-error'; kind: GitPanelError }
+  | { type: 'git-panel-reset' }
 
 // -- Data actions --
 export type DataAction =

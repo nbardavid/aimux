@@ -1,6 +1,6 @@
 import type { ScrollBoxRenderable } from '@opentui/core'
 
-import { memo, useMemo, useRef } from 'react'
+import { memo, useEffect, useMemo, useRef } from 'react'
 
 import type { GitPanelState } from '../../state/types'
 
@@ -160,6 +160,9 @@ const GitBody = memo(function GitBody() {
   })
 
   const lastGoodRef = useRef<GitPanelState | null>(null)
+  useEffect(() => {
+    lastGoodRef.current = null
+  }, [projectPath])
   const isGood = gitPanel.error === null && gitPanel.branch !== null
   if (isGood) {
     lastGoodRef.current = gitPanel

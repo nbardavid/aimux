@@ -15,6 +15,8 @@ export function useGitPanelPolling({ enabled, projectPath }: Options): void {
   useEffect(() => {
     if (!enabled || !projectPath) return undefined
 
+    appStore.getState().dispatch({ type: 'git-panel-reset' })
+
     let cancelled = false
     let timer: ReturnType<typeof setTimeout> | null = null
     let delay = BASE_INTERVAL_MS

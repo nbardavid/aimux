@@ -13,11 +13,17 @@ const DEFAULT_SIDEBAR_MAX_WIDTH = 42
 const DEFAULT_TERMINAL_COLS = 80
 const DEFAULT_TERMINAL_ROWS = 24
 
+export interface InitialStateOverrides {
+  gitPanelVisible?: boolean
+  gitPanelRatio?: number
+}
+
 export function createInitialState(
   customCommands: Record<string, string> = {},
   sessions: SessionRecord[] = [],
   snippets: SnippetRecord[] = [],
-  showSessionPicker = false
+  showSessionPicker = false,
+  overrides: InitialStateOverrides = {}
 ): AppState {
   return {
     activeTabId: null,
@@ -35,8 +41,8 @@ export function createInitialState(
       : emptyModal(),
     sessions,
     sidebar: {
-      gitPanelRatio: 0.5,
-      gitPanelVisible: true,
+      gitPanelRatio: overrides.gitPanelRatio ?? 0.5,
+      gitPanelVisible: overrides.gitPanelVisible ?? true,
       maxWidth: DEFAULT_SIDEBAR_MAX_WIDTH,
       minWidth: DEFAULT_SIDEBAR_MIN_WIDTH,
       visible: true,

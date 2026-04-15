@@ -13,6 +13,8 @@ export interface AimuxConfig {
   version: 2
   customCommands: Record<string, string>
   themeId?: ThemeId
+  gitPanelVisible?: boolean
+  gitPanelRatio?: number
   workspaceSnapshot?: WorkspaceSnapshotV1
 }
 
@@ -53,6 +55,8 @@ export function loadConfigResult(): ConfigLoadResult {
       version?: number
       customCommands?: unknown
       themeId?: unknown
+      gitPanelVisible?: unknown
+      gitPanelRatio?: unknown
       workspaceSnapshot?: unknown
     }
 
@@ -70,6 +74,23 @@ export function loadConfigResult(): ConfigLoadResult {
       issues.push('ignored invalid themeId')
     }
 
+    const validGitPanelVisible =
+      typeof parsed.gitPanelVisible === 'boolean' ? parsed.gitPanelVisible : undefined
+    if (parsed.gitPanelVisible !== undefined && validGitPanelVisible === undefined) {
+      issues.push('ignored invalid gitPanelVisible')
+    }
+
+    const validGitPanelRatio =
+      typeof parsed.gitPanelRatio === 'number' &&
+      Number.isFinite(parsed.gitPanelRatio) &&
+      parsed.gitPanelRatio > 0 &&
+      parsed.gitPanelRatio < 1
+        ? parsed.gitPanelRatio
+        : undefined
+    if (parsed.gitPanelRatio !== undefined && validGitPanelRatio === undefined) {
+      issues.push('ignored invalid gitPanelRatio')
+    }
+
     if (
       parsed.workspaceSnapshot !== undefined &&
       !isWorkspaceSnapshotV1(parsed.workspaceSnapshot)
@@ -84,6 +105,8 @@ export function loadConfigResult(): ConfigLoadResult {
     return {
       config: {
         customCommands: isCustomCommandsRecord(parsed.customCommands) ? parsed.customCommands : {},
+        gitPanelRatio: validGitPanelRatio,
+        gitPanelVisible: validGitPanelVisible,
         themeId: isThemeId(parsed.themeId) ? parsed.themeId : undefined,
         version: 2,
         workspaceSnapshot: isWorkspaceSnapshotV1(parsed.workspaceSnapshot)

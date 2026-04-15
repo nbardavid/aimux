@@ -6,59 +6,9 @@ import type { AppAction, FocusMode, TabSession } from '../state/types'
 
 import { INPUT_DEBUG_LOG_PATH, logInputDebug } from '../debug/input-log'
 import { createRawInputHandler } from '../input/raw-input-handler'
-import { extractStreamText } from '../input/terminal-text-extraction'
 import { copyToSystemClipboard } from '../platform/clipboard'
 import { writePasteToTab, writeToTab } from './pty-write'
-
-interface PositionedNode {
-  parent?: unknown
-  x: number
-  y: number
-}
-
-function isPositionedNode(value: unknown): value is PositionedNode {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof Reflect.get(value, 'x') === 'number' &&
-    typeof Reflect.get(value, 'y') === 'number'
-  )
-}
-
-interface OtuiSelection {
-  isDragging?: boolean
-  anchor: { x: number; y: number }
-  focus: { x: number; y: number }
-  touchedRenderables?: unknown[]
-  getSelectedText(): string
-}
-
-function computeStreamSelectedText(
-  selection: OtuiSelection,
-  lines: { spans: { text: string }[] }[]
-): string | null {
-  const touched = selection.touchedRenderables
-  if (!touched || touched.length === 0) return null
-
-  const viewportText = touched[0]
-  if (!isPositionedNode(viewportText)) return null
-
-  const originX = viewportText.x
-  const originY = viewportText.y
-
-  const anchorRow = selection.anchor.y - originY
-  const anchorCol = selection.anchor.x - originX
-  const focusRow = selection.focus.y - originY
-  const focusCol = selection.focus.x - originX
-
-  return extractStreamText(
-    lines as Parameters<typeof extractStreamText>[0],
-    anchorRow,
-    anchorCol,
-    focusRow,
-    focusCol
-  )
-}
+import { type OtuiSelection, resolveSelectionClipboardText } from './selection-clipboard'
 
 const BRACKETED_PASTE_ENABLE_SEQUENCE = '\x1b[?2004h'
 const BRACKETED_PASTE_DISABLE_SEQUENCE = '\x1b[?2004l'
@@ -138,19 +88,16 @@ export function useRendererBindings({
     }
 
     const handleSelection = (selection: OtuiSelection) => {
-      const fallback = selection.getSelectedText()
-      const tab = activeTabRef.current
-      const streamText =
-        tab?.viewport && tab.viewport.lines.length > 0
-          ? computeStreamSelectedText(selection, tab.viewport.lines)
-          : null
-      const selectedText = streamText ?? fallback
+      const { fallbackLength, selectedText, streamLength } = resolveSelectionClipboardText(
+        selection,
+        activeTabRef.current
+      )
 
       logInputDebug('app.selection', {
-        fallbackLength: fallback.length,
+        fallbackLength,
         isDragging: selection.isDragging ?? false,
         osc52Supported: renderer.isOsc52Supported(),
-        streamLength: streamText?.length ?? null,
+        streamLength,
         textLength: selectedText.length,
       })
 

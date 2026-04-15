@@ -71,7 +71,6 @@ test('git-refresh-success replaces files + branch state', () => {
   expect(s1.gitPanel.branch).toBe('main')
   expect(s1.gitPanel.ahead).toBe(1)
   expect(s1.gitPanel.files).toHaveLength(2)
-  expect(s1.gitPanel.loading).toBe(false)
   expect(s1.gitPanel.error).toBeNull()
 })
 

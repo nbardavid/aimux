@@ -161,9 +161,6 @@ function computeStatusPlaceholder(
   if (gitPanel.error === 'unknown') {
     return { label: 'Git error', labelColor: theme.danger }
   }
-  if (gitPanel.loading && gitPanel.files.length === 0) {
-    return { label: 'Loading…', labelColor: theme.textMuted }
-  }
   if (gitPanel.files.length === 0) {
     return { label: 'Working tree clean', labelColor: theme.textMuted }
   }

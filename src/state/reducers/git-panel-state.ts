@@ -14,7 +14,6 @@ export function emptyGitPanel(): GitPanelState {
     branch: null,
     error: null,
     files: [],
-    loading: true,
   }
 }
 
@@ -60,7 +59,6 @@ export function reduceGitPanelState(state: AppState, action: AppAction): AppStat
         prev.ahead === next.ahead &&
         prev.behind === next.behind &&
         prev.error === null &&
-        !prev.loading &&
         sameFiles(prev.files, next.files)
       ) {
         return state
@@ -74,16 +72,15 @@ export function reduceGitPanelState(state: AppState, action: AppAction): AppStat
           branch: next.branch,
           error: null,
           files: next.files,
-          loading: false,
         },
       }
     }
     case 'git-refresh-error': {
       const prev = state.gitPanel
-      if (prev.error === action.kind && prev.files.length === 0 && !prev.loading) return state
+      if (prev.error === action.kind && prev.files.length === 0) return state
       return {
         ...state,
-        gitPanel: { ...prev, error: action.kind, files: [], loading: false },
+        gitPanel: { ...prev, error: action.kind, files: [] },
       }
     }
     default:

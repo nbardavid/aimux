@@ -132,7 +132,6 @@ export interface GitPanelState {
   ahead: number
   behind: number
   files: GitFileEntry[]
-  loading: boolean
   error: GitPanelError | null
 }
 

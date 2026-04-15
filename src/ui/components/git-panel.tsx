@@ -103,7 +103,7 @@ function renderFileRow(
       {hasNumstat ? (
         <box flexDirection="row" flexShrink={0}>
           <text fg={theme.success}>{`+${padRight(file.added, addedW)}`}</text>
-          <text fg={theme.dim}>{' '}</text>
+          <text fg={theme.dim}> </text>
           <text fg={theme.danger}>{`−${padRight(file.removed, removedW)}`}</text>
         </box>
       ) : (

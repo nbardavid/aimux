@@ -23,6 +23,7 @@ A terminal multiplexer for AI CLIs. Manage multiple AI assistant sessions (Claud
 - **Tab renaming** -- Press `r` to rename tabs for easy identification across multiple assistant instances
 - **Session persistence** -- Workspace state (tabs, titles, layout) saved to `~/.config/aimux/` and restored on restart
 - **Git branch display** -- Current branch shown in the sidebar for project-scoped sessions
+- **Git status panel** -- Toggle with `G` to see staged, unstaged, and untracked files with diff counts
 - **Daemon mode** -- Background daemon keeps sessions alive across terminal restarts
 - **Live activity indicators** -- Animated spinner for busy tabs, colored indicators for idle/focused states
 - **Snippets** -- Save and reuse prompt snippets across sessions with `Ctrl+S`

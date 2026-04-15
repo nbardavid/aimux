@@ -52,9 +52,38 @@ function padRight(value: number | null, width: number): string {
   return String(value).padStart(width, ' ')
 }
 
-function formatPath(file: GitFileEntry): string {
-  if (file.renamedFrom) return `${file.renamedFrom} → ${file.path}`
-  return file.path
+export function splitPath(path: string): { prefix: string; basename: string } {
+  const slash = path.lastIndexOf('/')
+  if (slash < 0) return { basename: path, prefix: '' }
+  return { basename: path.slice(slash + 1), prefix: path.slice(0, slash + 1) }
+}
+
+function stripTrailingSlash(prefix: string): string {
+  return prefix.endsWith('/') ? prefix.slice(0, -1) : prefix
+}
+
+function renderPath(file: GitFileEntry): ReactNode {
+  const { basename, prefix } = splitPath(file.path)
+  const dir = stripTrailingSlash(prefix)
+  if (file.renamedFrom) {
+    const renamed = splitPath(file.renamedFrom)
+    const renamedDir = stripTrailingSlash(renamed.prefix)
+    return (
+      <text wrapMode="none">
+        <span fg={theme.text}>{renamed.basename}</span>
+        {renamedDir ? <span fg={theme.textMuted}> {renamedDir}</span> : null}
+        <span fg={theme.textMuted}> → </span>
+        <span fg={theme.text}>{basename}</span>
+        {dir ? <span fg={theme.textMuted}> {dir}</span> : null}
+      </text>
+    )
+  }
+  return (
+    <text wrapMode="none">
+      <span fg={theme.text}>{basename}</span>
+      {dir ? <span fg={theme.textMuted}> {dir}</span> : null}
+    </text>
+  )
 }
 
 function renderFileRow(
@@ -70,7 +99,7 @@ function renderFileRow(
         <strong>{file.status}</strong>
       </text>
       <box flexGrow={1} overflow="hidden">
-        <text fg={theme.text}>{formatPath(file)}</text>
+        {renderPath(file)}
       </box>
       {hasNumstat ? (
         <box flexDirection="row">

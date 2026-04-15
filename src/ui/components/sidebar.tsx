@@ -2,8 +2,10 @@ import type { ScrollBoxRenderable } from '@opentui/core'
 
 import { useMemo, useRef } from 'react'
 
+import { useGitPanelPolling } from '../../git/git-poller'
 import { useAppStore } from '../../state/app-store'
 import { theme } from '../theme'
+import { GitPanel } from './git-panel'
 import { buildTabGroupInfo } from './sidebar-group-metadata'
 import { TabItem } from './tab-item'
 import { useSidebarAutoScroll } from './use-sidebar-auto-scroll'
@@ -45,6 +47,7 @@ export function Sidebar({ onTabActivate }: SidebarProps) {
   const currentSessionId = useAppStore((s) => s.currentSessionId)
   const sessions = useAppStore((s) => s.sessions)
   const layoutTrees = useAppStore((s) => s.layoutTrees)
+  const gitPanel = useAppStore((s) => s.gitPanel)
 
   const scrollRef = useRef<ScrollBoxRenderable | null>(null)
   const activeIndex = tabs.findIndex((tab) => tab.id === activeTabId)
@@ -61,7 +64,12 @@ export function Sidebar({ onTabActivate }: SidebarProps) {
     activeTabId,
     scrollRef,
     tabCount: tabs.length,
-    visible: sidebar.visible,
+    visible: sidebar.visible && sidebar.view === 'tabs',
+  })
+
+  useGitPanelPolling({
+    enabled: sidebar.visible && sidebar.view === 'git',
+    projectPath,
   })
 
   if (!sidebar.visible) {
@@ -89,52 +97,56 @@ export function Sidebar({ onTabActivate }: SidebarProps) {
         </box>
       ) : null}
       <text fg={theme.dim}>{'·'.repeat(Math.max(0, sidebar.width - 2))}</text>
-      <scrollbox
-        paddingTop={0}
-        ref={scrollRef}
-        flexGrow={1}
-        scrollY
-        viewportCulling
-        contentOptions={{ flexDirection: 'column', gap: 0 }}
-      >
-        {tabs.length === 0 ? (
-          <box paddingTop={1}>
-            <text fg={theme.textMuted}>No tabs yet. Press Ctrl+n.</text>
-          </box>
-        ) : (
-          tabs.map((tab, index) => {
-            const isActive = tab.id === activeTabId
-            const info = tabGroupInfo.get(tab.id)
-            const inLayout = !!info?.inLayout
-            const inGroup = info ? index >= info.groupStart && index <= info.groupEnd : false
-            const isGroupStart = info ? index === info.groupStart : false
-            const isGroupEnd = info ? index === info.groupEnd : false
-            const isGroupMiddle = inGroup && !isGroupStart && !isGroupEnd
+      {sidebar.view === 'git' ? (
+        <GitPanel gitPanel={gitPanel} projectPath={projectPath} />
+      ) : (
+        <scrollbox
+          paddingTop={0}
+          ref={scrollRef}
+          flexGrow={1}
+          scrollY
+          viewportCulling
+          contentOptions={{ flexDirection: 'column', gap: 0 }}
+        >
+          {tabs.length === 0 ? (
+            <box paddingTop={1}>
+              <text fg={theme.textMuted}>No tabs yet. Press Ctrl+n.</text>
+            </box>
+          ) : (
+            tabs.map((tab, index) => {
+              const isActive = tab.id === activeTabId
+              const info = tabGroupInfo.get(tab.id)
+              const inLayout = !!info?.inLayout
+              const inGroup = info ? index >= info.groupStart && index <= info.groupEnd : false
+              const isGroupStart = info ? index === info.groupStart : false
+              const isGroupEnd = info ? index === info.groupEnd : false
+              const isGroupMiddle = inGroup && !isGroupStart && !isGroupEnd
 
-            return (
-              <box
-                key={tab.id}
-                flexDirection="row"
-                onMouseDown={onTabActivate ? () => onTabActivate(tab.id) : undefined}
-              >
-                {inGroup
-                  ? renderGroupGutter(isGroupStart, isGroupMiddle, isGroupEnd, isActive)
-                  : null}
-                <box flexGrow={1}>
-                  <TabItem
-                    id={`sidebar-tab-${tab.id}`}
-                    tab={tab}
-                    active={isActive}
-                    focused={focusMode === 'navigation'}
-                    isFocusedInput={isActive && focusMode === 'terminal-input'}
-                    inLayout={inLayout}
-                  />
+              return (
+                <box
+                  key={tab.id}
+                  flexDirection="row"
+                  onMouseDown={onTabActivate ? () => onTabActivate(tab.id) : undefined}
+                >
+                  {inGroup
+                    ? renderGroupGutter(isGroupStart, isGroupMiddle, isGroupEnd, isActive)
+                    : null}
+                  <box flexGrow={1}>
+                    <TabItem
+                      id={`sidebar-tab-${tab.id}`}
+                      tab={tab}
+                      active={isActive}
+                      focused={focusMode === 'navigation'}
+                      isFocusedInput={isActive && focusMode === 'terminal-input'}
+                      inLayout={inLayout}
+                    />
+                  </box>
                 </box>
-              </box>
-            )
-          })
-        )}
-      </scrollbox>
+              )
+            })
+          )}
+        </scrollbox>
+      )}
     </box>
   )
 }

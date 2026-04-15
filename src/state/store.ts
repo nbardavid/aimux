@@ -1,5 +1,6 @@
 import type { AppAction, AppState, SessionRecord, SnippetRecord } from './types'
 
+import { emptyGitPanel, reduceGitPanelState } from './reducers/git-panel-state'
 import { emptyModal, reduceModalState } from './reducers/modal-state'
 import { reduceSessionState } from './reducers/session-state'
 import { reduceTabState } from './reducers/tab-state'
@@ -23,6 +24,7 @@ export function createInitialState(
     currentSessionId: null,
     customCommands,
     focusMode: showSessionPicker ? 'modal' : 'navigation',
+    gitPanel: emptyGitPanel(),
     layout: {
       terminalCols: DEFAULT_TERMINAL_COLS,
       terminalRows: DEFAULT_TERMINAL_ROWS,
@@ -35,6 +37,7 @@ export function createInitialState(
     sidebar: {
       maxWidth: DEFAULT_SIDEBAR_MAX_WIDTH,
       minWidth: DEFAULT_SIDEBAR_MIN_WIDTH,
+      view: 'tabs',
       visible: true,
       width: DEFAULT_SIDEBAR_WIDTH,
     },
@@ -56,6 +59,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
   const uiState = reduceUIState(state, action)
   if (uiState) return uiState
+
+  const gitPanelState = reduceGitPanelState(state, action)
+  if (gitPanelState) return gitPanelState
 
   switch (action.type) {
     case 'set-snippets':

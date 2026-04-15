@@ -101,11 +101,39 @@ export interface TabSession {
   exitCode?: number
 }
 
+export type SidebarView = 'tabs' | 'git'
+
 export interface SidebarState {
   visible: boolean
   width: number
   minWidth: number
   maxWidth: number
+  view: SidebarView
+}
+
+export type GitFileStatus = 'M' | 'A' | 'D' | 'R' | 'C' | 'U' | '?'
+
+export type GitFileSection = 'staged' | 'unstaged' | 'untracked'
+
+export interface GitFileEntry {
+  path: string
+  renamedFrom?: string
+  section: GitFileSection
+  status: GitFileStatus
+  added: number | null
+  removed: number | null
+}
+
+export type GitPanelError = 'not-a-repo' | 'unknown'
+
+export interface GitPanelState {
+  branch: string | null
+  ahead: number
+  behind: number
+  files: GitFileEntry[]
+  loading: boolean
+  error: GitPanelError | null
+  scrollOffset: number
 }
 
 interface ModalBase {
@@ -211,6 +239,7 @@ export interface AppState {
   modal: ModalState
   layout: LayoutState
   customCommands: Record<AssistantId, string>
+  gitPanel: GitPanelState
 }
 
 // -- Modal actions --
@@ -305,6 +334,21 @@ export type UIAction =
   | { type: 'resize-sidebar'; delta: number }
   | { type: 'set-focus-mode'; focusMode: FocusMode }
   | { type: 'set-terminal-size'; cols: number; rows: number }
+  | { type: 'toggle-sidebar-view' }
+
+// -- Git panel actions --
+export interface GitRefreshPayload {
+  branch: string | null
+  ahead: number
+  behind: number
+  files: GitFileEntry[]
+}
+
+export type GitPanelAction =
+  | { type: 'git-refresh-start' }
+  | { type: 'git-refresh-success'; payload: GitRefreshPayload }
+  | { type: 'git-refresh-error'; kind: GitPanelError }
+  | { type: 'scroll-git-panel'; delta: number; maxOffset: number }
 
 // -- Data actions --
 export type DataAction =
@@ -318,3 +362,4 @@ export type AppAction =
   | LayoutAction
   | UIAction
   | DataAction
+  | GitPanelAction

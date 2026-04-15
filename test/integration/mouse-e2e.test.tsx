@@ -211,6 +211,7 @@ function MouseHarness({
       sidebar: {
         maxWidth: SIDEBAR_MAX_WIDTH,
         minWidth: SIDEBAR_MIN_WIDTH,
+        view: 'tabs' as const,
         visible: true,
         width: SIDEBAR_WIDTH,
       },

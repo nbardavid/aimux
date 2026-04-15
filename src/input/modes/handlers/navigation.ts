@@ -83,6 +83,18 @@ export const navigationMode: ModeHandler = {
       return result([{ delta: 2, type: 'resize-sidebar' }])
     }
 
+    if (key.shift && key.name === 'g') {
+      return result([{ type: 'toggle-sidebar-view' }])
+    }
+
+    if (ctx.state.sidebar.view === 'git' && key.name === 'j' && !key.shift) {
+      return result([{ delta: 1, maxOffset: Number.MAX_SAFE_INTEGER, type: 'scroll-git-panel' }])
+    }
+
+    if (ctx.state.sidebar.view === 'git' && key.name === 'k' && !key.shift) {
+      return result([{ delta: -1, maxOffset: Number.MAX_SAFE_INTEGER, type: 'scroll-git-panel' }])
+    }
+
     if (key.shift && key.name === 'j') {
       return result([{ delta: 1, type: 'reorder-active-tab' }])
     }

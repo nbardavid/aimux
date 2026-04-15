@@ -88,11 +88,11 @@ export const navigationMode: ModeHandler = {
     }
 
     if (key.ctrl && key.name === 'j') {
-      return result([{ delta: 0.05, type: 'resize-git-panel' }])
+      return result([{ delta: -0.05, type: 'resize-git-panel' }])
     }
 
     if (key.ctrl && key.name === 'k') {
-      return result([{ delta: -0.05, type: 'resize-git-panel' }])
+      return result([{ delta: 0.05, type: 'resize-git-panel' }])
     }
 
     if (key.shift && key.name === 'j') {

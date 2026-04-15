@@ -133,21 +133,39 @@ function renderSection(
   )
 }
 
+interface StatusPlaceholder {
+  label: string
+  labelColor: string
+}
+
 function renderStatus(gitPanel: GitPanelState, hasProjectPath: boolean): ReactNode | null {
+  const placeholder = computeStatusPlaceholder(gitPanel, hasProjectPath)
+  if (!placeholder) return null
+  return (
+    <box flexGrow={1} flexDirection="column" alignItems="center" paddingTop={1}>
+      <text fg={placeholder.labelColor}>{placeholder.label}</text>
+    </box>
+  )
+}
+
+function computeStatusPlaceholder(
+  gitPanel: GitPanelState,
+  hasProjectPath: boolean
+): StatusPlaceholder | null {
   if (!hasProjectPath) {
-    return <text fg={theme.textMuted}>No active session</text>
+    return { label: 'No active session', labelColor: theme.textMuted }
   }
   if (gitPanel.error === 'not-a-repo') {
-    return <text fg={theme.textMuted}>Not a git repository</text>
+    return { label: 'Not a git repository', labelColor: theme.textMuted }
   }
   if (gitPanel.error === 'unknown') {
-    return <text fg={theme.danger}>Git error</text>
+    return { label: 'Git error', labelColor: theme.danger }
   }
   if (gitPanel.loading && gitPanel.files.length === 0) {
-    return <text fg={theme.textMuted}>Loading…</text>
+    return { label: 'Loading…', labelColor: theme.textMuted }
   }
   if (gitPanel.files.length === 0) {
-    return <text fg={theme.textMuted}>No changes</text>
+    return { label: 'Working tree clean', labelColor: theme.textMuted }
   }
   return null
 }
@@ -170,9 +188,7 @@ export const GitPanel = memo(function GitPanel({ gitPanel, projectPath }: GitPan
           ↑{gitPanel.ahead} ↓{gitPanel.behind}
         </text>
       ) : null}
-      {statusNode ? (
-        <box>{statusNode}</box>
-      ) : (
+      {statusNode ?? (
         <scrollbox
           flexGrow={1}
           scrollY

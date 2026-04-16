@@ -494,9 +494,17 @@ async function runGitAction(
 async function runGitRm(ctx: SideEffectContext, path: string): Promise<void> {
   const cwd = ctx.getCurrentSessionProjectPath()
   if (!cwd) return
-  const result = await $`rm ${cwd}/${path}`.quiet().nothrow()
-  if (result.exitCode !== 0) {
-    ctx.dispatch({ message: 'failed to delete file', type: 'git-mode-set-message' })
+  const absolute = `${cwd}/${path}`
+  try {
+    const stat = await Bun.file(absolute).stat()
+    if (stat.isDirectory()) {
+      await Bun.$`rm -rf -- ${absolute}`.quiet().nothrow()
+    } else {
+      await Bun.file(absolute).unlink()
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'failed to delete file'
+    ctx.dispatch({ message, type: 'git-mode-set-message' })
     return
   }
   ctx.dispatch({ message: null, type: 'git-mode-set-message' })

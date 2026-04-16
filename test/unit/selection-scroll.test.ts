@@ -110,11 +110,43 @@ describe('shiftSelectionByScroll', () => {
     expect(renderer.startCalls).toHaveLength(0)
   })
 
-  test('does nothing while the user is actively dragging', () => {
-    const renderer = makeRenderer(() => makeSelection({ isDragging: true }))
+  test('mid-drag shifts only the anchor and leaves focus to the live pointer', () => {
+    const target = { selectable: true }
+    const renderer = makeRenderer(() =>
+      makeSelection({
+        anchor: { x: 4, y: 10 },
+        focus: { x: 9, y: 22 },
+        isDragging: true,
+        selectedRenderables: [target],
+      })
+    )
     resetSelectionShiftState(renderer)
+
+    shiftSelectionByScroll(renderer, 3)
+
+    expect(renderer.startCalls.at(-1)).toMatchObject({ target, x: 4, y: 7 })
+    expect(renderer.updateCalls.at(-1)).toMatchObject({
+      opts: { finishDragging: false },
+      target,
+      x: 9,
+      y: 22,
+    })
+  })
+
+  test('mid-drag with no usable target is a no-op', () => {
+    const renderer = makeRenderer(() =>
+      makeSelection({
+        isDragging: true,
+        selectedRenderables: [{ selectable: false }],
+        touchedRenderables: [{ isDestroyed: true, selectable: true }],
+      })
+    )
+    resetSelectionShiftState(renderer)
+
     shiftSelectionByScroll(renderer, 5)
+
     expect(renderer.startCalls).toHaveLength(0)
+    expect(renderer.updateCalls).toHaveLength(0)
   })
 
   test('persists cached target across off-screen scrolls', () => {

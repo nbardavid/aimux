@@ -53,7 +53,6 @@ describe('writeToTab', () => {
     expect(backend.scrollViewportToBottom).not.toHaveBeenCalled()
     expect(backend.write).toHaveBeenCalledWith('tab-1', 'input')
   })
-
 })
 
 describe('writePasteToTab', () => {

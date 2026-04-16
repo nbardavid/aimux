@@ -6,7 +6,13 @@ export type TabStatus = 'starting' | 'running' | 'disconnected' | 'exited' | 'er
 
 export type TabActivity = 'busy' | 'idle'
 
-export type FocusMode = 'navigation' | 'terminal-input' | 'modal' | 'command-edit' | 'layout'
+export type FocusMode =
+  | 'navigation'
+  | 'terminal-input'
+  | 'modal'
+  | 'command-edit'
+  | 'layout'
+  | 'git'
 
 export type ModalType =
   | 'new-tab'
@@ -135,6 +141,38 @@ export interface GitPanelState {
   error: GitPanelError | null
 }
 
+export type DiffFileStatus = 'modified' | 'new' | 'deleted' | 'binary' | 'renamed'
+
+export interface DiffLine {
+  kind: 'context' | 'added' | 'removed'
+  lineNumberBefore: number | null
+  lineNumberAfter: number | null
+  text: string
+}
+
+export interface DiffData {
+  path: string
+  status: DiffFileStatus
+  oldPath?: string
+  lines: DiffLine[]
+  beforeLineCount: number
+  afterLineCount: number
+  binarySizeBefore?: number
+  binarySizeAfter?: number
+  errorMessage?: string
+}
+
+export interface GitModeState {
+  selectedFileIndex: number
+  scrollOffset: number
+  beforeScrollOffset: number
+  afterScrollOffset: number
+  focusedPane: 'before' | 'after'
+  syncScroll: boolean
+  diffs: Record<string, DiffData>
+  loading: Record<string, boolean>
+}
+
 interface ModalBase {
   selectedIndex: number
   editBuffer: string | null
@@ -239,6 +277,7 @@ export interface AppState {
   layout: LayoutState
   customCommands: Record<AssistantId, string>
   gitPanel: GitPanelState
+  gitMode: GitModeState
 }
 
 // -- Modal actions --
@@ -349,6 +388,15 @@ export type GitPanelAction =
   | { type: 'git-refresh-error'; kind: GitPanelError }
   | { type: 'git-panel-reset' }
 
+export type GitModeAction =
+  | { type: 'enter-git-mode' }
+  | { type: 'exit-git-mode' }
+  | { type: 'git-mode-select-file'; delta: -1 | 1 }
+  | { type: 'git-mode-scroll'; delta: number }
+  | { type: 'git-mode-toggle-sync' }
+  | { type: 'git-mode-set-diff'; path: string; diff: DiffData }
+  | { type: 'git-mode-set-loading'; path: string; loading: boolean }
+
 // -- Data actions --
 export type DataAction =
   | { type: 'set-snippets'; snippets: SnippetRecord[] }
@@ -362,3 +410,4 @@ export type AppAction =
   | UIAction
   | DataAction
   | GitPanelAction
+  | GitModeAction

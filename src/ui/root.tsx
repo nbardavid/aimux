@@ -7,6 +7,7 @@ import type { ThemeId } from './themes'
 import { useAppStore } from '../state/app-store'
 import { getTreeForTab, PANE_BORDER, type SplitDirection } from '../state/layout-tree'
 import { CreateSessionModal } from './components/create-session-modal'
+import { GitView } from './components/git-view'
 import { HelpModal } from './components/help-modal'
 import { NewTabModal } from './components/new-tab-modal'
 import { SessionNameModal } from './components/session-name-modal'
@@ -193,6 +194,15 @@ export function RootView({
   const createSessionFields = getCreateSessionFields(modal)
   const snippetEditorFields = getSnippetEditorFields(modal)
   const splitChrome = PANE_BORDER * 2
+
+  if (focusMode === 'git') {
+    return (
+      <box flexDirection="column" width="100%" height="100%" backgroundColor={theme.background}>
+        <GitView />
+        <StatusBar />
+      </box>
+    )
+  }
 
   return (
     <box flexDirection="column" width="100%" height="100%" backgroundColor={theme.background}>

@@ -4,6 +4,7 @@ import type { ModeId } from './types'
 type SupportedModalType = Exclude<ModalType, null>
 
 const DIRECT_FOCUS_MODE_IDS: Partial<Record<FocusMode, ModeId>> = {
+  'git': 'git-mode',
   'layout': 'layout',
   'navigation': 'navigation',
   'terminal-input': 'terminal-input',

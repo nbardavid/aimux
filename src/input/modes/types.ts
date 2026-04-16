@@ -6,6 +6,7 @@ export type ModeId =
   | 'navigation'
   | 'terminal-input'
   | 'layout'
+  | 'git-mode'
   | 'modal.new-tab'
   | 'modal.new-tab.command-edit'
   | 'modal.session-picker'
@@ -42,6 +43,7 @@ export type SideEffect =
   | { type: 'rename-session'; sessionId: string; name: string }
   | { type: 'split-pane'; direction: import('../../state/layout-tree').SplitDirection }
   | { type: 'confirm-split' }
+  | { type: 'fetch-git-diff'; path: string }
 
 export interface KeyResult {
   actions: AppAction[]

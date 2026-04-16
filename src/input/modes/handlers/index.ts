@@ -1,4 +1,5 @@
 import { registerMode } from '../registry'
+import { gitMode } from './git-mode'
 import { layoutMode } from './layout'
 import { modalCreateSessionMode } from './modal-create-session'
 import { modalHelpMode } from './modal-help'
@@ -33,4 +34,5 @@ export function registerAllModes(): void {
   registerMode(modalSnippetPickerFilterMode)
   registerMode(modalSnippetEditorMode)
   registerMode(modalSplitPickerMode)
+  registerMode(gitMode)
 }

@@ -50,7 +50,7 @@ export type SideEffect =
   | { type: 'git-unstage'; path: string }
   | { type: 'git-restore'; path: string }
   | { type: 'git-rm'; path: string }
-  | { type: 'git-commit' }
+  | { type: 'git-commit'; title: string; body: string }
   | { type: 'git-push' }
 
 export interface KeyResult {

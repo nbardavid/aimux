@@ -460,7 +460,8 @@ export function executeSideEffect(effect: SideEffect, ctx: SideEffectContext): v
       return
     }
     case 'git-commit': {
-      void enqueueGitOp(() => runGitCommit(ctx))
+      const { body, title } = effect
+      void enqueueGitOp(() => runGitCommit(ctx, title, body))
       return
     }
     case 'git-push': {
@@ -511,16 +512,9 @@ async function runGitRm(ctx: SideEffectContext, path: string): Promise<void> {
   ctx.dispatch({ path, type: 'git-mode-clear-diff-cache' })
 }
 
-async function runGitCommit(ctx: SideEffectContext): Promise<void> {
+async function runGitCommit(ctx: SideEffectContext, title: string, body: string): Promise<void> {
   const cwd = ctx.getCurrentSessionProjectPath()
   if (!cwd) return
-  const modal = ctx.state.modal
-  if (modal.type !== 'git-commit') return
-  const activeIsTitle = modal.activeField === 'title'
-  const rawTitle = activeIsTitle ? (modal.editBuffer ?? '') : modal.contentBuffer
-  const rawBody = activeIsTitle ? modal.contentBuffer : (modal.editBuffer ?? '')
-  const title = rawTitle.trim()
-  const body = rawBody.trim()
   if (!title) {
     ctx.dispatch({ message: 'empty commit title', type: 'git-mode-set-message' })
     return

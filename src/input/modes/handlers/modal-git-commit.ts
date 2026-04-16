@@ -6,6 +6,16 @@ function isBody(ctx: ModeContext): boolean {
   return ctx.state.modal.type === 'git-commit' && ctx.state.modal.activeField === 'body'
 }
 
+function extractCommitFields(ctx: ModeContext): { title: string; body: string } | null {
+  const modal = ctx.state.modal
+  if (modal.type !== 'git-commit') return null
+  const editBuffer = modal.editBuffer ?? ''
+  const activeIsTitle = modal.activeField === 'title'
+  const title = activeIsTitle ? editBuffer : modal.contentBuffer
+  const body = activeIsTitle ? modal.contentBuffer : editBuffer
+  return { body: body.trim(), title: title.trim() }
+}
+
 export const modalGitCommitMode: ModeHandler = {
   handleKey(key: KeyInput, ctx: ModeContext): KeyResult | null {
     if (key.name === 'escape') {
@@ -13,7 +23,15 @@ export const modalGitCommitMode: ModeHandler = {
     }
 
     if (key.ctrl && key.name === 'return') {
-      return result([{ type: 'close-modal' }], [{ type: 'git-commit' }], 'git-mode')
+      const fields = extractCommitFields(ctx)
+      if (!fields) {
+        return result([{ type: 'close-modal' }], [], 'git-mode')
+      }
+      return result(
+        [{ type: 'close-modal' }],
+        [{ body: fields.body, title: fields.title, type: 'git-commit' }],
+        'git-mode'
+      )
     }
 
     if (key.name === 'tab') {

@@ -7,7 +7,6 @@ import type { AppAction, AppState, AssistantId, TabSession } from '../state/type
 import { loadConfig, saveConfig } from '../config'
 import { logInputDebug } from '../debug/input-log'
 import { enqueueGitOp } from '../git/command-queue'
-import { fetchDiff } from '../git/git-diff'
 import { createPrefixedId } from '../platform/id'
 import {
   getAllAssistantOptions,
@@ -433,10 +432,6 @@ export function executeSideEffect(effect: SideEffect, ctx: SideEffectContext): v
       confirmSplitSelection(ctx)
       return
     }
-    case 'fetch-git-diff': {
-      handleFetchGitDiffEffect(ctx, effect.path)
-      return
-    }
     case 'scroll-git-diff': {
       scrollGitDiff(effect.delta)
       return
@@ -558,18 +553,3 @@ async function runGitPush(ctx: SideEffectContext): Promise<void> {
   ctx.dispatch({ message: 'pushed', type: 'git-mode-set-message' })
 }
 
-function handleFetchGitDiffEffect(ctx: SideEffectContext, path: string): void {
-  const cwd = ctx.getCurrentSessionProjectPath()
-  if (!cwd) return
-  const file = ctx.state.gitPanel.files.find((f) => f.path === path)
-  if (!file) return
-  if (ctx.state.gitMode.diffs[path] || ctx.state.gitMode.loading[path]) return
-  ctx.dispatch({ loading: true, path, type: 'git-mode-set-loading' })
-  void fetchDiff(cwd, file)
-    .then((diff) => {
-      ctx.dispatch({ diff, path, type: 'git-mode-set-diff' })
-    })
-    .catch(() => {
-      ctx.dispatch({ loading: false, path, type: 'git-mode-set-loading' })
-    })
-}

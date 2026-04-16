@@ -46,21 +46,10 @@ test('git-mode Esc transitions back to navigation with exit action', () => {
   expect(result?.actions[0]).toEqual({ type: 'exit-git-mode' })
 })
 
-test('git-mode j emits select-file action + fetch side effect', () => {
+test('git-mode j emits select-file action with no fetch side effect', () => {
   const state = seedWithFiles([entry('a.ts'), entry('b.ts')])
   const result = gitMode.handleKey(key({ name: 'j' }), { state })
   expect(result?.actions).toEqual([{ delta: 1, type: 'git-mode-select-file' }])
-  expect(result?.effects).toEqual([{ path: 'b.ts', type: 'fetch-git-diff' }])
-})
-
-test('git-mode j skips fetch if diff already cached', () => {
-  let state = seedWithFiles([entry('a.ts'), entry('b.ts')])
-  state = appReducer(state, {
-    diff: { path: 'b.ts', rawDiff: '', status: 'modified' },
-    path: 'b.ts',
-    type: 'git-mode-set-diff',
-  })
-  const result = gitMode.handleKey(key({ name: 'j' }), { state })
   expect(result?.effects).toEqual([])
 })
 

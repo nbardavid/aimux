@@ -1,5 +1,5 @@
 import type { AppAction, GitFileEntry } from '../../../state/types'
-import type { KeyInput, KeyResult, ModeContext, ModeHandler, SideEffect } from '../types'
+import type { KeyInput, KeyResult, ModeContext, ModeHandler } from '../types'
 
 import { result } from './shared'
 
@@ -13,13 +13,9 @@ function selectFile(ctx: ModeContext, delta: -1 | 1): KeyResult {
   const total = ctx.state.gitPanel.files.length
   if (total === 0) return result([])
   const next = (ctx.state.gitMode.selectedFileIndex + delta + total) % total
-  const nextPath = ctx.state.gitPanel.files[next]?.path
+  if (next === ctx.state.gitMode.selectedFileIndex) return result([])
   const actions: AppAction[] = [{ delta, type: 'git-mode-select-file' }]
-  const effects: SideEffect[] = []
-  if (nextPath && !ctx.state.gitMode.diffs[nextPath]) {
-    effects.push({ path: nextPath, type: 'fetch-git-diff' })
-  }
-  return result(actions, effects)
+  return result(actions)
 }
 
 function scrollDiff(delta: number): KeyResult {
@@ -118,13 +114,4 @@ export const gitMode: ModeHandler = {
   },
 
   id: 'git-mode',
-
-  onEnter(ctx: ModeContext): KeyResult {
-    const file = selectedFile(ctx)
-    const effects: SideEffect[] = []
-    if (file && !ctx.state.gitMode.diffs[file.path]) {
-      effects.push({ path: file.path, type: 'fetch-git-diff' })
-    }
-    return result([], effects)
-  },
 }

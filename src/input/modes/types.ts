@@ -44,7 +44,6 @@ export type SideEffect =
   | { type: 'rename-session'; sessionId: string; name: string }
   | { type: 'split-pane'; direction: import('../../state/layout-tree').SplitDirection }
   | { type: 'confirm-split' }
-  | { type: 'fetch-git-diff'; path: string }
   | { type: 'scroll-git-diff'; delta: number }
   | { type: 'git-stage'; path: string }
   | { type: 'git-unstage'; path: string }

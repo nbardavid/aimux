@@ -11,7 +11,7 @@ import { dispatchGlobal } from '../../state/dispatch-ref'
 import { setGitDiffScroller } from '../git-view-controls'
 import { getSyntaxClient, getSyntaxStyle } from '../syntax'
 import { theme } from '../theme'
-import { GitPanel } from './git-panel'
+import { fileKey, GitPanel } from './git-panel'
 
 interface CodePaneLike {
   scrollY: number
@@ -172,7 +172,32 @@ export const GitView = memo(function GitView() {
       .catch(() => dispatchGlobal({ loading: false, path, type: 'git-mode-set-loading' }))
   }, [focusMode, projectPath, selectedFile, diff, loading])
 
-  const footerLine = 'j/k next/prev file · ↓/↑ scroll · Ctrl+d/u page · Esc exit'
+  const baseFooter =
+    'j/k file · ↓/↑ scroll · Ctrl+d/u page · a stage · d unstage/delete · c commit · p push · Esc exit'
+  const pendingPath = gitMode.pendingDeletePath
+  const pendingIsUntracked =
+    pendingPath !== null &&
+    selectedFile?.path === pendingPath &&
+    selectedFile.section === 'untracked'
+  let pendingHint: string | null = null
+  if (pendingPath !== null) {
+    pendingHint = pendingIsUntracked
+      ? 'press d again to delete file'
+      : 'press d again to discard changes'
+  }
+  const actionMessage = gitMode.actionMessage
+  let footerNode: React.ReactNode
+  if (pendingHint) {
+    footerNode = (
+      <text fg={theme.warning}>
+        <strong>{pendingHint}</strong>
+      </text>
+    )
+  } else if (actionMessage) {
+    footerNode = <text fg={theme.accent}>{actionMessage}</text>
+  } else {
+    footerNode = <text fg={theme.textMuted}>{baseFooter}</text>
+  }
 
   return (
     <box flexDirection="column" flexGrow={1}>
@@ -197,13 +222,13 @@ export const GitView = memo(function GitView() {
           <GitPanel
             gitPanel={gitPanel}
             projectPath={projectPath}
-            selectedFilePath={selectedFile?.path ?? null}
+            selectedFileKey={selectedFile ? fileKey(selectedFile) : null}
           />
         </box>
         <DiffStage diff={diff} diffRef={diffRef} loading={loading} />
       </box>
-      <box paddingLeft={1} paddingRight={1} backgroundColor={theme.panel}>
-        <text fg={theme.textMuted}>{footerLine}</text>
+      <box paddingLeft={1} paddingRight={1} backgroundColor={theme.panel} flexDirection="column">
+        {footerNode}
       </box>
     </box>
   )

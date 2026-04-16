@@ -7,7 +7,11 @@ import { theme } from '../theme'
 interface GitPanelProps {
   gitPanel: GitPanelState
   projectPath: string | undefined
-  selectedFilePath?: string | null
+  selectedFileKey?: string | null
+}
+
+export function fileKey(file: Pick<GitFileEntry, 'path' | 'section'>): string {
+  return `${file.section}:${file.path}`
 }
 
 const SECTION_ORDER: { key: GitFileSection; title: string }[] = [
@@ -17,13 +21,18 @@ const SECTION_ORDER: { key: GitFileSection; title: string }[] = [
 ]
 
 const STATUS_COLORS: Record<GitFileEntry['status'], string> = {
-  '?': theme.textMuted,
+  '?': theme.success,
   'A': theme.success,
   'C': theme.accent,
   'D': theme.danger,
   'M': theme.warning,
   'R': theme.accent,
   'U': theme.danger,
+}
+
+function displayStatus(file: GitFileEntry): string {
+  if (file.section === 'untracked') return 'A'
+  return file.status
 }
 
 function groupBySection(files: GitFileEntry[]): Record<GitFileSection, GitFileEntry[]> {
@@ -96,7 +105,7 @@ function renderFileRow(
   return (
     <box key={key} flexDirection="row" gap={1} paddingLeft={1} backgroundColor={bg}>
       <text fg={STATUS_COLORS[file.status]} bg={bg}>
-        <strong>{file.status}</strong>
+        <strong>{displayStatus(file)}</strong>
       </text>
       <box flexGrow={1} overflow="hidden">
         {renderPath(file)}
@@ -124,7 +133,7 @@ function renderSection(
   files: GitFileEntry[],
   addedW: number,
   removedW: number,
-  selectedFilePath: string | null | undefined
+  selectedFileKey: string | null | undefined
 ): ReactNode {
   if (files.length === 0) return null
   return (
@@ -140,7 +149,7 @@ function renderSection(
           `${section}-${i}`,
           addedW,
           removedW,
-          !!selectedFilePath && file.path === selectedFilePath
+          !!selectedFileKey && fileKey(file) === selectedFileKey
         )
       )}
     </box>
@@ -184,7 +193,7 @@ function computeStatusPlaceholder(
 export const GitPanel = memo(function GitPanel({
   gitPanel,
   projectPath,
-  selectedFilePath,
+  selectedFileKey,
 }: GitPanelProps) {
   const groups = useMemo(() => groupBySection(gitPanel.files), [gitPanel.files])
   const { added: addedW, removed: removedW } = useMemo(
@@ -211,7 +220,7 @@ export const GitPanel = memo(function GitPanel({
           contentOptions={{ flexDirection: 'column', gap: 0 }}
         >
           {SECTION_ORDER.map((s) =>
-            renderSection(s.key, s.title, groups[s.key], addedW, removedW, selectedFilePath)
+            renderSection(s.key, s.title, groups[s.key], addedW, removedW, selectedFileKey)
           )}
         </scrollbox>
       )}

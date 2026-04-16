@@ -7,6 +7,7 @@ import type { ThemeId } from './themes'
 import { useAppStore } from '../state/app-store'
 import { getTreeForTab, PANE_BORDER, type SplitDirection } from '../state/layout-tree'
 import { CreateSessionModal } from './components/create-session-modal'
+import { GitCommitModal } from './components/git-commit-modal'
 import { GitView } from './components/git-view'
 import { HelpModal } from './components/help-modal'
 import { NewTabModal } from './components/new-tab-modal'
@@ -133,6 +134,20 @@ function renderModal(
       )
     case 'help':
       return <HelpModal />
+    case 'git-commit': {
+      const titleText =
+        modal.activeField === 'title' ? (modal.editBuffer ?? '') : modal.contentBuffer
+      const bodyText =
+        modal.activeField === 'title' ? modal.contentBuffer : (modal.editBuffer ?? '')
+      return (
+        <GitCommitModal
+          activeField={modal.activeField}
+          body={bodyText}
+          cursorPos={modal.cursorPos ?? (modal.editBuffer ?? '').length}
+          title={titleText}
+        />
+      )
+    }
     case null:
       return null
     default:
@@ -195,11 +210,22 @@ export function RootView({
   const snippetEditorFields = getSnippetEditorFields(modal)
   const splitChrome = PANE_BORDER * 2
 
-  if (focusMode === 'git') {
+  const inGitMode = focusMode === 'git' || modal.type === 'git-commit'
+  if (inGitMode) {
     return (
       <box flexDirection="column" width="100%" height="100%" backgroundColor={theme.background}>
         <GitView />
         <StatusBar />
+        {renderModal(modal, {
+          createSessionFields,
+          currentSessionId,
+          currentTabCount: tabs.length,
+          customCommands,
+          sessions,
+          snippetEditorFields,
+          snippets,
+          themeId,
+        })}
       </box>
     )
   }

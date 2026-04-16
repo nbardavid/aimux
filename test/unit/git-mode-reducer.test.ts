@@ -58,6 +58,60 @@ test('git-mode-select-file is no-op when files empty', () => {
   expect(s2).toBe(s1)
 })
 
+test('git-mode-optimistic-move moves a file to staged and keeps cursor at same index', () => {
+  const files: GitFileEntry[] = [
+    { added: 0, path: 'a.ts', removed: 0, section: 'unstaged', status: 'M' },
+    { added: 0, path: 'b.ts', removed: 0, section: 'unstaged', status: 'M' },
+    { added: 0, path: 'c.ts', removed: 0, section: 'unstaged', status: 'M' },
+  ]
+  let state = seedWithFiles(files)
+  state = appReducer(state, { type: 'enter-git-mode' })
+  state = appReducer(state, { delta: 1, type: 'git-mode-select-file' })
+  expect(state.gitMode.selectedFileIndex).toBe(1)
+  const next = appReducer(state, {
+    fromSection: 'unstaged',
+    path: 'b.ts',
+    toSection: 'staged',
+    type: 'git-mode-optimistic-move',
+  })
+  expect(next.gitPanel.files[0]?.path).toBe('b.ts')
+  expect(next.gitPanel.files[0]?.section).toBe('staged')
+  expect(next.gitMode.selectedFileIndex).toBe(1)
+  expect(next.gitPanel.files[1]?.path).toBe('a.ts')
+})
+
+test('git-mode-optimistic-move removing a file advances cursor to next', () => {
+  const files: GitFileEntry[] = [
+    { added: null, path: 'a.ts', removed: null, section: 'untracked', status: '?' },
+    { added: null, path: 'b.ts', removed: null, section: 'untracked', status: '?' },
+  ]
+  let state = seedWithFiles(files)
+  state = appReducer(state, { type: 'enter-git-mode' })
+  const next = appReducer(state, {
+    fromSection: 'untracked',
+    path: 'a.ts',
+    toSection: null,
+    type: 'git-mode-optimistic-move',
+  })
+  expect(next.gitPanel.files).toHaveLength(1)
+  expect(next.gitPanel.files[0]?.path).toBe('b.ts')
+  expect(next.gitMode.selectedFileIndex).toBe(0)
+})
+
+test('git-refresh-success sorts files by section order', () => {
+  const s0 = createInitialState()
+  const files: GitFileEntry[] = [
+    { added: null, path: 'z.ts', removed: null, section: 'untracked', status: '?' },
+    { added: 0, path: 'a.ts', removed: 0, section: 'unstaged', status: 'M' },
+    { added: 0, path: 'm.ts', removed: 0, section: 'staged', status: 'M' },
+  ]
+  const s1 = appReducer(s0, {
+    payload: { ahead: 0, behind: 0, branch: 'main', files },
+    type: 'git-refresh-success',
+  })
+  expect(s1.gitPanel.files.map((f) => f.path)).toEqual(['m.ts', 'a.ts', 'z.ts'])
+})
+
 test('git-mode-set-diff stores raw diff and clears loading', () => {
   const s0 = seedWithFiles([entry('a.ts')])
   const s1 = appReducer(s0, {

@@ -2,6 +2,7 @@ import { registerMode } from '../registry'
 import { gitMode } from './git-mode'
 import { layoutMode } from './layout'
 import { modalCreateSessionMode } from './modal-create-session'
+import { modalGitCommitMode } from './modal-git-commit'
 import { modalHelpMode } from './modal-help'
 import { modalNewTabMode } from './modal-new-tab'
 import { modalNewTabCommandEditMode } from './modal-new-tab-command-edit'
@@ -35,4 +36,5 @@ export function registerAllModes(): void {
   registerMode(modalSnippetEditorMode)
   registerMode(modalSplitPickerMode)
   registerMode(gitMode)
+  registerMode(modalGitCommitMode)
 }

@@ -20,6 +20,7 @@ export type ModeId =
   | 'modal.theme-picker'
   | 'modal.help'
   | 'modal.split-picker'
+  | 'modal.git-commit'
 
 export type SideEffect =
   | { type: 'quit'; state: AppState }
@@ -45,6 +46,12 @@ export type SideEffect =
   | { type: 'confirm-split' }
   | { type: 'fetch-git-diff'; path: string }
   | { type: 'scroll-git-diff'; delta: number }
+  | { type: 'git-stage'; path: string }
+  | { type: 'git-unstage'; path: string }
+  | { type: 'git-restore'; path: string }
+  | { type: 'git-rm'; path: string }
+  | { type: 'git-commit' }
+  | { type: 'git-push' }
 
 export interface KeyResult {
   actions: AppAction[]

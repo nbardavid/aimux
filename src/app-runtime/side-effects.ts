@@ -1,9 +1,12 @@
+import { $ } from 'bun'
+
 import type { SideEffect } from '../input/modes/types'
 import type { SessionBackend } from '../session-backend/types'
 import type { AppAction, AppState, AssistantId, TabSession } from '../state/types'
 
 import { loadConfig, saveConfig } from '../config'
 import { logInputDebug } from '../debug/input-log'
+import { enqueueGitOp } from '../git/command-queue'
 import { fetchDiff } from '../git/git-diff'
 import { createPrefixedId } from '../platform/id'
 import {
@@ -438,9 +441,119 @@ export function executeSideEffect(effect: SideEffect, ctx: SideEffectContext): v
       scrollGitDiff(effect.delta)
       return
     }
+    case 'git-stage': {
+      void enqueueGitOp(() => runGitAction(ctx, ['add', '--', effect.path], effect.path))
+      return
+    }
+    case 'git-unstage': {
+      void enqueueGitOp(() =>
+        runGitAction(ctx, ['restore', '--staged', '--', effect.path], effect.path)
+      )
+      return
+    }
+    case 'git-restore': {
+      void enqueueGitOp(() => runGitAction(ctx, ['restore', '--', effect.path], effect.path))
+      return
+    }
+    case 'git-rm': {
+      void enqueueGitOp(() => runGitRm(ctx, effect.path))
+      return
+    }
+    case 'git-commit': {
+      void enqueueGitOp(() => runGitCommit(ctx))
+      return
+    }
+    case 'git-push': {
+      void enqueueGitOp(() => runGitPush(ctx))
+      return
+    }
     default:
       effect satisfies never
   }
+}
+
+async function runGitAction(
+  ctx: SideEffectContext,
+  args: string[],
+  pathToInvalidate?: string
+): Promise<void> {
+  const cwd = ctx.getCurrentSessionProjectPath()
+  if (!cwd) return
+  const result = await $`git -C ${cwd} ${args}`.quiet().nothrow()
+  if (result.exitCode !== 0) {
+    const stderr = result.stderr.toString().trim()
+    ctx.dispatch({ message: stderr || 'git action failed', type: 'git-mode-set-message' })
+    return
+  }
+  ctx.dispatch({ message: null, type: 'git-mode-set-message' })
+  if (pathToInvalidate) {
+    ctx.dispatch({ path: pathToInvalidate, type: 'git-mode-clear-diff-cache' })
+  }
+}
+
+async function runGitRm(ctx: SideEffectContext, path: string): Promise<void> {
+  const cwd = ctx.getCurrentSessionProjectPath()
+  if (!cwd) return
+  const result = await $`rm ${cwd}/${path}`.quiet().nothrow()
+  if (result.exitCode !== 0) {
+    ctx.dispatch({ message: 'failed to delete file', type: 'git-mode-set-message' })
+    return
+  }
+  ctx.dispatch({ message: null, type: 'git-mode-set-message' })
+  ctx.dispatch({ path, type: 'git-mode-clear-diff-cache' })
+}
+
+async function runGitCommit(ctx: SideEffectContext): Promise<void> {
+  const cwd = ctx.getCurrentSessionProjectPath()
+  if (!cwd) return
+  const modal = ctx.state.modal
+  if (modal.type !== 'git-commit') return
+  const activeIsTitle = modal.activeField === 'title'
+  const rawTitle = activeIsTitle ? (modal.editBuffer ?? '') : modal.contentBuffer
+  const rawBody = activeIsTitle ? modal.contentBuffer : (modal.editBuffer ?? '')
+  const title = rawTitle.trim()
+  const body = rawBody.trim()
+  if (!title) {
+    ctx.dispatch({ message: 'empty commit title', type: 'git-mode-set-message' })
+    return
+  }
+  const result = body
+    ? await $`git -C ${cwd} commit -m ${title} -m ${body}`.quiet().nothrow()
+    : await $`git -C ${cwd} commit -m ${title}`.quiet().nothrow()
+  if (result.exitCode !== 0) {
+    const stderr = result.stderr.toString().trim()
+    ctx.dispatch({
+      message: stderr.split('\n')[0] || 'commit failed',
+      type: 'git-mode-set-message',
+    })
+    return
+  }
+  ctx.dispatch({ message: `committed: ${title}`, type: 'git-mode-set-message' })
+}
+
+async function runGitPush(ctx: SideEffectContext): Promise<void> {
+  const cwd = ctx.getCurrentSessionProjectPath()
+  if (!cwd) return
+  ctx.dispatch({ message: 'pushing…', type: 'git-mode-set-message' })
+
+  const upstream = await $`git -C ${cwd} rev-parse --abbrev-ref --symbolic-full-name @{u}`
+    .quiet()
+    .nothrow()
+  const hasUpstream = upstream.exitCode === 0
+
+  const result = hasUpstream
+    ? await $`git -C ${cwd} push`.quiet().nothrow()
+    : await $`git -C ${cwd} push --set-upstream origin HEAD`.quiet().nothrow()
+
+  if (result.exitCode !== 0) {
+    const stderr = result.stderr.toString().trim()
+    ctx.dispatch({
+      message: stderr.split('\n').slice(-1)[0] || 'push failed',
+      type: 'git-mode-set-message',
+    })
+    return
+  }
+  ctx.dispatch({ message: 'pushed', type: 'git-mode-set-message' })
 }
 
 function handleFetchGitDiffEffect(ctx: SideEffectContext, path: string): void {

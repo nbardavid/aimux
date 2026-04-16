@@ -74,6 +74,12 @@ export function shiftSelectionByScroll(renderer: RendererSelectionApi, deltaLine
     return
   }
 
+  // While a drag is in flight, opentui owns the focus update from the live
+  // mouse position; reapplying a shifted selection here would fight it. The
+  // tradeoff: if a peer client or PTY auto-scroll moves the viewport mid-drag,
+  // the anchor lands on the pre-scroll content. Acceptable — drag + concurrent
+  // external scroll is rare, and reconciling on drag-end would jump the anchor
+  // unexpectedly.
   if (live.isDragging) return
 
   const state = getState(renderer)

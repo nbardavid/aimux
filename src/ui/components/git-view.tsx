@@ -6,6 +6,7 @@ import { fetchDiff } from '../../git/git-diff'
 import { useGitPanelPolling } from '../../git/git-poller'
 import { useAppStore } from '../../state/app-store'
 import { dispatchGlobal } from '../../state/dispatch-ref'
+import { getSyntaxClient, getSyntaxStyle } from '../syntax'
 import { theme } from '../theme'
 import { GitPanel } from './git-panel'
 
@@ -14,34 +15,15 @@ function filetypeFromPath(path: string): string | undefined {
   if (dot < 0) return undefined
   const ext = path.slice(dot + 1).toLowerCase()
   const map: Record<string, string> = {
-    c: 'c',
     cjs: 'javascript',
-    cpp: 'cpp',
-    cs: 'csharp',
-    css: 'css',
-    go: 'go',
-    h: 'c',
-    hpp: 'cpp',
-    html: 'html',
-    java: 'java',
     js: 'javascript',
-    json: 'json',
-    jsx: 'jsx',
-    kt: 'kotlin',
-    lua: 'lua',
+    jsx: 'javascript',
+    markdown: 'markdown',
     md: 'markdown',
+    mdx: 'markdown',
     mjs: 'javascript',
-    php: 'php',
-    py: 'python',
-    rb: 'ruby',
-    rs: 'rust',
-    sh: 'bash',
-    swift: 'swift',
     ts: 'typescript',
-    tsx: 'tsx',
-    vue: 'vue',
-    yaml: 'yaml',
-    yml: 'yaml',
+    tsx: 'typescript',
     zig: 'zig',
   }
   return map[ext]
@@ -117,6 +99,8 @@ const DiffStage = memo(function DiffStage({ diff, loading, syncScroll }: DiffSta
         showLineNumbers
         wrapMode="none"
         filetype={filetype}
+        treeSitterClient={filetype ? getSyntaxClient() : undefined}
+        syntaxStyle={filetype ? getSyntaxStyle() : undefined}
         addedBg={theme.diffAddBg}
         removedBg={theme.diffRemoveBg}
         addedSignColor={theme.success}

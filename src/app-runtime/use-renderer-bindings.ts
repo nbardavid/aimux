@@ -1,5 +1,5 @@
 import { useRenderer } from '@opentui/react'
-import { type MutableRefObject, useEffect } from 'react'
+import { type MutableRefObject, useEffect, useRef } from 'react'
 
 import type { SessionBackend } from '../session-backend/types'
 import type { AppAction, FocusMode, TabSession } from '../state/types'
@@ -22,6 +22,7 @@ interface UseRendererBindingsOptions {
   dispatch: (action: AppAction) => void
   focusMode: FocusMode
   activeTabId: string | null
+  activeTabViewportY: number | null
   focusModeRef: MutableRefObject<FocusMode>
   activeTabIdRef: MutableRefObject<string | null>
   activeTabRef: MutableRefObject<TabSession | undefined>
@@ -35,21 +36,20 @@ export function useRendererBindings({
   activeTabId,
   activeTabIdRef,
   activeTabRef,
+  activeTabViewportY,
   backend,
   dispatch,
   focusMode,
   focusModeRef,
   renderer,
 }: UseRendererBindingsOptions): void {
+  const lastViewportRef = useRef<{ tabId: string; y: number } | null>(null)
+
   useEffect(() => {
     renderer.useMouse = true
     renderer.useConsole = false
     renderer.console.hide()
     renderer.console.show = () => {}
-
-    const onViewportScrolled = (deltaLines: number) => {
-      shiftSelectionByScroll(renderer, deltaLines)
-    }
 
     const handler = createRawInputHandler({
       enterLayoutMode: () => dispatch({ focusMode: 'layout', type: 'set-focus-mode' }),
@@ -59,8 +59,7 @@ export function useRendererBindings({
       getFocusMode: () => focusModeRef.current,
       leaveTerminalInput: () => dispatch({ focusMode: 'navigation', type: 'set-focus-mode' }),
       toggleSidebar: () => dispatch({ type: 'toggle-sidebar' }),
-      writeToPty: (tabId, data) =>
-        writeToTab(backend, tabId, activeTabRef.current, data, onViewportScrolled),
+      writeToPty: (tabId, data) => writeToTab(backend, tabId, activeTabRef.current, data),
     })
 
     const handlePasteEvent = (event: { bytes: Uint8Array; defaultPrevented?: boolean }) => {
@@ -90,7 +89,7 @@ export function useRendererBindings({
         return
       }
 
-      writePasteToTab(backend, tabId, tab, payload, onViewportScrolled)
+      writePasteToTab(backend, tabId, tab, payload)
     }
 
     const handleSelection = (selection: OtuiSelection) => {
@@ -125,6 +124,25 @@ export function useRendererBindings({
       renderer.off('selection', handleSelection)
     }
   }, [activeTabIdRef, activeTabRef, backend, dispatch, focusModeRef, renderer])
+
+  useEffect(() => {
+    if (activeTabId === null || activeTabViewportY === null) {
+      lastViewportRef.current = null
+      return
+    }
+
+    const prior = lastViewportRef.current
+    lastViewportRef.current = { tabId: activeTabId, y: activeTabViewportY }
+
+    if (!prior || prior.tabId !== activeTabId) {
+      return
+    }
+
+    const delta = activeTabViewportY - prior.y
+    if (delta !== 0) {
+      shiftSelectionByScroll(renderer, delta)
+    }
+  }, [activeTabId, activeTabViewportY, renderer])
 
   useEffect(() => {
     const shouldEnableBracketedPaste = focusMode === 'terminal-input' && activeTabId !== null

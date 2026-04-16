@@ -54,33 +54,6 @@ describe('writeToTab', () => {
     expect(backend.write).toHaveBeenCalledWith('tab-1', 'input')
   })
 
-  test('invokes onViewportScrolled with delta when viewport jumps to bottom', () => {
-    const backend = createBackend()
-    const onViewportScrolled = mock((_delta: number) => {})
-    const tab = createTab({
-      viewport: {
-        baseY: 10,
-        cursorVisible: true,
-        lines: [],
-        viewportY: 4,
-      },
-    })
-
-    writeToTab(backend as SessionBackend, 'tab-1', tab, 'input', onViewportScrolled)
-
-    expect(onViewportScrolled).toHaveBeenCalledTimes(1)
-    expect(onViewportScrolled).toHaveBeenCalledWith(6)
-  })
-
-  test('does not invoke onViewportScrolled when already at bottom', () => {
-    const backend = createBackend()
-    const onViewportScrolled = mock((_delta: number) => {})
-    const tab = createTab()
-
-    writeToTab(backend as SessionBackend, 'tab-1', tab, 'input', onViewportScrolled)
-
-    expect(onViewportScrolled).not.toHaveBeenCalled()
-  })
 })
 
 describe('writePasteToTab', () => {

@@ -3,6 +3,8 @@ import type { KeyInput, KeyResult, ModeContext, ModeHandler, SideEffect } from '
 
 import { result } from './shared'
 
+const PAGE_SCROLL = 10
+
 function selectedFilePath(ctx: ModeContext): string | null {
   const file = ctx.state.gitPanel.files[ctx.state.gitMode.selectedFileIndex]
   return file?.path ?? null
@@ -21,6 +23,10 @@ function selectFile(ctx: ModeContext, delta: -1 | 1): KeyResult {
   return result(actions, effects)
 }
 
+function scrollDiff(delta: number): KeyResult {
+  return result([], [{ delta, type: 'scroll-git-diff' }])
+}
+
 export const gitMode: ModeHandler = {
   handleKey(key: KeyInput, ctx: ModeContext): KeyResult | null {
     if (key.name === 'escape') {
@@ -35,8 +41,20 @@ export const gitMode: ModeHandler = {
       return selectFile(ctx, -1)
     }
 
-    if (key.name === 'tab') {
-      return result([{ type: 'git-mode-toggle-sync' }])
+    if (key.ctrl && key.name === 'd') {
+      return scrollDiff(PAGE_SCROLL)
+    }
+
+    if (key.ctrl && key.name === 'u') {
+      return scrollDiff(-PAGE_SCROLL)
+    }
+
+    if (key.name === 'down') {
+      return scrollDiff(1)
+    }
+
+    if (key.name === 'up') {
+      return scrollDiff(-1)
     }
 
     return result([])

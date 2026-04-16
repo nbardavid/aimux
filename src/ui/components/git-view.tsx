@@ -1,4 +1,6 @@
-import { memo, useEffect } from 'react'
+import type { DiffRenderable } from '@opentui/core'
+
+import { memo, useEffect, useRef } from 'react'
 
 import type { DiffData } from '../../state/types'
 
@@ -6,9 +8,20 @@ import { fetchDiff } from '../../git/git-diff'
 import { useGitPanelPolling } from '../../git/git-poller'
 import { useAppStore } from '../../state/app-store'
 import { dispatchGlobal } from '../../state/dispatch-ref'
+import { setGitDiffScroller } from '../git-view-controls'
 import { getSyntaxClient, getSyntaxStyle } from '../syntax'
 import { theme } from '../theme'
 import { GitPanel } from './git-panel'
+
+interface CodePaneLike {
+  scrollY: number
+  maxScrollY: number
+}
+
+interface DiffRenderableInternals {
+  leftCodeRenderable?: CodePaneLike
+  rightCodeRenderable?: CodePaneLike
+}
 
 function filetypeFromPath(path: string): string | undefined {
   const dot = path.lastIndexOf('.')
@@ -32,7 +45,7 @@ function filetypeFromPath(path: string): string | undefined {
 interface DiffStageProps {
   diff: DiffData | undefined
   loading: boolean
-  syncScroll: boolean
+  diffRef: React.RefObject<DiffRenderable | null>
 }
 
 function placeholderText(diff: DiffData): string | null {
@@ -49,7 +62,7 @@ function placeholderText(diff: DiffData): string | null {
   return null
 }
 
-const DiffStage = memo(function DiffStage({ diff, loading, syncScroll }: DiffStageProps) {
+const DiffStage = memo(function DiffStage({ diff, diffRef, loading }: DiffStageProps) {
   if (loading && !diff) {
     return (
       <box flexGrow={1} padding={1}>
@@ -93,9 +106,10 @@ const DiffStage = memo(function DiffStage({ diff, loading, syncScroll }: DiffSta
         </box>
       ) : null}
       <diff
+        ref={diffRef}
         diff={diff.rawDiff}
         view="split"
-        syncScroll={syncScroll}
+        syncScroll
         showLineNumbers
         wrapMode="none"
         filetype={filetype}
@@ -118,6 +132,7 @@ export const GitView = memo(function GitView() {
   const currentSessionId = useAppStore((s) => s.currentSessionId)
   const sessions = useAppStore((s) => s.sessions)
   const focusMode = useAppStore((s) => s.focusMode)
+  const diffRef = useRef<DiffRenderable | null>(null)
 
   const currentSession = currentSessionId
     ? sessions.find((s) => s.id === currentSessionId)
@@ -131,6 +146,22 @@ export const GitView = memo(function GitView() {
   const loading = selectedFile ? !!gitMode.loading[selectedFile.path] : false
 
   useEffect(() => {
+    setGitDiffScroller((delta: number) => {
+      const node = diffRef.current as unknown as DiffRenderableInternals | null
+      if (!node) return
+      const left = node.leftCodeRenderable
+      const right = node.rightCodeRenderable
+      if (!left || !right) return
+      const cap = Math.max(left.maxScrollY, right.maxScrollY)
+      const base = left.scrollY
+      const nextScroll = Math.max(0, Math.min(cap, base + delta))
+      left.scrollY = nextScroll
+      right.scrollY = nextScroll
+    })
+    return () => setGitDiffScroller(null)
+  }, [])
+
+  useEffect(() => {
     if (focusMode !== 'git') return
     if (!selectedFile || !projectPath) return
     const path = selectedFile.path
@@ -141,7 +172,7 @@ export const GitView = memo(function GitView() {
       .catch(() => dispatchGlobal({ loading: false, path, type: 'git-mode-set-loading' }))
   }, [focusMode, projectPath, selectedFile, diff, loading])
 
-  const footerLine = 'j/k next/prev file · Tab toggle sync · mouse wheel scroll · Esc exit'
+  const footerLine = 'j/k next/prev file · ↓/↑ scroll · Ctrl+d/u page · Esc exit'
 
   return (
     <box flexDirection="column" flexGrow={1}>
@@ -169,7 +200,7 @@ export const GitView = memo(function GitView() {
             selectedFilePath={selectedFile?.path ?? null}
           />
         </box>
-        <DiffStage diff={diff} loading={loading} syncScroll={gitMode.syncScroll} />
+        <DiffStage diff={diff} diffRef={diffRef} loading={loading} />
       </box>
       <box paddingLeft={1} paddingRight={1} backgroundColor={theme.panel}>
         <text fg={theme.textMuted}>{footerLine}</text>

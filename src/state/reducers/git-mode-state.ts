@@ -3,10 +3,8 @@ import type { AppAction, AppState, GitModeState } from '../types'
 export function emptyGitMode(): GitModeState {
   return {
     diffs: {},
-    focusedPane: 'after',
     loading: {},
     selectedFileIndex: 0,
-    syncScroll: true,
   }
 }
 
@@ -17,12 +15,7 @@ export function reduceGitModeState(state: AppState, action: AppAction): AppState
       return {
         ...state,
         focusMode: 'git',
-        gitMode: {
-          ...state.gitMode,
-          focusedPane: 'after',
-          selectedFileIndex: 0,
-          syncScroll: true,
-        },
+        gitMode: { ...state.gitMode, selectedFileIndex: 0 },
       }
     }
     case 'exit-git-mode': {
@@ -38,18 +31,6 @@ export function reduceGitModeState(state: AppState, action: AppAction): AppState
         ...state,
         gitMode: { ...state.gitMode, selectedFileIndex: next },
       }
-    }
-    case 'git-mode-toggle-sync': {
-      if (state.gitMode.syncScroll) {
-        return {
-          ...state,
-          gitMode: { ...state.gitMode, focusedPane: 'after', syncScroll: false },
-        }
-      }
-      if (state.gitMode.focusedPane === 'after') {
-        return { ...state, gitMode: { ...state.gitMode, focusedPane: 'before' } }
-      }
-      return { ...state, gitMode: { ...state.gitMode, syncScroll: true } }
     }
     case 'git-mode-set-diff': {
       const nextLoading = { ...state.gitMode.loading }

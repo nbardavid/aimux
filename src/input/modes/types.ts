@@ -44,6 +44,7 @@ export type SideEffect =
   | { type: 'split-pane'; direction: import('../../state/layout-tree').SplitDirection }
   | { type: 'confirm-split' }
   | { type: 'fetch-git-diff'; path: string }
+  | { type: 'scroll-git-diff'; delta: number }
 
 export interface KeyResult {
   actions: AppAction[]

@@ -64,10 +64,23 @@ test('git-mode j skips fetch if diff already cached', () => {
   expect(result?.effects).toEqual([])
 })
 
-test('git-mode Tab toggles scroll sync', () => {
+test('git-mode Ctrl+d emits scroll-git-diff effect', () => {
   const state = seedWithFiles([entry('a.ts')])
-  const result = gitMode.handleKey(key({ name: 'tab' }), { state })
-  expect(result?.actions).toEqual([{ type: 'git-mode-toggle-sync' }])
+  const result = gitMode.handleKey(key({ ctrl: true, name: 'd' }), { state })
+  expect(result?.actions).toEqual([])
+  expect(result?.effects).toEqual([{ delta: 10, type: 'scroll-git-diff' }])
+})
+
+test('git-mode Ctrl+u emits scroll-git-diff up effect', () => {
+  const state = seedWithFiles([entry('a.ts')])
+  const result = gitMode.handleKey(key({ ctrl: true, name: 'u' }), { state })
+  expect(result?.effects).toEqual([{ delta: -10, type: 'scroll-git-diff' }])
+})
+
+test('git-mode Down emits single-line scroll effect', () => {
+  const state = seedWithFiles([entry('a.ts')])
+  const result = gitMode.handleKey(key({ name: 'down' }), { state })
+  expect(result?.effects).toEqual([{ delta: 1, type: 'scroll-git-diff' }])
 })
 
 test('git-mode ignores unrelated keys (isolation)', () => {

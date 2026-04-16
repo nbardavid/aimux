@@ -155,8 +155,6 @@ export interface DiffData {
 
 export interface GitModeState {
   selectedFileIndex: number
-  focusedPane: 'before' | 'after'
-  syncScroll: boolean
   diffs: Record<string, DiffData>
   loading: Record<string, boolean>
 }
@@ -380,7 +378,6 @@ export type GitModeAction =
   | { type: 'enter-git-mode' }
   | { type: 'exit-git-mode' }
   | { type: 'git-mode-select-file'; delta: -1 | 1 }
-  | { type: 'git-mode-toggle-sync' }
   | { type: 'git-mode-set-diff'; path: string; diff: DiffData }
   | { type: 'git-mode-set-loading'; path: string; loading: boolean }
 

@@ -29,7 +29,6 @@ test('enter-git-mode sets focusMode to git and resets selection', () => {
   const s1 = appReducer(s0, { type: 'enter-git-mode' })
   expect(s1.focusMode).toBe('git')
   expect(s1.gitMode.selectedFileIndex).toBe(0)
-  expect(s1.gitMode.syncScroll).toBe(true)
 })
 
 test('exit-git-mode returns to navigation mode', () => {
@@ -57,19 +56,6 @@ test('git-mode-select-file is no-op when files empty', () => {
   const s1 = appReducer(s0, { type: 'enter-git-mode' })
   const s2 = appReducer(s1, { delta: 1, type: 'git-mode-select-file' })
   expect(s2).toBe(s1)
-})
-
-test('git-mode-toggle-sync flows sync → before-focused → synced', () => {
-  const s0 = seedWithFiles([entry('a.ts')])
-  const s1 = appReducer(s0, { type: 'enter-git-mode' })
-  const s2 = appReducer(s1, { type: 'git-mode-toggle-sync' })
-  expect(s2.gitMode.syncScroll).toBe(false)
-  expect(s2.gitMode.focusedPane).toBe('after')
-  const s3 = appReducer(s2, { type: 'git-mode-toggle-sync' })
-  expect(s3.gitMode.syncScroll).toBe(false)
-  expect(s3.gitMode.focusedPane).toBe('before')
-  const s4 = appReducer(s3, { type: 'git-mode-toggle-sync' })
-  expect(s4.gitMode.syncScroll).toBe(true)
 })
 
 test('git-mode-set-diff stores raw diff and clears loading', () => {

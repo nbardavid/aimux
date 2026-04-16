@@ -26,6 +26,7 @@ import {
 import { filterSessions, filterSnippets } from '../state/selectors'
 import { createDefaultTerminalModes } from '../state/terminal-modes'
 import { saveCurrentWorkspace } from '../state/workspace-save'
+import { scrollGitDiff } from '../ui/git-view-controls'
 import { applyTheme } from '../ui/theme'
 import { THEME_IDS, type ThemeId } from '../ui/themes'
 import {
@@ -431,6 +432,10 @@ export function executeSideEffect(effect: SideEffect, ctx: SideEffectContext): v
     }
     case 'fetch-git-diff': {
       handleFetchGitDiffEffect(ctx, effect.path)
+      return
+    }
+    case 'scroll-git-diff': {
+      scrollGitDiff(effect.delta)
       return
     }
     default:

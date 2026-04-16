@@ -552,4 +552,3 @@ async function runGitPush(ctx: SideEffectContext): Promise<void> {
   }
   ctx.dispatch({ message: 'pushed', type: 'git-mode-set-message' })
 }
-

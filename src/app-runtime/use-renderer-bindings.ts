@@ -1,5 +1,5 @@
 import { useRenderer } from '@opentui/react'
-import { type MutableRefObject, useEffect } from 'react'
+import { type MutableRefObject, useEffect, useRef } from 'react'
 
 import type { SessionBackend } from '../session-backend/types'
 import type { AppAction, FocusMode, TabSession } from '../state/types'
@@ -9,6 +9,7 @@ import { createRawInputHandler } from '../input/raw-input-handler'
 import { copyToSystemClipboard } from '../platform/clipboard'
 import { writePasteToTab, writeToTab } from './pty-write'
 import { type OtuiSelection, resolveSelectionClipboardText } from './selection-clipboard'
+import { applyViewportObservation, type ViewportObservation } from './selection-scroll'
 
 const BRACKETED_PASTE_ENABLE_SEQUENCE = '\x1b[?2004h'
 const BRACKETED_PASTE_DISABLE_SEQUENCE = '\x1b[?2004l'
@@ -21,6 +22,7 @@ interface UseRendererBindingsOptions {
   dispatch: (action: AppAction) => void
   focusMode: FocusMode
   activeTabId: string | null
+  activeTabViewportY: number | null
   focusModeRef: MutableRefObject<FocusMode>
   activeTabIdRef: MutableRefObject<string | null>
   activeTabRef: MutableRefObject<TabSession | undefined>
@@ -34,12 +36,15 @@ export function useRendererBindings({
   activeTabId,
   activeTabIdRef,
   activeTabRef,
+  activeTabViewportY,
   backend,
   dispatch,
   focusMode,
   focusModeRef,
   renderer,
 }: UseRendererBindingsOptions): void {
+  const lastViewportRef = useRef<ViewportObservation | null>(null)
+
   useEffect(() => {
     renderer.useMouse = true
     renderer.useConsole = false
@@ -119,6 +124,14 @@ export function useRendererBindings({
       renderer.off('selection', handleSelection)
     }
   }, [activeTabIdRef, activeTabRef, backend, dispatch, focusModeRef, renderer])
+
+  useEffect(() => {
+    const next: ViewportObservation | null =
+      activeTabId !== null && activeTabViewportY !== null
+        ? { tabId: activeTabId, y: activeTabViewportY }
+        : null
+    lastViewportRef.current = applyViewportObservation(renderer, lastViewportRef.current, next)
+  }, [activeTabId, activeTabViewportY, renderer])
 
   useEffect(() => {
     const shouldEnableBracketedPaste = focusMode === 'terminal-input' && activeTabId !== null

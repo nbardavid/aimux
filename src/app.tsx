@@ -120,6 +120,7 @@ export function App({ backend }: { backend: SessionBackend }) {
     activeTabId: state.activeTabId,
     activeTabIdRef,
     activeTabRef,
+    activeTabViewportY: activeTab?.viewport?.viewportY ?? null,
     backend,
     dispatch,
     focusMode: state.focusMode,

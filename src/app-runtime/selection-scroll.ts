@@ -1,5 +1,10 @@
 interface SelectableLike {
   selectable?: boolean
+  isDestroyed?: boolean
+}
+
+function isUsableTarget(target: SelectableLike | null | undefined): target is SelectableLike {
+  return Boolean(target?.selectable) && !target?.isDestroyed
 }
 
 interface SelectionLike {
@@ -41,10 +46,10 @@ export function resetSelectionShiftState(renderer: object): void {
 
 function pickSelectionTarget(selection: SelectionLike): SelectableLike | null {
   for (const r of selection.selectedRenderables) {
-    if (r?.selectable) return r
+    if (isUsableTarget(r)) return r
   }
   for (const r of selection.touchedRenderables) {
-    if (r?.selectable) return r
+    if (isUsableTarget(r)) return r
   }
   return null
 }
@@ -74,7 +79,7 @@ export function shiftSelectionByScroll(renderer: RendererSelectionApi, deltaLine
   const state = getState(renderer)
 
   if (liveDiffersFromCache(live, state)) {
-    const target = pickSelectionTarget(live) ?? state.target
+    const target = pickSelectionTarget(live) ?? (isUsableTarget(state.target) ? state.target : null)
     if (target) {
       state.target = target
       state.anchor = { x: live.anchor.x, y: live.anchor.y }
@@ -82,7 +87,12 @@ export function shiftSelectionByScroll(renderer: RendererSelectionApi, deltaLine
     }
   }
 
-  if (!state.target || !state.anchor || !state.focus) return
+  if (!isUsableTarget(state.target) || !state.anchor || !state.focus) {
+    if (!isUsableTarget(state.target)) {
+      resetSelectionShiftState(renderer)
+    }
+    return
+  }
 
   const anchor = { x: state.anchor.x, y: state.anchor.y - deltaLines }
   const focus = { x: state.focus.x, y: state.focus.y - deltaLines }

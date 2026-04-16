@@ -17,8 +17,8 @@ function makeSelection(overrides?: {
   isDragging?: boolean
   anchor?: { x: number; y: number }
   focus?: { x: number; y: number }
-  selectedRenderables?: { selectable?: boolean }[]
-  touchedRenderables?: { selectable?: boolean }[]
+  selectedRenderables?: { selectable?: boolean; isDestroyed?: boolean }[]
+  touchedRenderables?: { selectable?: boolean; isDestroyed?: boolean }[]
 }) {
   return {
     anchor: overrides?.anchor ?? { x: 3, y: 5 },
@@ -176,5 +176,44 @@ describe('shiftSelectionByScroll', () => {
     shiftSelectionByScroll(renderer, 5)
     expect(renderer.startCalls.at(-1)).toMatchObject({ target: second, x: 10, y: 15 })
     expect(renderer.updateCalls.at(-1)).toMatchObject({ target: second, x: 11, y: 16 })
+  })
+
+  test('skips destroyed renderables when picking a target', () => {
+    const live = { selectable: true }
+    const renderer = makeRenderer(() =>
+      makeSelection({
+        selectedRenderables: [{ isDestroyed: true, selectable: true }, live],
+      })
+    )
+    resetSelectionShiftState(renderer)
+
+    shiftSelectionByScroll(renderer, 1)
+
+    expect(renderer.startCalls[0]?.target).toBe(live)
+  })
+
+  test('drops cached target once destroyed and skips shift', () => {
+    const target: { selectable: boolean; isDestroyed?: boolean } = { selectable: true }
+    let live: ReturnType<typeof makeSelection> = makeSelection({
+      anchor: { x: 1, y: 5 },
+      focus: { x: 2, y: 6 },
+      selectedRenderables: [target],
+    })
+    const renderer = makeRenderer(() => live)
+    resetSelectionShiftState(renderer)
+
+    shiftSelectionByScroll(renderer, 1)
+    expect(renderer.startCalls).toHaveLength(1)
+
+    target.isDestroyed = true
+    live = makeSelection({
+      anchor: { x: 1, y: 4 },
+      focus: { x: 2, y: 5 },
+      selectedRenderables: [],
+      touchedRenderables: [],
+    })
+
+    shiftSelectionByScroll(renderer, 1)
+    expect(renderer.startCalls).toHaveLength(1)
   })
 })

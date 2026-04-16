@@ -1,6 +1,6 @@
-import { memo, useEffect, useMemo } from 'react'
+import { memo, useEffect } from 'react'
 
-import type { DiffData, DiffLine, GitModeState } from '../../state/types'
+import type { DiffData } from '../../state/types'
 
 import { fetchDiff } from '../../git/git-diff'
 import { useGitPanelPolling } from '../../git/git-poller'
@@ -9,173 +9,120 @@ import { dispatchGlobal } from '../../state/dispatch-ref'
 import { theme } from '../theme'
 import { GitPanel } from './git-panel'
 
-const PAGE_OVERHEAD = 4
-
-function formatLineNumber(value: number | null, width: number): string {
-  if (value === null) return ' '.repeat(width)
-  return String(value).padStart(width, ' ')
+function filetypeFromPath(path: string): string | undefined {
+  const dot = path.lastIndexOf('.')
+  if (dot < 0) return undefined
+  const ext = path.slice(dot + 1).toLowerCase()
+  const map: Record<string, string> = {
+    c: 'c',
+    cjs: 'javascript',
+    cpp: 'cpp',
+    cs: 'csharp',
+    css: 'css',
+    go: 'go',
+    h: 'c',
+    hpp: 'cpp',
+    html: 'html',
+    java: 'java',
+    js: 'javascript',
+    json: 'json',
+    jsx: 'jsx',
+    kt: 'kotlin',
+    lua: 'lua',
+    md: 'markdown',
+    mjs: 'javascript',
+    php: 'php',
+    py: 'python',
+    rb: 'ruby',
+    rs: 'rust',
+    sh: 'bash',
+    swift: 'swift',
+    ts: 'typescript',
+    tsx: 'tsx',
+    vue: 'vue',
+    yaml: 'yaml',
+    yml: 'yaml',
+    zig: 'zig',
+  }
+  return map[ext]
 }
 
-function paneScroll(gitMode: GitModeState, side: 'before' | 'after'): number {
-  if (gitMode.syncScroll) return gitMode.scrollOffset
-  return side === 'before' ? gitMode.beforeScrollOffset : gitMode.afterScrollOffset
-}
-
-interface DiffPaneProps {
-  side: 'before' | 'after'
+interface DiffStageProps {
   diff: DiffData | undefined
   loading: boolean
-  scrollOffset: number
-  focused: boolean
   syncScroll: boolean
-  title: string
 }
 
-function emptyDiffPlaceholder(diff: DiffData | undefined, side: 'before' | 'after'): string | null {
-  if (!diff) return null
-  if (diff.status === 'new' && side === 'before') return '(new file)'
-  if (diff.status === 'deleted' && side === 'after') return '(deleted)'
+function placeholderText(diff: DiffData): string | null {
   if (diff.status === 'binary') {
-    const size = side === 'before' ? diff.binarySizeBefore : diff.binarySizeAfter
-    return `(binary file — ${size ?? 0} bytes)`
+    const before = diff.binarySizeBefore ?? 0
+    const after = diff.binarySizeAfter ?? 0
+    return `(binary file — ${before} → ${after} bytes)`
+  }
+  if (diff.rawDiff.length === 0) {
+    if (diff.status === 'new') return '(new file — no diff)'
+    if (diff.status === 'deleted') return '(deleted — no diff)'
+    return '(no changes)'
   }
   return null
 }
 
-function visibleLinesForSide(
-  diff: DiffData,
-  side: 'before' | 'after',
-  scroll: number,
-  maxRows: number
-): DiffLine[] {
-  const filtered = diff.lines.filter((line) => {
-    if (side === 'before') return line.kind !== 'added'
-    return line.kind !== 'removed'
-  })
-  return filtered.slice(scroll, scroll + maxRows)
-}
-
-const DiffPane = memo(function DiffPane({
-  diff,
-  focused,
-  loading,
-  scrollOffset,
-  side,
-  syncScroll,
-  title,
-}: DiffPaneProps) {
-  const placeholder = emptyDiffPlaceholder(diff, side)
-  const borderColor = focused && !syncScroll ? theme.borderActive : theme.border
-  const lineNumberWidth = useMemo(() => {
-    if (!diff) return 1
-    const maxBefore = diff.beforeLineCount
-    const maxAfter = diff.afterLineCount
-    const max = Math.max(maxBefore, maxAfter, 1)
-    return String(max).length
-  }, [diff])
-
-  let body: React.ReactNode
+const DiffStage = memo(function DiffStage({ diff, loading, syncScroll }: DiffStageProps) {
   if (loading && !diff) {
-    body = (
-      <box padding={1}>
+    return (
+      <box flexGrow={1} padding={1}>
         <text fg={theme.textMuted}>Loading diff…</text>
       </box>
     )
-  } else if (!diff) {
-    body = (
-      <box padding={1}>
-        <text fg={theme.textMuted}>No diff selected.</text>
+  }
+  if (!diff) {
+    return (
+      <box flexGrow={1} padding={1}>
+        <text fg={theme.textMuted}>Select a file.</text>
       </box>
     )
-  } else if (diff.errorMessage) {
-    body = (
-      <box padding={1}>
+  }
+  if (diff.errorMessage) {
+    return (
+      <box flexGrow={1} padding={1}>
         <text fg={theme.danger}>{diff.errorMessage}</text>
-      </box>
-    )
-  } else if (placeholder) {
-    body = (
-      <box padding={1}>
-        <text fg={theme.textMuted}>{placeholder}</text>
-      </box>
-    )
-  } else {
-    body = (
-      <box flexDirection="column" flexGrow={1} overflow="hidden">
-        <DiffLines
-          diff={diff}
-          side={side}
-          scroll={scrollOffset}
-          lineNumberWidth={lineNumberWidth}
-        />
       </box>
     )
   }
 
-  return (
-    <box
-      flexDirection="column"
-      flexGrow={1}
-      flexBasis={0}
-      overflow="hidden"
-      border
-      borderColor={borderColor}
-      backgroundColor={theme.background}
-    >
-      <box paddingLeft={1} paddingRight={1}>
-        <text fg={theme.accentAlt}>
-          <strong>{title}</strong>
-        </text>
-        {diff?.oldPath && side === 'before' ? (
-          <text fg={theme.textMuted}> renamed from {diff.oldPath}</text>
-        ) : null}
+  const placeholder = placeholderText(diff)
+  if (placeholder) {
+    return (
+      <box flexGrow={1} padding={1}>
+        <text fg={theme.textMuted}>{placeholder}</text>
       </box>
-      {body}
-    </box>
-  )
-})
+    )
+  }
 
-interface DiffLinesProps {
-  diff: DiffData
-  side: 'before' | 'after'
-  scroll: number
-  lineNumberWidth: number
-}
+  const filetype = filetypeFromPath(diff.path)
 
-const DiffLines = memo(function DiffLines({ diff, lineNumberWidth, scroll, side }: DiffLinesProps) {
-  const MAX_VISIBLE = 200
-  const visible = useMemo(
-    () => visibleLinesForSide(diff, side, scroll, MAX_VISIBLE),
-    [diff, side, scroll]
-  )
   return (
     <box flexDirection="column" flexGrow={1} overflow="hidden">
-      {visible.map((line, index) => {
-        let bg: string | undefined
-        if (line.kind === 'added') bg = theme.diffAddBg
-        else if (line.kind === 'removed') bg = theme.diffRemoveBg
-        const lineNumber =
-          side === 'before'
-            ? formatLineNumber(line.lineNumberBefore, lineNumberWidth)
-            : formatLineNumber(line.lineNumberAfter, lineNumberWidth)
-        let prefix = ' '
-        if (line.kind === 'added') prefix = '+'
-        else if (line.kind === 'removed') prefix = '-'
-        return (
-          <box key={index} flexDirection="row" backgroundColor={bg} overflow="hidden">
-            <text fg={theme.textMuted} bg={bg}>
-              {` ${lineNumber} `}
-            </text>
-            <text fg={theme.dim} bg={bg}>
-              {prefix}
-            </text>
-            <text fg={theme.text} bg={bg}>
-              {' '}
-              {line.text}
-            </text>
-          </box>
-        )
-      })}
+      {diff.oldPath ? (
+        <box paddingLeft={1} paddingRight={1}>
+          <text fg={theme.textMuted}>
+            renamed: {diff.oldPath} → {diff.path}
+          </text>
+        </box>
+      ) : null}
+      <diff
+        diff={diff.rawDiff}
+        view="split"
+        syncScroll={syncScroll}
+        showLineNumbers
+        wrapMode="none"
+        filetype={filetype}
+        addedBg={theme.diffAddBg}
+        removedBg={theme.diffRemoveBg}
+        addedSignColor={theme.success}
+        removedSignColor={theme.danger}
+        flexGrow={1}
+      />
     </box>
   )
 })
@@ -209,10 +156,8 @@ export const GitView = memo(function GitView() {
       .then((d) => dispatchGlobal({ diff: d, path, type: 'git-mode-set-diff' }))
       .catch(() => dispatchGlobal({ loading: false, path, type: 'git-mode-set-loading' }))
   }, [focusMode, projectPath, selectedFile, diff, loading])
-  const beforeScroll = paneScroll(gitMode, 'before')
-  const afterScroll = paneScroll(gitMode, 'after')
 
-  const footerLines = ['j/k next/prev · ↓/↑ scroll · Ctrl+d/u page · Tab split · Esc exit']
+  const footerLine = 'j/k next/prev file · Tab toggle sync · mouse wheel scroll · Esc exit'
 
   return (
     <box flexDirection="column" flexGrow={1}>
@@ -240,32 +185,11 @@ export const GitView = memo(function GitView() {
             selectedFilePath={selectedFile?.path ?? null}
           />
         </box>
-        <box flexDirection="row" flexGrow={1} overflow="hidden">
-          <DiffPane
-            side="before"
-            diff={diff}
-            loading={loading}
-            scrollOffset={beforeScroll}
-            focused={gitMode.focusedPane === 'before'}
-            syncScroll={gitMode.syncScroll}
-            title="BEFORE (HEAD)"
-          />
-          <DiffPane
-            side="after"
-            diff={diff}
-            loading={loading}
-            scrollOffset={afterScroll}
-            focused={gitMode.focusedPane === 'after'}
-            syncScroll={gitMode.syncScroll}
-            title="AFTER (working)"
-          />
-        </box>
+        <DiffStage diff={diff} loading={loading} syncScroll={gitMode.syncScroll} />
       </box>
       <box paddingLeft={1} paddingRight={1} backgroundColor={theme.panel}>
-        <text fg={theme.textMuted}>{footerLines[0]}</text>
+        <text fg={theme.textMuted}>{footerLine}</text>
       </box>
     </box>
   )
 })
-
-export const GIT_VIEW_PAGE_OVERHEAD = PAGE_OVERHEAD

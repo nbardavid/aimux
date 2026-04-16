@@ -143,20 +143,11 @@ export interface GitPanelState {
 
 export type DiffFileStatus = 'modified' | 'new' | 'deleted' | 'binary' | 'renamed'
 
-export interface DiffLine {
-  kind: 'context' | 'added' | 'removed'
-  lineNumberBefore: number | null
-  lineNumberAfter: number | null
-  text: string
-}
-
 export interface DiffData {
   path: string
   status: DiffFileStatus
   oldPath?: string
-  lines: DiffLine[]
-  beforeLineCount: number
-  afterLineCount: number
+  rawDiff: string
   binarySizeBefore?: number
   binarySizeAfter?: number
   errorMessage?: string
@@ -164,9 +155,6 @@ export interface DiffData {
 
 export interface GitModeState {
   selectedFileIndex: number
-  scrollOffset: number
-  beforeScrollOffset: number
-  afterScrollOffset: number
   focusedPane: 'before' | 'after'
   syncScroll: boolean
   diffs: Record<string, DiffData>
@@ -392,7 +380,6 @@ export type GitModeAction =
   | { type: 'enter-git-mode' }
   | { type: 'exit-git-mode' }
   | { type: 'git-mode-select-file'; delta: -1 | 1 }
-  | { type: 'git-mode-scroll'; delta: number }
   | { type: 'git-mode-toggle-sync' }
   | { type: 'git-mode-set-diff'; path: string; diff: DiffData }
   | { type: 'git-mode-set-loading'; path: string; loading: boolean }

@@ -27,26 +27,12 @@ export const gitMode: ModeHandler = {
       return result([{ type: 'exit-git-mode' }], [], 'navigation')
     }
 
-    if (key.name === 'j' || key.name === 'down') {
-      if (key.ctrl) {
-        return result([{ delta: 10, type: 'git-mode-scroll' }])
-      }
+    if (key.name === 'j') {
       return selectFile(ctx, 1)
     }
 
-    if (key.name === 'k' || key.name === 'up') {
-      if (key.ctrl) {
-        return result([{ delta: -10, type: 'git-mode-scroll' }])
-      }
+    if (key.name === 'k') {
       return selectFile(ctx, -1)
-    }
-
-    if (key.ctrl && key.name === 'd') {
-      return result([{ delta: 10, type: 'git-mode-scroll' }])
-    }
-
-    if (key.ctrl && key.name === 'u') {
-      return result([{ delta: -10, type: 'git-mode-scroll' }])
     }
 
     if (key.name === 'tab') {

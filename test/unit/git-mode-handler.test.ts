@@ -56,13 +56,7 @@ test('git-mode j emits select-file action + fetch side effect', () => {
 test('git-mode j skips fetch if diff already cached', () => {
   let state = seedWithFiles([entry('a.ts'), entry('b.ts')])
   state = appReducer(state, {
-    diff: {
-      afterLineCount: 0,
-      beforeLineCount: 0,
-      lines: [],
-      path: 'b.ts',
-      status: 'modified',
-    },
+    diff: { path: 'b.ts', rawDiff: '', status: 'modified' },
     path: 'b.ts',
     type: 'git-mode-set-diff',
   })
@@ -74,12 +68,6 @@ test('git-mode Tab toggles scroll sync', () => {
   const state = seedWithFiles([entry('a.ts')])
   const result = gitMode.handleKey(key({ name: 'tab' }), { state })
   expect(result?.actions).toEqual([{ type: 'git-mode-toggle-sync' }])
-})
-
-test('git-mode Ctrl+d pages down', () => {
-  const state = seedWithFiles([entry('a.ts')])
-  const result = gitMode.handleKey(key({ ctrl: true, name: 'd' }), { state })
-  expect(result?.actions).toEqual([{ delta: 10, type: 'git-mode-scroll' }])
 })
 
 test('git-mode ignores unrelated keys (isolation)', () => {

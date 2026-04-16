@@ -129,6 +129,36 @@ describe('createRawInputHandler', () => {
     expect(writeToPty).toHaveBeenCalledWith('tab-1', '\x1f')
   })
 
+  test('swallows Kitty Cmd+C without forwarding to PTY', () => {
+    const { handler, writeToPty } = setup()
+    expect(handler('\x1b[99;9u')).toBe(true)
+    expect(writeToPty).not.toHaveBeenCalled()
+  })
+
+  test('swallows Kitty Cmd+V without forwarding to PTY', () => {
+    const { handler, writeToPty } = setup()
+    expect(handler('\x1b[118;9u')).toBe(true)
+    expect(writeToPty).not.toHaveBeenCalled()
+  })
+
+  test('swallows Kitty Cmd+Shift+C without forwarding to PTY', () => {
+    const { handler, writeToPty } = setup()
+    expect(handler('\x1b[99;10u')).toBe(true)
+    expect(writeToPty).not.toHaveBeenCalled()
+  })
+
+  test('swallows Kitty Hyper+C without forwarding to PTY', () => {
+    const { handler, writeToPty } = setup()
+    expect(handler('\x1b[99;17u')).toBe(true)
+    expect(writeToPty).not.toHaveBeenCalled()
+  })
+
+  test('swallows Kitty Meta+A without forwarding to PTY', () => {
+    const { handler, writeToPty } = setup()
+    expect(handler('\x1b[97;33u')).toBe(true)
+    expect(writeToPty).not.toHaveBeenCalled()
+  })
+
   test('forwards raw bracketed paste content without wrappers when inner mode is disabled', () => {
     const { handler, leaveTerminalInput, toggleSidebar, writeToPty } = setup()
     expect(handler('\x1b[200~hello\nworld\x1b[201~')).toBe(true)

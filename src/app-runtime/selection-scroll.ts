@@ -108,3 +108,30 @@ export function shiftSelectionByScroll(renderer: RendererSelectionApi, deltaLine
   renderer.startSelection(state.target, anchor.x, anchor.y)
   renderer.updateSelection(state.target, focus.x, focus.y, { finishDragging: true })
 }
+
+export interface ViewportObservation {
+  tabId: string
+  y: number
+}
+
+export function applyViewportObservation(
+  renderer: RendererSelectionApi,
+  prior: ViewportObservation | null,
+  next: ViewportObservation | null
+): ViewportObservation | null {
+  if (!next) {
+    if (prior !== null) resetSelectionShiftState(renderer)
+    return null
+  }
+
+  if (!prior || prior.tabId !== next.tabId) {
+    resetSelectionShiftState(renderer)
+    return next
+  }
+
+  const delta = next.y - prior.y
+  if (delta !== 0) {
+    shiftSelectionByScroll(renderer, delta)
+  }
+  return next
+}

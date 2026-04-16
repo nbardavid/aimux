@@ -1,9 +1,11 @@
 import { describe, expect, mock, test } from 'bun:test'
 
 import {
+  applyViewportObservation,
   type RendererSelectionApi,
   resetSelectionShiftState,
   shiftSelectionByScroll,
+  type ViewportObservation,
 } from '../../src/app-runtime/selection-scroll'
 
 interface TestRenderer extends RendererSelectionApi {
@@ -215,5 +217,79 @@ describe('shiftSelectionByScroll', () => {
 
     shiftSelectionByScroll(renderer, 1)
     expect(renderer.startCalls).toHaveLength(1)
+  })
+})
+
+describe('applyViewportObservation', () => {
+  function setupRenderer() {
+    const target = { selectable: true }
+    let live: ReturnType<typeof makeSelection> | null = makeSelection({
+      anchor: { x: 1, y: 10 },
+      focus: { x: 2, y: 12 },
+      selectedRenderables: [target],
+    })
+    const renderer = makeRenderer(() => live)
+    resetSelectionShiftState(renderer)
+    return {
+      renderer,
+      seedLive(next: ReturnType<typeof makeSelection> | null) {
+        live = next
+      },
+      target,
+    }
+  }
+
+  test('first observation only stores prior, no shift', () => {
+    const { renderer } = setupRenderer()
+    const next: ViewportObservation = { tabId: 'tab-1', y: 10 }
+
+    const result = applyViewportObservation(renderer, null, next)
+
+    expect(result).toEqual(next)
+    expect(renderer.startCalls).toHaveLength(0)
+  })
+
+  test('shifts selection by delta when viewportY changes within same tab', () => {
+    const { renderer, target } = setupRenderer()
+
+    const result = applyViewportObservation(
+      renderer,
+      { tabId: 'tab-1', y: 10 },
+      { tabId: 'tab-1', y: 7 }
+    )
+
+    expect(result).toEqual({ tabId: 'tab-1', y: 7 })
+    expect(renderer.startCalls.at(-1)).toMatchObject({ target, x: 1, y: 13 })
+    expect(renderer.updateCalls.at(-1)).toMatchObject({ target, x: 2, y: 15 })
+  })
+
+  test('skips shift when viewportY is unchanged', () => {
+    const { renderer } = setupRenderer()
+
+    applyViewportObservation(renderer, { tabId: 'tab-1', y: 10 }, { tabId: 'tab-1', y: 10 })
+
+    expect(renderer.startCalls).toHaveLength(0)
+  })
+
+  test('resets cache and skips shift on tab switch', () => {
+    const { renderer } = setupRenderer()
+
+    const result = applyViewportObservation(
+      renderer,
+      { tabId: 'tab-1', y: 10 },
+      { tabId: 'tab-2', y: 4 }
+    )
+
+    expect(result).toEqual({ tabId: 'tab-2', y: 4 })
+    expect(renderer.startCalls).toHaveLength(0)
+  })
+
+  test('returns null and resets cache when next observation is null', () => {
+    const { renderer } = setupRenderer()
+
+    const result = applyViewportObservation(renderer, { tabId: 'tab-1', y: 10 }, null)
+
+    expect(result).toBeNull()
+    expect(renderer.startCalls).toHaveLength(0)
   })
 })

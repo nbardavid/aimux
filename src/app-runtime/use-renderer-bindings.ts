@@ -9,7 +9,7 @@ import { createRawInputHandler } from '../input/raw-input-handler'
 import { copyToSystemClipboard } from '../platform/clipboard'
 import { writePasteToTab, writeToTab } from './pty-write'
 import { type OtuiSelection, resolveSelectionClipboardText } from './selection-clipboard'
-import { resetSelectionShiftState, shiftSelectionByScroll } from './selection-scroll'
+import { applyViewportObservation, type ViewportObservation } from './selection-scroll'
 
 const BRACKETED_PASTE_ENABLE_SEQUENCE = '\x1b[?2004h'
 const BRACKETED_PASTE_DISABLE_SEQUENCE = '\x1b[?2004l'
@@ -43,7 +43,7 @@ export function useRendererBindings({
   focusModeRef,
   renderer,
 }: UseRendererBindingsOptions): void {
-  const lastViewportRef = useRef<{ tabId: string; y: number } | null>(null)
+  const lastViewportRef = useRef<ViewportObservation | null>(null)
 
   useEffect(() => {
     renderer.useMouse = true
@@ -126,24 +126,11 @@ export function useRendererBindings({
   }, [activeTabIdRef, activeTabRef, backend, dispatch, focusModeRef, renderer])
 
   useEffect(() => {
-    if (activeTabId === null || activeTabViewportY === null) {
-      lastViewportRef.current = null
-      resetSelectionShiftState(renderer)
-      return
-    }
-
-    const prior = lastViewportRef.current
-    lastViewportRef.current = { tabId: activeTabId, y: activeTabViewportY }
-
-    if (!prior || prior.tabId !== activeTabId) {
-      resetSelectionShiftState(renderer)
-      return
-    }
-
-    const delta = activeTabViewportY - prior.y
-    if (delta !== 0) {
-      shiftSelectionByScroll(renderer, delta)
-    }
+    const next: ViewportObservation | null =
+      activeTabId !== null && activeTabViewportY !== null
+        ? { tabId: activeTabId, y: activeTabViewportY }
+        : null
+    lastViewportRef.current = applyViewportObservation(renderer, lastViewportRef.current, next)
   }, [activeTabId, activeTabViewportY, renderer])
 
   useEffect(() => {

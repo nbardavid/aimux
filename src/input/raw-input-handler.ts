@@ -11,8 +11,12 @@ const CTRL_W_KITTY = `${ESC}[119;5u`
 const CTRL_B_RAW = '\x02'
 const CTRL_B_KITTY = `${ESC}[98;5u`
 const KITTY_CTRL_RE = new RegExp(`^${ESC}\\[(\\d+);(\\d+)u$`)
+const KITTY_MOD_SUPER = 8
+const KITTY_MOD_HYPER = 16
+const KITTY_MOD_META = 32
+const KITTY_HOST_MOD_MASK = KITTY_MOD_SUPER | KITTY_MOD_HYPER | KITTY_MOD_META
 
-function normalizeControlSequence(sequence: string): string {
+function normalizeControlSequence(sequence: string): string | null {
   const match = KITTY_CTRL_RE.exec(sequence)
   if (!match) {
     return sequence
@@ -20,6 +24,11 @@ function normalizeControlSequence(sequence: string): string {
 
   const codePoint = Number(match[1])
   const modifiers = Number(match[2]) - 1
+
+  if ((modifiers & KITTY_HOST_MOD_MASK) !== 0) {
+    return null
+  }
+
   const hasCtrl = (modifiers & 4) !== 0
   const hasAlt = (modifiers & 2) !== 0
 
@@ -160,7 +169,16 @@ export function createRawInputHandler(deps: {
       return true
     }
 
-    deps.writeToPty(tabId, normalizeControlSequence(sequence))
+    const normalized = normalizeControlSequence(sequence)
+    if (normalized === null) {
+      logInputDebug('raw.swallowHostModifier', {
+        sequencePreview: sequence.slice(0, 40),
+        tabId,
+      })
+      return true
+    }
+
+    deps.writeToPty(tabId, normalized)
     return true
   }
 

@@ -18,6 +18,27 @@ export interface RendererSelectionApi {
   clearSelection(): void
 }
 
+interface ShiftState {
+  target: SelectableLike | null
+  anchor: { x: number; y: number } | null
+  focus: { x: number; y: number } | null
+}
+
+const states = new WeakMap<object, ShiftState>()
+
+function getState(renderer: object): ShiftState {
+  let s = states.get(renderer)
+  if (!s) {
+    s = { anchor: null, focus: null, target: null }
+    states.set(renderer, s)
+  }
+  return s
+}
+
+export function resetSelectionShiftState(renderer: object): void {
+  states.set(renderer, { anchor: null, focus: null, target: null })
+}
+
 function pickSelectionTarget(selection: SelectionLike): SelectableLike | null {
   for (const r of selection.selectedRenderables) {
     if (r?.selectable) return r
@@ -28,23 +49,46 @@ function pickSelectionTarget(selection: SelectionLike): SelectableLike | null {
   return null
 }
 
+function liveDiffersFromCache(live: SelectionLike, state: ShiftState): boolean {
+  if (!state.anchor || !state.focus) return true
+  return (
+    live.anchor.x !== state.anchor.x ||
+    live.anchor.y !== state.anchor.y ||
+    live.focus.x !== state.focus.x ||
+    live.focus.y !== state.focus.y
+  )
+}
+
 export function shiftSelectionByScroll(renderer: RendererSelectionApi, deltaLines: number): void {
   if (deltaLines === 0) return
 
-  const selection = renderer.getSelection()
-  if (!selection || !selection.isActive || selection.isDragging) return
+  const live = renderer.getSelection()
 
-  const target = pickSelectionTarget(selection)
-  if (!target) {
-    renderer.clearSelection()
+  if (!live?.isActive) {
+    resetSelectionShiftState(renderer)
     return
   }
 
-  const anchorX = selection.anchor.x
-  const anchorY = selection.anchor.y - deltaLines
-  const focusX = selection.focus.x
-  const focusY = selection.focus.y - deltaLines
+  if (live.isDragging) return
 
-  renderer.startSelection(target, anchorX, anchorY)
-  renderer.updateSelection(target, focusX, focusY, { finishDragging: true })
+  const state = getState(renderer)
+
+  if (liveDiffersFromCache(live, state)) {
+    const target = pickSelectionTarget(live) ?? state.target
+    if (target) {
+      state.target = target
+      state.anchor = { x: live.anchor.x, y: live.anchor.y }
+      state.focus = { x: live.focus.x, y: live.focus.y }
+    }
+  }
+
+  if (!state.target || !state.anchor || !state.focus) return
+
+  const anchor = { x: state.anchor.x, y: state.anchor.y - deltaLines }
+  const focus = { x: state.focus.x, y: state.focus.y - deltaLines }
+  state.anchor = anchor
+  state.focus = focus
+
+  renderer.startSelection(state.target, anchor.x, anchor.y)
+  renderer.updateSelection(state.target, focus.x, focus.y, { finishDragging: true })
 }

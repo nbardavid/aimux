@@ -209,6 +209,8 @@ function MouseHarness({
       },
       sessions: [],
       sidebar: {
+        gitPanelRatio: 0.5,
+        gitPanelVisible: true,
         maxWidth: SIDEBAR_MAX_WIDTH,
         minWidth: SIDEBAR_MIN_WIDTH,
         visible: true,

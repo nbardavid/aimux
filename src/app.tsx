@@ -39,8 +39,11 @@ export function App({ backend }: { backend: SessionBackend }) {
     return config.themeId ?? 'aimux'
   })
   const [state, dispatch] = useReducer(appReducer, undefined, () => {
-    const { customCommands } = loadConfig()
-    return createInitialState(customCommands, loadSessionCatalog(), loadSnippetCatalog(), true)
+    const { customCommands, gitPanelRatio, gitPanelVisible } = loadConfig()
+    return createInitialState(customCommands, loadSessionCatalog(), loadSnippetCatalog(), true, {
+      gitPanelRatio,
+      gitPanelVisible,
+    })
   })
 
   useLayoutEffect(() => {

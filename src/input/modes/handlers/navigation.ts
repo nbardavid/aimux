@@ -83,6 +83,18 @@ export const navigationMode: ModeHandler = {
       return result([{ delta: 2, type: 'resize-sidebar' }])
     }
 
+    if (key.shift && key.name === 'g') {
+      return result([{ type: 'toggle-git-panel' }])
+    }
+
+    if (key.ctrl && key.name === 'j') {
+      return result([{ delta: -0.05, type: 'resize-git-panel' }])
+    }
+
+    if (key.ctrl && key.name === 'k') {
+      return result([{ delta: 0.05, type: 'resize-git-panel' }])
+    }
+
     if (key.shift && key.name === 'j') {
       return result([{ delta: 1, type: 'reorder-active-tab' }])
     }

@@ -28,6 +28,8 @@ const SECTIONS = [
     bindings: [
       ['Ctrl+b', 'Toggle sidebar'],
       ['Ctrl+h / l', 'Resize sidebar'],
+      ['Shift+G', 'Toggle git panel'],
+      ['Ctrl+j / k', 'Resize git panel'],
     ],
     title: 'Sidebar',
   },

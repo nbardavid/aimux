@@ -16,6 +16,7 @@ import {
   resolveClickSelection,
 } from './click-selection-resolver'
 import { requestRenderUpTree } from './render-invalidation'
+import { type RendererSelectionApi, shiftSelectionByScroll } from './selection-scroll'
 import { getSplitRatioFromDrag, type SplitDragState } from './split-drag-controller'
 import { getForwardedMouseSequence, getScrollViewportDelta } from './terminal-mouse-adapter'
 
@@ -23,11 +24,8 @@ interface UseMouseHandlersOptions {
   state: AppState
   dispatch: (action: AppAction) => void
   backend: SessionBackend
-  renderer: {
-    clearSelection(): void
+  renderer: RendererSelectionApi & {
     hasSelection?: boolean
-    startSelection(target: unknown, x: number, y: number): void
-    updateSelection(target: unknown, x: number, y: number, opts: { finishDragging: boolean }): void
   }
   activeMouseForwardingEnabled: boolean
   activeLocalScrollbackEnabled: boolean
@@ -101,6 +99,7 @@ export function useMouseHandlers({
     }
 
     backend.scrollViewport(targetTabId, delta)
+    shiftSelectionByScroll(renderer, delta)
   }
 
   const handleSplitResize = (tabId: string, ratio: number, axis: SplitDirection) => {

@@ -12,10 +12,13 @@ export function writeToTab(
   backend: SessionBackend,
   tabId: string,
   tab: TabSession | undefined,
-  input: string
+  input: string,
+  onViewportScrolled?: (deltaLines: number) => void
 ): void {
-  if (tab && shouldScrollViewportToBottom(tab)) {
+  if (tab?.viewport && shouldScrollViewportToBottom(tab)) {
+    const deltaLines = tab.viewport.baseY - tab.viewport.viewportY
     backend.scrollViewportToBottom(tabId)
+    onViewportScrolled?.(deltaLines)
   }
 
   backend.write(tabId, input)
@@ -25,8 +28,9 @@ export function writePasteToTab(
   backend: SessionBackend,
   tabId: string,
   tab: TabSession | undefined,
-  text: string
+  text: string,
+  onViewportScrolled?: (deltaLines: number) => void
 ): void {
   const payload = buildPtyPastePayload(text, tab?.terminalModes.bracketedPasteMode ?? false)
-  writeToTab(backend, tabId, tab, payload)
+  writeToTab(backend, tabId, tab, payload, onViewportScrolled)
 }

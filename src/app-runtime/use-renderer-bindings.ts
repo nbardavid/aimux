@@ -9,6 +9,7 @@ import { createRawInputHandler } from '../input/raw-input-handler'
 import { copyToSystemClipboard } from '../platform/clipboard'
 import { writePasteToTab, writeToTab } from './pty-write'
 import { type OtuiSelection, resolveSelectionClipboardText } from './selection-clipboard'
+import { shiftSelectionByScroll } from './selection-scroll'
 
 const BRACKETED_PASTE_ENABLE_SEQUENCE = '\x1b[?2004h'
 const BRACKETED_PASTE_DISABLE_SEQUENCE = '\x1b[?2004l'
@@ -46,6 +47,10 @@ export function useRendererBindings({
     renderer.console.hide()
     renderer.console.show = () => {}
 
+    const onViewportScrolled = (deltaLines: number) => {
+      shiftSelectionByScroll(renderer, deltaLines)
+    }
+
     const handler = createRawInputHandler({
       enterLayoutMode: () => dispatch({ focusMode: 'layout', type: 'set-focus-mode' }),
       getActiveTabId: () => activeTabIdRef.current,
@@ -54,7 +59,8 @@ export function useRendererBindings({
       getFocusMode: () => focusModeRef.current,
       leaveTerminalInput: () => dispatch({ focusMode: 'navigation', type: 'set-focus-mode' }),
       toggleSidebar: () => dispatch({ type: 'toggle-sidebar' }),
-      writeToPty: (tabId, data) => writeToTab(backend, tabId, activeTabRef.current, data),
+      writeToPty: (tabId, data) =>
+        writeToTab(backend, tabId, activeTabRef.current, data, onViewportScrolled),
     })
 
     const handlePasteEvent = (event: { bytes: Uint8Array; defaultPrevented?: boolean }) => {
@@ -84,7 +90,7 @@ export function useRendererBindings({
         return
       }
 
-      writePasteToTab(backend, tabId, tab, payload)
+      writePasteToTab(backend, tabId, tab, payload, onViewportScrolled)
     }
 
     const handleSelection = (selection: OtuiSelection) => {
